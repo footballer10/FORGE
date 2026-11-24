@@ -3,8 +3,8 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
-- **Done last session:** Milestone 7b (milestone 7 complete): weekly streaks (`domain/streaks.ts`, pure + tests), streak achievements (4, 12, 26, 52 weeks), Home cards (streak, recent PRs, achievements with "New" and "Mark all seen"), post-workout summary sheet (PRs with value and previous, new achievements, streak), and a short PR highlight on a set row (240 ms, "PR" badge). Tests and build pass; Home loads without errors in headless Chromium.
-- **Next session:** Milestone 8 (polish and install). Suggest splitting 8a (empty states, onboarding, Settings screen for units/formula/plate sizes, replace `window.confirm`) and 8b (accessibility, performance/bundle split, install help, offline check, real icons, Cloudflare Pages deploy).
+- **Done last session:** Milestone 8a: in-app `ConfirmDialog` replaces both `window.confirm` calls (discard workout, remove exercise); Settings screen (opened from the Home header: weight and length units, e1RM formula with its formula text, planned days per week, dumbbell pair total, theme); first-run onboarding (units, bodyweight, training days, goals; shown once, never to someone who already has workouts). Tests (311) and build pass; onboarding and Settings checked in headless Chromium.
+- **Next session:** Milestone 8b (accessibility pass, performance and Recharts bundle split, install-to-home-screen help, offline check, real app icons, Cloudflare Pages deploy).
 - **Known issues:** see bottom.
 
 ## Decisions (defaults chosen; change by asking)
@@ -172,30 +172,28 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - [x] 7b: PR celebration (post-set highlight, summary, Home)
 
 ## Milestone 8 — Polish & install
-- [ ] Empty states, onboarding (units, bodyweight, goals)
-- [ ] Accessibility pass (labels, contrast, reduced motion)
-- [ ] Performance (list virtualization if needed, bundle split for Recharts)
-- [ ] Install-to-home-screen help; offline check; real app icons
-- [ ] Cloudflare Pages deploy
+- [x] 8a: Empty states (audited, already present), onboarding (units, bodyweight, goals), Settings screen, in-app confirm dialogs
+- [ ] 8b: Accessibility pass (labels, contrast, reduced motion)
+- [ ] 8b: Performance (list virtualization if needed, bundle split for Recharts)
+- [ ] 8b: Install-to-home-screen help; offline check; real app icons
+- [ ] 8b: Cloudflare Pages deploy
 
 ## Known issues
-- No Settings screen yet: pair-total toggle is on the Train home; plate sizes and bar weight come from the default equipment profile with no editor (M8 / later).
+- Settings (8a) has no plate or bar editor; those stay in Coach → Training profile (Settings points there). The pair-total toggle also remains on the Train home.
 - Editing a past workout changes its sets but not its start/end times or name (no editor for those yet).
 - Superset rounds are not enforced or visually sequenced; supersets only affect when the rest timer starts.
 - `navigator.vibrate` is unsupported on iOS Safari, so on iPhone the rest timer ends with no buzz or sound (a visual change only). Needs a decision (e.g. audio cue) later; not added to avoid guessing.
 - The rest timer cannot alert while the PWA is backgrounded or locked (no push/background timers on iOS); it is correct on return, just silent.
 - Reorder is up/down buttons, not drag-and-drop (no new dependency).
-- `window.confirm` is still used for Remove in the options sheet (M8).
 - Finish drops unticked sets and exercises with no completed sets (documented behaviour); undo is available for 20 s after finishing (snackbar) or from Backup.
 - Discard soft-deletes the workout (goes to the Trash screen under Backup).
-- Remove-exercise / discard use `window.confirm`; replace with in-app dialogs in M8 polish.
 - History list is read-only and loads the latest 30 workouts without virtualization.
 - Keypad ± for weight converts the exercise increment into the set's unit; weights are shown in the set's stored unit, not the profile unit, if they differ.
 - Library pattern/loadModel/rest values are name-based heuristics (`exerciseMapper.ts`); some library entries will be mis-classified. Fix per exercise in the editor; bump `LIBRARY_VERSION` only to add missing exercises (existing ones are never overwritten).
 - Exercise library JSON (~790 KB, 150 KB gzip) is a lazy chunk, precached by the service worker; Vite warns about chunk size. Fine for now, revisit in M8.
 - Increment unit is lb-only in the exercise form; kg increments come with the units setting.
 - Library exercises (not just custom) can be deleted from the editor; deleted ones are not re-seeded.
-- App icons are placeholder SVG/PNG; real icons in M8.
+- App icons are placeholder SVG/PNG; real icons in 8b.
 - Google Fonts load from the network on first visit and are runtime-cached; if first load is offline the system fallback fonts are used.
 - Strong import has only been exercised with synthetic CSVs (tests + a browser run); the real Strong export's column names, distance units and date format are unverified. Try the user's real file first and report anything that looks off.
 - Strong import: a whole import can be undone only while it is the latest undo entry; "Past imports" only changes dumbbell conventions, and re-applying overwrites any manual edits to those sets.
@@ -239,4 +237,5 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Coach (6a): the summary and the profile editor were checked in headless Chromium only (not on an iPhone). Copy uses `navigator.clipboard`; if blocked, the text is selected and the user is told to copy by hand. The summary has no conditioning detail, readiness or photo info, and no per-session workout log; it is a rolled-up view, so Claude cannot see individual sets. Profile editor has no unsaved-changes prompt. The weight and length units and the e1RM formula are still not editable in any Settings screen.
 - Coach (6b): checked in headless Chromium only. Diff compares position, so inserting a session early in a week shows as changes to every later day. Per-set RPE/rest edits other than targets and rest are not diffed (notes, supersets, progression rule changes are saved but not shown in the diff). A proposal cannot create exercises; add them in the library first. There is no rollback screen for AI versions yet (the old version is archived and kept; `AiDecision.status` `rolledBack` is unused). No unsaved-text protection: pasted text is lost if you leave the tab's screen state.
 - Achievements (7a): no UI yet. `sync()` re-reads all training data each call (fine for personal data). A lift milestone needs the lift on the strength-score list; imported history is credited on first sync, all unseen.
-- Gamification (7b): Home and the summary were checked in headless Chromium with an empty database only (cards with data are covered by repository tests, not seen visually). Home shows the 6 newest achievements with no full list screen. The default `plannedDaysPerWeek` is not editable until the Settings screen (M8). Live PR check re-reads the exercise's history on each tick (fine for personal data). The summary sheet is lost if the app is closed before tapping Done (achievements still appear on Home as New).
+- Gamification (7b): Home and the summary were checked in headless Chromium with an empty database only (cards with data are covered by repository tests, not seen visually). Home shows the 6 newest achievements with no full list screen. Live PR check re-reads the exercise's history on each tick (fine for personal data). The summary sheet is lost if the app is closed before tapping Done (achievements still appear on Home as New).
+- Settings/onboarding (8a): checked in headless Chromium only. Changing the weight unit does not convert existing sets or bodyweight entries (they keep their unit; analytics convert). The theme choice is stored both in localStorage and on the profile. Onboarding pre-fills the user's default goals; the confirm dialog has no focus trap. Increment unit in the exercise form is still lb-only.
