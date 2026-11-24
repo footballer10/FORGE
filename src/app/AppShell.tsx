@@ -6,6 +6,7 @@ import { TrainScreen } from '../features/train/TrainScreen';
 import { StrengthScreen } from '../features/strength/StrengthScreen';
 import { ProgressScreen } from '../features/progress/ProgressScreen';
 import { SettingsScreen } from '../features/settings/SettingsScreen';
+import { Onboarding } from '../features/settings/Onboarding';
 import { CoachScreen } from '../features/coach/CoachScreen';
 import { WorkoutSummarySheet } from '../features/home/WorkoutSummarySheet';
 import { UndoBar } from './UndoBar';
@@ -57,6 +58,7 @@ export function AppShell() {
         {settingsOpen ? <SettingsScreen /> : <Screen />}
       </main>
       <WorkoutSummarySheet />
+      <Onboarding />
       <UndoBar />
       <RestTimer />
       <TabBar />
