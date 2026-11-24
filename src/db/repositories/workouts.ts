@@ -1,4 +1,5 @@
-import { draftsFromTargets } from '../../domain/routine';
+import { applySuggestion, draftsFromTargets } from '../../domain/routine';
+import { suggestProgression } from '../../domain/progression';
 import type { ID, RoutineExercise, SetEntry, Workout, WorkoutExercise, WeightUnit } from '../../domain/types';
 import { db } from '../schema';
 import { createRepo, nowIso, type NewEntity } from './base';
@@ -75,13 +76,25 @@ export const workoutRepo = {
       const ex = await db.exercises.get(re.exerciseId);
       if (!ex || ex.deletedAt) continue;
       const last = await workoutRepo.lastSetsFor(re.exerciseId, w.id);
+      const firstWork = re.targets.find((t) => t.type !== 'warmup');
+      const suggestion = re.progression
+        ? suggestProgression({
+            rule: re.progression,
+            ...(firstWork?.reps !== undefined ? { targetReps: firstWork.reps } : {}),
+            last,
+            increment: { value: ex.weightIncrement, unit: ex.incrementUnit },
+          })
+        : undefined;
       const we = await workoutRepo.addExercise(w.id, re.exerciseId, {
         ...(re.supersetGroup ? { supersetGroup: re.supersetGroup } : {}),
         ...(re.notes ? { notes: re.notes } : {}),
         ...(re.restSec !== undefined ? { restSec: re.restSec } : {}),
         ...(re.targets.length > 0 ? { targets: re.targets } : {}),
+        ...(suggestion ? { progressionNote: `Suggested ${suggestion.summary}. ${suggestion.reason}` } : {}),
       });
-      for (const draft of draftsFromTargets(re.targets, last, fallbackUnit)) await workoutRepo.addSet(we.id, draft);
+      let drafts = draftsFromTargets(re.targets, last, fallbackUnit);
+      if (suggestion) drafts = applySuggestion(drafts, re.targets.length > 0 ? re.targets : [{ type: 'working' }], suggestion);
+      for (const draft of drafts) await workoutRepo.addSet(we.id, draft);
     }
     return w;
   },

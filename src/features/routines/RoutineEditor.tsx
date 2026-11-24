@@ -3,7 +3,7 @@ import { exerciseRepo, routineRepo } from '../../db/repositories';
 import { moveItem } from '../../domain/order';
 import { defaultTarget, describeTargets, sanitizeExercises } from '../../domain/routine';
 import { toggleSupersetLink } from '../../domain/superset';
-import type { Exercise, ID, Routine, RoutineExercise, SetType, TargetSet } from '../../domain/types';
+import type { Exercise, ID, ProgressionRule, Routine, RoutineExercise, SetType, TargetSet } from '../../domain/types';
 import { SET_TYPES } from '../../domain/logging';
 import { ExerciseBrowser } from '../exercises/ExerciseBrowser';
 import { ExerciseForm } from '../exercises/ExerciseForm';
@@ -188,6 +188,20 @@ export function ExercisesEditor({ heading, nameLabel = 'Name', namePlaceholder, 
                 }}
               />
             </label>
+            {!timed && model !== 'repsOnly' && (
+              <ProgressionField
+                rule={it.progression}
+                onChange={(progression) =>
+                  setItems((c) =>
+                    c.map((x, k) => {
+                      if (k !== i) return x;
+                      const { progression: _p, ...rest } = x;
+                      return progression && progression.kind !== 'none' ? { ...rest, progression } : rest;
+                    }),
+                  )
+                }
+              />
+            )}
             <div className="flex items-center gap-1 px-1 pb-1 text-xs uppercase text-muted">
               <span className="w-20 shrink-0">Type</span>
               {timed ? (
@@ -252,6 +266,57 @@ export function ExercisesEditor({ heading, nameLabel = 'Name', namePlaceholder, 
           {saveLabel}
         </button>
       </div>
+    </div>
+  );
+}
+
+const RULE_LABEL: Record<ProgressionRule['kind'], string> = {
+  none: 'No progression',
+  doubleProgression: 'Double progression',
+  percentE1rm: '% of e1RM',
+  rpeTarget: 'RPE target',
+};
+
+const RULE_HELP: Record<ProgressionRule['kind'], string> = {
+  none: '',
+  doubleProgression: 'When every set at your top weight reaches the max reps, add the increment and drop back to the min reps. Otherwise aim one rep higher.',
+  percentE1rm: 'Weight = your last session’s best estimated 1RM (Epley) × the percentage, rounded to the exercise increment.',
+  rpeTarget: 'Estimates your 1RM from last session’s sets that have an RPE, then picks the weight for the target reps at the target RPE. Log RPE for it to work.',
+};
+
+/** Choose how the next session's weight is suggested. The suggestion is shown, never applied silently. */
+function ProgressionField({ rule, onChange }: { rule: ProgressionRule | undefined; onChange: (r: ProgressionRule | undefined) => void }) {
+  const kind = rule?.kind ?? 'none';
+  const numberOr = (v: string, fallback: number) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : fallback);
+  const pick = (k: ProgressionRule['kind']) => {
+    if (k === 'none') return onChange(undefined);
+    if (k === 'doubleProgression') return onChange({ kind: k, repsMin: 8, repsMax: 12 });
+    if (k === 'percentE1rm') return onChange({ kind: k, percent: 0.8 });
+    return onChange({ kind: k, rpe: 8 });
+  };
+  return (
+    <div className="pb-2">
+      <label className="flex items-center gap-2 pb-1 text-sm text-muted">
+        <span className="w-24 shrink-0">Progression</span>
+        <select aria-label="Progression rule" className="min-h-tap flex-1 rounded-card border border-line bg-surface-2 px-2 text-sm text-fg" value={kind} onChange={(e) => pick(e.target.value as ProgressionRule['kind'])}>
+          {(Object.keys(RULE_LABEL) as ProgressionRule['kind'][]).map((k) => <option key={k} value={k}>{RULE_LABEL[k]}</option>)}
+        </select>
+      </label>
+      {rule?.kind === 'doubleProgression' && (
+        <div className="flex gap-2 pb-1">
+          <span className="flex min-h-tap items-center text-xs text-muted">Min</span>
+          <input aria-label="Min reps" className={small} inputMode="numeric" value={rule.repsMin} onChange={(e) => onChange({ ...rule, repsMin: numberOr(e.target.value, rule.repsMin) })} />
+          <span className="flex min-h-tap items-center text-xs text-muted">Max</span>
+          <input aria-label="Max reps" className={small} inputMode="numeric" value={rule.repsMax} onChange={(e) => onChange({ ...rule, repsMax: numberOr(e.target.value, rule.repsMax) })} />
+        </div>
+      )}
+      {rule?.kind === 'percentE1rm' && (
+        <input aria-label="Percent of e1RM" className={small} inputMode="decimal" value={Math.round(rule.percent * 1000) / 10} onChange={(e) => onChange({ ...rule, percent: Math.min(1.2, numberOr(e.target.value, rule.percent * 100) / 100) })} />
+      )}
+      {rule?.kind === 'rpeTarget' && (
+        <input aria-label="Target RPE" className={small} inputMode="decimal" value={rule.rpe} onChange={(e) => onChange({ ...rule, rpe: Math.min(10, numberOr(e.target.value, rule.rpe)) })} />
+      )}
+      {RULE_HELP[kind] && <p className="pt-1 text-xs text-muted">{RULE_HELP[kind]}</p>}
     </div>
   );
 }

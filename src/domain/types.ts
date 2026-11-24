@@ -172,6 +172,8 @@ export interface WorkoutExercise extends BaseEntity {
   restSec?: number;
   /** Targets copied from the routine, shown as a hint while logging. */
   targets?: TargetSet[];
+  /** Progression suggestion applied when the workout started (result and formula), shown while logging. */
+  progressionNote?: string;
 }
 
 export interface SetEntry extends BaseEntity {
