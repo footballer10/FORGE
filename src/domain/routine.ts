@@ -1,5 +1,6 @@
 import type { RoutineExercise, SetEntry, SetType, TargetSet, WeightUnit } from './types';
 import type { SetDraft } from './logging';
+import type { Suggestion } from './progression';
 
 const num = (n: number) => String(Math.round(n * 100) / 100);
 
@@ -108,4 +109,23 @@ export function targetsFromSets(sets: readonly Pick<SetEntry, 'type' | 'weight' 
       ...(s.durationSec !== undefined ? { durationSec: s.durationSec } : {}),
       ...(s.distanceM !== undefined ? { distanceM: s.distanceM } : {}),
     }));
+}
+
+/**
+ * Apply a progression suggestion to the drafts built from `targets`: every non-warm-up set whose
+ * target has no fixed weight takes the suggested weight; a suggested rep target (double
+ * progression) replaces the reps of those sets. Drafts and targets line up by index.
+ */
+export function applySuggestion<D extends SetDraft & { unit: WeightUnit }>(drafts: D[], targets: readonly TargetSet[], s: Suggestion): D[] {
+  return drafts.map((d, i) => {
+    const t = targets[i];
+    if (d.type === 'warmup') return d;
+    const out: D = { ...d };
+    if (t?.weight === undefined) {
+      out.weight = s.weight;
+      out.unit = s.unit;
+    }
+    if (s.reps !== undefined) out.reps = s.reps;
+    return out;
+  });
 }

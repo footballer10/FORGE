@@ -102,6 +102,7 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
                 </h2>
                 {row.exercise.stickyNote && <p className="whitespace-pre-line text-sm text-muted">{row.exercise.stickyNote}</p>}
                 {row.we.targets && <p className="num text-sm text-muted">Target {describeTargets(row.we.targets)}</p>}
+                {row.we.progressionNote && <p className="text-sm text-muted">{row.we.progressionNote}</p>}
                 {row.we.notes && <p className="whitespace-pre-line text-sm text-fg">{row.we.notes}</p>}
               </div>
               {row.exercise.equipment === 'barbell' && row.exercise.loadModel === 'total' && (

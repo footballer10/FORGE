@@ -388,3 +388,23 @@ describe('planned session link', () => {
     expect(stats[0]!.hardSets).toBe(1);
   });
 });
+
+describe('progression on start', () => {
+  it('prefills the suggested weight and reps and records the formula', async () => {
+    const { routineRepo } = await import('../../db/repositories');
+    const bench = await exerciseRepo.create({ ...base, name: 'Bench' });
+    await useWorkout.getState().start();
+    await useWorkout.getState().addExercise(bench.id);
+    await useWorkout.getState().updateSet(sets()[0]!.id, { weight: 135, reps: 12 });
+    await useWorkout.getState().toggleComplete(sets()[0]!.id);
+    await useWorkout.getState().finish();
+
+    const r = await routineRepo.create({
+      name: 'Push',
+      exercises: [{ exerciseId: bench.id, order: 0, progression: { kind: 'doubleProgression', repsMin: 8, repsMax: 12 }, targets: [{ type: 'working', reps: 8, repsMax: 12 }, { type: 'working', reps: 8, repsMax: 12, weight: 100, unit: 'lb' }] }],
+    });
+    await useWorkout.getState().startFromRoutine(r.id);
+    expect(sets().map((s) => [s.weight, s.reps])).toEqual([[140, 8], [100, 8]]); // fixed target weight wins
+    expect(useWorkout.getState().rows[0]!.we.progressionNote).toMatch(/Suggested 140 lb × 8\. All 1 set/);
+  });
+});

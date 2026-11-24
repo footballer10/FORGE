@@ -59,3 +59,23 @@ describe('targetsFromSets', () => {
     expect(t).toEqual([{ type: 'working', reps: 5, weight: 100, unit: 'lb' }]);
   });
 });
+
+describe('applySuggestion', () => {
+  const s = { weight: 140, unit: 'lb' as const, reps: 8, change: 'increase' as const, summary: '', reason: '' };
+  it('sets weight and reps on working sets without a fixed weight; leaves warm-ups', async () => {
+    const { applySuggestion } = await import('./routine');
+    const targets = [{ type: 'warmup' as const, reps: 5 }, { type: 'working' as const, reps: 12 }, { type: 'working' as const, reps: 12, weight: 150, unit: 'kg' as const }];
+    const drafts = [{ type: 'warmup' as const, unit: 'lb' as const, reps: 5 }, { type: 'working' as const, unit: 'lb' as const, reps: 12 }, { type: 'working' as const, unit: 'kg' as const, weight: 150, reps: 12 }];
+    expect(applySuggestion(drafts, targets, s)).toEqual([
+      drafts[0],
+      { type: 'working', unit: 'lb', weight: 140, reps: 8 },
+      { type: 'working', unit: 'kg', weight: 150, reps: 8 },
+    ]);
+  });
+  it('keeps reps when the suggestion has none', async () => {
+    const { applySuggestion } = await import('./routine');
+    const { reps: _r, ...noReps } = s;
+    const out = applySuggestion([{ type: 'working' as const, unit: 'lb' as const, reps: 5 }], [{ type: 'working', reps: 5 }], noReps);
+    expect(out[0]).toEqual({ type: 'working', unit: 'lb', weight: 140, reps: 5 });
+  });
+});

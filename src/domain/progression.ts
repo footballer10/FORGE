@@ -54,7 +54,7 @@ export function suggestProgression({ rule, targetReps, last, increment }: Sugges
   const top = sets.reduce((a, b) => (convertWeight(b.weight, b.unit, a.unit) > a.weight ? b : a));
   const unit = top.unit;
   const baseInc = rule.kind === 'doubleProgression' && rule.increment ? rule.increment : increment;
-  const inc = convertWeight(baseInc.weight, baseInc.unit, unit);
+  const inc = convertWeight(baseInc.value, baseInc.unit, unit);
   const inUnit = (s: LastSet & { weight: number }) => convertWeight(s.weight, s.unit, unit);
 
   switch (rule.kind) {

@@ -3,7 +3,7 @@ import { epley, weightForE1rm } from './e1rm';
 import { roundToIncrement, suggestProgression, type LastSet } from './progression';
 
 const w = (weight: number, reps: number, o: Partial<LastSet> = {}): LastSet => ({ type: 'working', unit: 'lb', weight, reps, ...o });
-const inc5 = { weight: 5, unit: 'lb' as const };
+const inc5 = { value: 5, unit: 'lb' as const };
 
 describe('epley', () => {
   it('matches the formula and inverts', () => {
@@ -39,7 +39,7 @@ describe('double progression', () => {
     expect(s).toMatchObject({ weight: 135, reps: 8 });
   });
   it('uses the rule increment, converted to the set unit', () => {
-    const s = suggestProgression({ rule: { ...rule, increment: { weight: 2.5, unit: 'kg' } }, last: [w(100, 12, { unit: 'kg' })], increment: inc5 })!;
+    const s = suggestProgression({ rule: { ...rule, increment: { value: 2.5, unit: 'kg' } }, last: [w(100, 12, { unit: 'kg' })], increment: inc5 })!;
     expect(s).toMatchObject({ weight: 102.5, unit: 'kg' });
   });
 });
