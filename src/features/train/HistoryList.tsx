@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 import { exerciseRepo, workoutRepo, type FullWorkout } from '../../db/repositories';
+import { useWorkout } from './workoutStore';
 import { durationMinutes } from '../../domain/logging';
 import type { Exercise } from '../../domain/types';
 
 const dateFmt = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 
-/** Finished workouts, newest first. Read-only for now; editing past workouts is Milestone 1b. */
+/** Finished workouts, newest first. Each can be edited in place or repeated as a new workout. */
 export function HistoryList() {
+  const openPast = useWorkout((s) => s.openPast);
+  const duplicate = useWorkout((s) => s.duplicate);
   const [items, setItems] = useState<FullWorkout[] | null>(null);
   const [names, setNames] = useState<Map<string, Exercise>>(new Map());
 
@@ -41,6 +44,10 @@ export function HistoryList() {
               {exercises.length} exercises · {setCount} sets{workout.endedAt ? ` · ${durationMinutes(workout.startedAt, workout.endedAt)} min` : ''}
             </p>
             <p className="pt-1 text-sm text-fg">{exercises.map((e) => names.get(e.exerciseId)?.name ?? 'Exercise').join(', ')}</p>
+            <div className="flex gap-2 pt-2">
+              <button type="button" onClick={() => void openPast(workout.id)} className="min-h-tap flex-1 rounded-card border border-line text-sm text-fg">Edit</button>
+              <button type="button" onClick={() => void duplicate(workout.id)} className="min-h-tap flex-1 rounded-card border border-line text-sm text-fg">Repeat</button>
+            </div>
           </li>
         );
       })}

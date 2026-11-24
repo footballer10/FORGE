@@ -4,10 +4,13 @@ interface Props {
   row: ExerciseRow;
   index: number;
   count: number;
+  /** True when this exercise and the next share a superset group. */
+  linkedToNext: boolean;
   onStickyNote: (note: string) => void;
   onSessionNote: (note: string) => void;
   onMove: (delta: -1 | 1) => void;
   onSwap: () => void;
+  onSuperset: () => void;
   onRemove: () => void;
   onClose: () => void;
 }
@@ -16,7 +19,7 @@ const area = 'min-h-[88px] w-full rounded-card border border-line bg-surface-2 p
 const btn = 'min-h-[56px] flex-1 rounded-card border border-line text-base disabled:opacity-40';
 
 /** Per-exercise actions: notes (sticky + this session), move, swap, remove. */
-export function ExerciseSheet({ row, index, count, onStickyNote, onSessionNote, onMove, onSwap, onRemove, onClose }: Props) {
+export function ExerciseSheet({ row, index, count, linkedToNext, onStickyNote, onSessionNote, onMove, onSwap, onSuperset, onRemove, onClose }: Props) {
   const swapBlocked = row.sets.some((s) => s.completedAt);
   return (
     <div role="dialog" aria-label={`${row.exercise.name} options`} className="fixed inset-0 z-50 flex flex-col justify-end bg-black/60" onClick={onClose}>
@@ -32,6 +35,11 @@ export function ExerciseSheet({ row, index, count, onStickyNote, onSessionNote, 
         <div className="flex gap-2 pt-4">
           <button type="button" className={btn} disabled={index === 0} onClick={() => onMove(-1)}>Move up</button>
           <button type="button" className={btn} disabled={index === count - 1} onClick={() => onMove(1)}>Move down</button>
+        </div>
+        <div className="flex gap-2 pt-2">
+          <button type="button" className={btn} disabled={index === count - 1} onClick={onSuperset}>
+            {linkedToNext ? 'Unlink superset' : 'Superset with next'}
+          </button>
         </div>
         <div className="flex gap-2 pt-2">
           <button type="button" className={btn} disabled={swapBlocked} onClick={onSwap}>Swap exercise</button>

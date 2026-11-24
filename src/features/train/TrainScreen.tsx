@@ -20,6 +20,8 @@ export function TrainScreen() {
   const start = useWorkout((s) => s.start);
   const addExercise = useWorkout((s) => s.addExercise);
   const swapExercise = useWorkout((s) => s.swapExercise);
+  const showPairTotal = useWorkout((s) => s.showPairTotal);
+  const setShowPairTotal = useWorkout((s) => s.setShowPairTotal);
 
   if (view.kind === 'pick') {
     return (
@@ -61,6 +63,10 @@ export function TrainScreen() {
       >
         Exercise library
       </button>
+      <label className="mb-4 flex min-h-tap items-center justify-between rounded-card border border-line bg-surface px-4 text-base text-fg">
+        <span>Show dumbbell pair total</span>
+        <input type="checkbox" className="h-6 w-6" checked={showPairTotal} onChange={(e) => void setShowPairTotal(e.target.checked)} />
+      </label>
       <h2 className="pb-2 text-2xl uppercase">History</h2>
       <HistoryList />
       {/* Primary action sits in the bottom third for one-handed use. */}
