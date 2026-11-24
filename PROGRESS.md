@@ -4,7 +4,7 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
 - **Done last session:** Milestone 1b-ii — supersets (rest only after the last exercise of the round), edit past workouts in place, repeat a past workout, plate calculator, dumbbell pair-total display. Milestone 1b is complete. 79 tests pass.
-- **Next session:** Milestone 2 (import, export & safety). It is large: split it in PROGRESS.md first (suggest 2a: Strong CSV parser + import preview; 2b: export, restore, backup reminder, undo, trash).
+- **Next session:** Milestone 2a (Strong import) in progress; then 2b (export/restore), 2c (backup reminder, undo, trash).
 - **Known issues:** see bottom.
 
 ## Decisions (defaults chosen; change by asking)
@@ -64,13 +64,19 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - [x] Plate calculator (bar weight, available plates, per side)
 - [x] Display setting: show dumbbell pair total
 
-## Milestone 2 — Import, export & safety
-- [ ] Strong CSV parser (pure) + tests: dumbbell, bodyweight, kg, lb, duration/distance
-- [ ] Import preview: exercise matching (name + aliases), create-or-map, dumbbell convention toggle
-- [ ] Duplicate detection; ImportBatch + RawImportRow saved; re-apply conventions
+## Milestone 2a — Strong import
+- [ ] CSV tokenizer + Strong CSV parser (pure) + tests: dumbbell, bodyweight, kg, lb, duration/distance
+- [ ] Exercise matching (name + aliases), create-or-map plan, dumbbell convention (pure + tests)
+- [ ] Duplicate detection (pure + tests)
+- [ ] Import commit: ImportBatch + RawImportRow saved, re-apply conventions (repository + tests)
+- [ ] Import preview UI: file pick, per-exercise map/create, dumbbell toggle, duplicate count, confirm
+
+## Milestone 2b — Export & restore
 - [ ] Full JSON export + `docs/export-format.md`
 - [ ] Strong-format CSV export
 - [ ] JSON restore (replace or merge) with preview
+
+## Milestone 2c — Safety net
 - [ ] Weekly backup reminder (Files/iCloud via share sheet / download)
 - [ ] Undo last action
 - [ ] Trash: soft-deleted workouts, 30-day purge, restore
