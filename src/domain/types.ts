@@ -168,6 +168,12 @@ export interface WorkoutExercise extends BaseEntity {
   /** Exercises sharing a group label form a superset/circuit; rest runs after the last in the round. */
   supersetGroup?: string;
   notes?: string;
+  /** Rest override (seconds) copied from the routine; absent = the exercise's default. */
+  restSec?: number;
+  /** Targets copied from the routine, shown as a hint while logging. */
+  targets?: TargetSet[];
+  /** Progression suggestion applied when the workout started (result and formula), shown while logging. */
+  progressionNote?: string;
 }
 
 export interface SetEntry extends BaseEntity {
@@ -459,6 +465,9 @@ export interface RawImportRow {
 export interface Achievement extends BaseEntity {
   /** Stable key of the achievement definition, e.g. 'bench-225', 'workouts-100'. */
   key: string;
+  /** Display text captured when earned (lift names can change later). */
+  title?: string;
+  description?: string;
   achievedAt: ISODateTime;
   /** The workout/set that earned it. */
   workoutId?: ID;
