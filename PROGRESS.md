@@ -3,8 +3,8 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
-- **Done last session:** Milestone 1b-ii — supersets (rest only after the last exercise of the round), edit past workouts in place, repeat a past workout, plate calculator, dumbbell pair-total display. Milestone 1b is complete. 79 tests pass.
-- **Next session:** Milestone 2 (import, export & safety). It is large: split it in PROGRESS.md first (suggest 2a: Strong CSV parser + import preview; 2b: export, restore, backup reminder, undo, trash).
+- **Done last session:** Milestone 2a — Strong CSV import: tokenizer + parser, exercise matching, dumbbell convention, duplicate detection, atomic commit with ImportBatch + RawImportRow, re-apply conventions, preview UI (Train → Import from Strong). Milestone 2 was split into 2a/2b/2c. 118 tests pass.
+- **Next session:** Milestone 2b (full JSON export + `docs/export-format.md`, Strong-format CSV export, JSON restore with preview). Then 2c (backup reminder, undo, trash).
 - **Known issues:** see bottom.
 
 ## Decisions (defaults chosen; change by asking)
@@ -27,6 +27,14 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Repeat copies exercises, supersets and set structure (type/weight/reps/time/distance) as unticked sets; notes, RPE/RIR are not copied.
 - Plate calculator uses the exercise's `barWeight`, else the default equipment profile's bar (45 lb) and plates; shown only for barbell exercises with the `total` load model. Greedy, per side, with a "closest" note when the target is not reachable.
 - Dumbbell pair total is display-only, a small "N total" line under the weight; the toggle lives on the Train home screen until a Settings screen exists.
+- Strong import: file dates are local wall-clock time; weights keep the unit the file states (header `Weight (kg)` or a Weight Unit column), else the unit chosen in the preview (default lb). Stored in that unit; never converted at import.
+- Strong import: distance is read as metres unless the header says `(km)` or `(mi)`. Strong's own export may differ; check on the first real file.
+- Strong import: only equipment `dumbbell` + `perImplement` exercises get the pair-total halving (kettlebells are single loads). Default is halve; override globally or per exercise in the preview; fixable later from "Past imports".
+- Strong import matching: exact name/alias only is auto-applied. If several library exercises share the alias, the plain "Barbell X" form (then the shorter name) is picked and the rest are offered, with a "check it" note. Close-but-not-exact names are suggestions only; default is "create new exercise".
+- Strong import duplicates: a file workout whose start falls in the same minute as an existing workout is skipped (survives later edits to the sets).
+- Strong import new exercises: modelled from the name tag and the data (Dumbbell → perImplement, Assisted → assisted, Weighted/pull-ups → bodyweightPlusAdded, no reps with time/distance → timeDistance, else total), `source: 'import'`, no muscles (editable in the library).
+- Strong import raw rows: only rows that produced a set are stored in `RawImportRow` (rest-timer rows are counted, not stored). Set completion times are spread across the workout duration; workouts with no Duration end at their start time.
+- Set-level notes from Strong are joined into the workout exercise's notes (sets have no note field).
 - Default rest 120 s for compound lifts, 90 s otherwise; default increment 5 lb barbell, 5 lb dumbbell (per implement), 2.5 lb fallback for small plates is a per-exercise edit.
 
 ## Milestone 0 — Foundation
@@ -64,13 +72,19 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - [x] Plate calculator (bar weight, available plates, per side)
 - [x] Display setting: show dumbbell pair total
 
-## Milestone 2 — Import, export & safety
-- [ ] Strong CSV parser (pure) + tests: dumbbell, bodyweight, kg, lb, duration/distance
-- [ ] Import preview: exercise matching (name + aliases), create-or-map, dumbbell convention toggle
-- [ ] Duplicate detection; ImportBatch + RawImportRow saved; re-apply conventions
+## Milestone 2a — Strong import
+- [x] CSV tokenizer + Strong CSV parser (pure) + tests: dumbbell, bodyweight, kg, lb, duration/distance
+- [x] Exercise matching (name + aliases), create-or-map plan, dumbbell convention (pure + tests)
+- [x] Duplicate detection (pure + tests)
+- [x] Import commit: ImportBatch + RawImportRow saved, re-apply conventions (repository + tests)
+- [x] Import preview UI: file pick, per-exercise map/create, dumbbell toggle, duplicate count, confirm
+
+## Milestone 2b — Export & restore
 - [ ] Full JSON export + `docs/export-format.md`
 - [ ] Strong-format CSV export
 - [ ] JSON restore (replace or merge) with preview
+
+## Milestone 2c — Safety net
 - [ ] Weekly backup reminder (Files/iCloud via share sheet / download)
 - [ ] Undo last action
 - [ ] Trash: soft-deleted workouts, 30-day purge, restore
@@ -126,8 +140,8 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - The rest timer cannot alert while the PWA is backgrounded or locked (no push/background timers on iOS); it is correct on return, just silent.
 - Reorder is up/down buttons, not drag-and-drop (no new dependency).
 - `window.confirm` is still used for Remove in the options sheet (M8).
-- Finish drops unticked sets and exercises with no completed sets (documented behaviour); there is no undo until M2.
-- Discard soft-deletes the workout (goes to trash once the trash screen exists in M2).
+- Finish drops unticked sets and exercises with no completed sets (documented behaviour); there is no undo until M2c.
+- Discard soft-deletes the workout (goes to trash once the trash screen exists in M2c).
 - Remove-exercise / discard use `window.confirm`; replace with in-app dialogs in M8 polish.
 - History list is read-only and loads the latest 30 workouts without virtualization.
 - Keypad ± for weight converts the exercise increment into the set's unit; weights are shown in the set's stored unit, not the profile unit, if they differ.
@@ -137,3 +151,8 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Library exercises (not just custom) can be deleted from the editor; deleted ones are not re-seeded.
 - App icons are placeholder SVG/PNG; real icons in M8.
 - Google Fonts load from the network on first visit and are runtime-cached; if first load is offline the system fallback fonts are used.
+- Strong import has only been exercised with synthetic CSVs (tests + a browser run); the real Strong export's column names, distance units and date format are unverified. Try the user's real file first and report anything that looks off.
+- Strong import: no way yet to undo a whole import (comes with undo/trash in M2c); "Past imports" only changes dumbbell conventions, and re-applying overwrites any manual edits to those sets.
+- Imported exercises have no muscles/pattern beyond name inference, so they do not count toward muscle volume until edited in the library.
+- Strong import holds the whole file in memory and builds all entities in one transaction; fine for a few years of data, not tested on tens of thousands of sets.
+- Preview lists every distinct exercise name with native selects; a long list (hundreds) has no search or bulk-apply.
