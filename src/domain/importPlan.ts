@@ -71,6 +71,15 @@ function similarity(a: string, b: string): number {
   return inter / (ta.size + tb.size - inter);
 }
 
+const EQUIP_PREFIX = /^(barbell|dumbbell|cable|kettlebell|machine|band|ez[- ]bar|smith machine)\s/i;
+
+/** Several library entries can share an alias; prefer the plain "Barbell X" form, then the shorter name. */
+function canonicalOrder(a: Exercise, b: Exercise): number {
+  const pa = EQUIP_PREFIX.test(a.name) ? 0 : 1;
+  const pb = EQUIP_PREFIX.test(b.name) ? 0 : 1;
+  return pa - pb || a.name.length - b.name.length || a.name.localeCompare(b.name);
+}
+
 export interface SourceExercise {
   name: string;
   setCount: number;
@@ -148,8 +157,10 @@ export interface ExerciseMatch {
   source: SourceExercise;
   /** Set when the name (or an alias) equals the Strong name exactly (case-insensitive). */
   exact?: Exercise;
-  /** Close candidates for a manual map, best first. Never auto-applied. */
+  /** Other candidates for a manual map, best first. Never auto-applied. */
   suggestions: Exercise[];
+  /** True when several library exercises carry the Strong name as an alias; `exact` is then a ranked guess. */
+  ambiguous?: boolean;
   draft: ExerciseDraft;
 }
 
@@ -172,21 +183,26 @@ export function matchExercises(sources: SourceExercise[], library: Exercise[]): 
     const draft = draftExercise(source);
     const full = byKey.get(normName(source.name));
     // Prefer the exercise whose own name is the Strong name over one that merely aliases it.
-    let exact = full?.find((e) => normName(e.name) === normName(source.name)) ?? full?.[0];
+    const named = full?.find((e) => normName(e.name) === normName(source.name));
+    const ranked = full ? [...full].sort(canonicalOrder) : [];
+    let exact = named ?? ranked[0];
+    const ambiguousFull = !named && ranked.length > 1;
     const { base, tag } = splitTag(source.name);
     if (!exact && tag) {
       const sameEquip = (byKey.get(normName(base)) ?? []).filter((e) => draft.equipment === 'other' || e.equipment === draft.equipment);
       if (sameEquip.length === 1) exact = sameEquip[0];
     }
     const suggestions = exact
-      ? []
+      ? ambiguousFull
+        ? ranked.slice(1, 6)
+        : []
       : live
           .map((e) => ({ e, score: Math.max(similarity(source.name, e.name), ...e.aliases.map((a) => similarity(source.name, a))) }))
           .filter((x) => x.score >= 0.5)
           .sort((a, b) => b.score - a.score)
           .slice(0, 5)
           .map((x) => x.e);
-    return { source, ...(exact ? { exact } : {}), suggestions, draft };
+    return { source, ...(exact ? { exact } : {}), suggestions, draft, ...(ambiguousFull ? { ambiguous: true } : {}) };
   });
 }
 

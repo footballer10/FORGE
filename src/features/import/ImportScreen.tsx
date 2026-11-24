@@ -254,7 +254,7 @@ function Preview({ data, onCancel, onDone }: { data: Loaded; onCancel: () => voi
                 </div>
                 <p className="text-sm text-muted">
                   {target
-                    ? `Maps to ${target.name}`
+                    ? `Maps to ${target.name}${m.ambiguous && !choice ? ` (${m.suggestions.length + 1} library exercises share this name, check it)` : ''}`
                     : `New exercise · ${labelFor(m.draft.equipment)} · ${m.draft.loadModel}`}
                 </p>
                 <select
@@ -273,7 +273,7 @@ function Preview({ data, onCancel, onDone }: { data: Loaded; onCancel: () => voi
                   <option value="create">Create new exercise</option>
                   {m.exact && <option value={`map:${m.exact.id}`}>Match: {m.exact.name}</option>}
                   {m.suggestions.map((s) => (
-                    <option key={s.id} value={`map:${s.id}`}>Map to: {s.name}</option>
+                    <option key={s.id} value={`map:${s.id}`}>{m.ambiguous ? 'Alternative' : 'Map to'}: {s.name}</option>
                   ))}
                   {choice?.kind === 'map' && !m.exact && !m.suggestions.some((s) => s.id === choice.exerciseId) && target && (
                     <option value={`map:${target.id}`}>Map to: {target.name}</option>

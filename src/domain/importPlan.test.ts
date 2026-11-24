@@ -214,3 +214,15 @@ describe('weightFromRawRow', () => {
     expect(weightFromRawRow(row.raw, 'perImplement', 'kg')!.unit).toBe('kg');
   });
 });
+
+describe('ambiguous library aliases', () => {
+  it('ranks the plain Barbell form first and offers the rest', () => {
+    const pl = lib({ id: 'pl', name: 'Bench Press - Powerlifting', equipment: 'barbell', loadModel: 'total', aliases: ['Bench Press (Barbell)'] });
+    const medium = lib({ id: 'med', name: 'Barbell Bench Press - Medium Grip', equipment: 'barbell', loadModel: 'total', aliases: ['Bench Press (Barbell)'] });
+    const src = { name: 'Bench Press (Barbell)', setCount: 1, workoutCount: 1, hasWeight: true, hasReps: true, hasTime: false, hasDistance: false };
+    const [m] = matchExercises([src], [pl, medium]);
+    expect(m!.exact?.id).toBe('med');
+    expect(m!.ambiguous).toBe(true);
+    expect(m!.suggestions.map((e) => e.id)).toEqual(['pl']);
+  });
+});
