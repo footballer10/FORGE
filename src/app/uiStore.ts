@@ -7,6 +7,9 @@ export type Theme = 'dark' | 'light';
 interface UiState {
   tab: Tab;
   theme: Theme;
+  /** Set by shortcuts (backup reminder) so the Train tab opens its Backup screen. */
+  openBackup: boolean;
+  setOpenBackup: (v: boolean) => void;
   setTab: (tab: Tab) => void;
   setTheme: (theme: Theme) => void;
 }
@@ -24,6 +27,8 @@ function initialTheme(): Theme {
 export const useUi = create<UiState>((set) => ({
   tab: 'home',
   theme: initialTheme(),
+  openBackup: false,
+  setOpenBackup: (openBackup) => set({ openBackup }),
   setTab: (tab) => set({ tab }),
   setTheme: (theme) => {
     try {

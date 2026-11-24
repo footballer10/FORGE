@@ -2,6 +2,7 @@ import { weightFromRawRow, type BuiltImport, type DumbbellConvention } from '../
 import type { ID, ImportBatch } from '../../domain/types';
 import { db } from '../schema';
 import { nowIso } from './base';
+import { undoRepo } from './undo';
 
 /** Storage for Strong imports. Everything in `commit` lands in one transaction or not at all. */
 export const importer = {
@@ -18,6 +19,17 @@ export const importer = {
         if (built.rawRows.length) await db.rawImportRows.bulkAdd(built.rawRows);
       },
     );
+    if (built.batch.workoutCount > 0) {
+      const ids = <T extends { id: string }>(rows: T[]) => rows.map((r) => r.id);
+      await undoRepo.record(`Imported ${built.batch.workoutCount} workouts`, {}, {
+        exercises: ids(built.newExercises),
+        workouts: ids(built.workouts),
+        workoutExercises: ids(built.workoutExercises),
+        sets: ids(built.sets),
+        rawImportRows: ids(built.rawRows),
+        importBatches: [built.batch.id],
+      });
+    }
     return built.batch;
   },
 

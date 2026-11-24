@@ -1,6 +1,7 @@
 import { EmptyState } from '../../components/EmptyState';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { useUi } from '../../app/uiStore';
+import { BackupReminder } from '../data/BackupReminder';
 
 export function HomeScreen() {
   const theme = useUi((s) => s.theme);
@@ -8,6 +9,12 @@ export function HomeScreen() {
   return (
     <div className="flex flex-col gap-4 pb-6">
       <ScreenHeader title="Forge" />
+      <BackupReminder
+        onOpen={() => {
+          useUi.getState().setOpenBackup(true);
+          useUi.getState().setTab('train');
+        }}
+      />
       <EmptyState
         title="Welcome"
         body="Your streaks, recent PRs and achievements will show here."

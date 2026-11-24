@@ -3,8 +3,8 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
-- **Done last session:** Milestone 2b — full JSON backup + `docs/export-format.md`, Strong-format CSV export, JSON restore (merge or replace) with preview, all under Train → Backup & restore. 131 tests pass.
-- **Next session:** Milestone 2c (weekly backup reminder, undo last action, trash with 30-day purge and restore). `meta.lastBackupAt` is already written on every JSON export for the reminder.
+- **Done last session:** Milestone 2c — weekly backup reminder, persistent undo stack with a snackbar, trash screen with 30-day purge on launch. Milestone 2 is complete. 145 tests pass.
+- **Next session:** Milestone 3 (routines & programs). It is large: split it in PROGRESS.md first (suggest 3a: routine CRUD + start from routine; 3b: programs/weeks/planned sessions + versioning; 3c: planned-vs-completed, history calendar/heatmap; 3d: progression rules, pure + tests).
 - **Known issues:** see bottom.
 
 ## Decisions (defaults chosen; change by asking)
@@ -38,6 +38,9 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Backup JSON excludes progress photos, undo stack and meta; includes soft-deleted rows. Merge restore matches by id, later `updatedAt` wins, ties keep local. Replace needs a second tap (no `window.confirm`).
 - Strong CSV export: finished workouts and completed sets only, one weight unit chosen at export, dumbbells written as pair totals (doubled) so it round-trips with the importer default.
 - Export is delivered through the share sheet when the browser can share files (iPhone), else a download.
+- Undo stack: persisted in the `undo` table, newest 10, entry = previous rows + created IDs. Recorded for finish (incl. dropped sets), discard, delete workout and Strong import. The snackbar shows for 20 s; Backup screen can undo the latest entry any time. Not recorded: restore, per-set edits, exercise edits.
+- Backup reminder: due when the last JSON export is 7+ days old (or never, once any workout exists); "Later" snoozes 1 day. Shown on Home and Train.
+- Trash: workouts and exercises. Purge on launch after 30 days. Library exercises (have `sourceRef`) and exercises with logged sets are never purged (library would reseed them). Trashed workouts are excluded from last-session prefill; future analytics must exclude sets whose workout has `deletedAt`.
 - Default rest 120 s for compound lifts, 90 s otherwise; default increment 5 lb barbell, 5 lb dumbbell (per implement), 2.5 lb fallback for small plates is a per-exercise edit.
 
 ## Milestone 0 — Foundation
@@ -88,9 +91,9 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - [x] JSON restore (replace or merge) with preview
 
 ## Milestone 2c — Safety net
-- [ ] Weekly backup reminder (Files/iCloud via share sheet / download)
-- [ ] Undo last action
-- [ ] Trash: soft-deleted workouts, 30-day purge, restore
+- [x] Weekly backup reminder (Files/iCloud via share sheet / download)
+- [x] Undo last action
+- [x] Trash: soft-deleted workouts, 30-day purge, restore
 
 ## Milestone 3 — Routines & programs
 - [ ] Routine CRUD with target sets/reps/rest/RPE; start workout from routine
@@ -143,8 +146,8 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - The rest timer cannot alert while the PWA is backgrounded or locked (no push/background timers on iOS); it is correct on return, just silent.
 - Reorder is up/down buttons, not drag-and-drop (no new dependency).
 - `window.confirm` is still used for Remove in the options sheet (M8).
-- Finish drops unticked sets and exercises with no completed sets (documented behaviour); there is no undo until M2c.
-- Discard soft-deletes the workout (goes to trash once the trash screen exists in M2c).
+- Finish drops unticked sets and exercises with no completed sets (documented behaviour); undo is available for 20 s after finishing (snackbar) or from Backup.
+- Discard soft-deletes the workout (goes to the Trash screen under Backup).
 - Remove-exercise / discard use `window.confirm`; replace with in-app dialogs in M8 polish.
 - History list is read-only and loads the latest 30 workouts without virtualization.
 - Keypad ± for weight converts the exercise increment into the set's unit; weights are shown in the set's stored unit, not the profile unit, if they differ.
@@ -155,7 +158,7 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - App icons are placeholder SVG/PNG; real icons in M8.
 - Google Fonts load from the network on first visit and are runtime-cached; if first load is offline the system fallback fonts are used.
 - Strong import has only been exercised with synthetic CSVs (tests + a browser run); the real Strong export's column names, distance units and date format are unverified. Try the user's real file first and report anything that looks off.
-- Strong import: no way yet to undo a whole import (comes with undo/trash in M2c); "Past imports" only changes dumbbell conventions, and re-applying overwrites any manual edits to those sets.
+- Strong import: a whole import can be undone only while it is the latest undo entry; "Past imports" only changes dumbbell conventions, and re-applying overwrites any manual edits to those sets.
 - Imported exercises have no muscles/pattern beyond name inference, so they do not count toward muscle volume until edited in the library.
 - Strong import holds the whole file in memory and builds all entities in one transaction; fine for a few years of data, not tested on tens of thousands of sets.
 - Preview lists every distinct exercise name with native selects; a long list (hundreds) has no search or bulk-apply.
@@ -163,3 +166,8 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Whole backup is built in memory as one JSON string; fine for years of personal data. Restore does not validate field shapes beyond `id` per row.
 - Replace restore does not touch progress photos, undo or meta; after replace the library seed re-runs idempotently by `sourceRef`.
 - Strong CSV export drops per-set notes (Forge has none) and writes the exercise note on every row.
+- Undo only reverts the latest recorded action and assumes nothing later depends on it: undoing an import after logging workouts with its new exercises can leave dangling references (the stack order normally prevents it).
+- Undoing "Finished workout" reopens it as the active workout; undoing "Saved workout edits" restores dropped sets but does not reopen the editor.
+- Replace-restore has no undo and no automatic pre-restore snapshot; take a backup first.
+- Trash and undo screens live under Train → Backup & restore; there is no top-level Settings screen yet.
+- Reminder snackbar/undo bar and trash were verified in headless Chromium only; not on a device.

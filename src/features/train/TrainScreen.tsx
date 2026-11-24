@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useUi } from '../../app/uiStore';
+import { BackupReminder } from '../data/BackupReminder';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import type { Exercise, ID } from '../../domain/types';
 import { ExerciseBrowser } from '../exercises/ExerciseBrowser';
@@ -19,6 +21,13 @@ type View =
 
 export function TrainScreen() {
   const [view, setView] = useState<View>({ kind: 'home' });
+  const openBackup = useUi((s) => s.openBackup);
+  useEffect(() => {
+    if (openBackup) {
+      useUi.getState().setOpenBackup(false);
+      setView({ kind: 'data' });
+    }
+  }, [openBackup]);
   const loaded = useWorkout((s) => s.loaded);
   const active = useWorkout((s) => s.workout);
   const start = useWorkout((s) => s.start);
@@ -62,6 +71,7 @@ export function TrainScreen() {
   return (
     <div className="flex min-h-full flex-col pb-6">
       <ScreenHeader title="Train" />
+      <BackupReminder onOpen={() => setView({ kind: 'data' })} />
       <button
         type="button"
         onClick={() => setView({ kind: 'library' })}
