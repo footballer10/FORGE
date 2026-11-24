@@ -224,19 +224,19 @@ export const useWorkout = create<State>((set, get) => {
     async setWorkoutNotes(notes) {
       const w = get().workout;
       if (!w) return;
-      const value = notes.trim() === '' ? undefined : notes;
+      const value = notes === '' ? undefined : notes;
       set({ workout: { ...w, notes: value } });
       await workoutRepo.update(w.id, { notes: value });
     },
 
     async setExerciseNote(workoutExerciseId, notes) {
-      const value = notes.trim() === '' ? undefined : notes;
+      const value = notes === '' ? undefined : notes;
       set((st) => ({ rows: st.rows.map((r) => (r.we.id === workoutExerciseId ? { ...r, we: { ...r.we, notes: value } } : r)) }));
       await workoutRepo.updateExercise(workoutExerciseId, { notes: value });
     },
 
     async setStickyNote(exerciseId, note) {
-      const value = note.trim() === '' ? undefined : note;
+      const value = note === '' ? undefined : note;
       set((st) => ({
         rows: st.rows.map((r) => (r.exercise.id === exerciseId ? { ...r, exercise: { ...r.exercise, stickyNote: value } } : r)),
       }));

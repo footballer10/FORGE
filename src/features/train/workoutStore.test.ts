@@ -170,7 +170,7 @@ describe('workout store', () => {
       expect((await exerciseRepo.get(bench.id))?.stickyNote).toBe('Seat 4, grip on rings');
       expect(useWorkout.getState().rows[0]?.exercise.stickyNote).toBe('Seat 4, grip on rings');
 
-      await useWorkout.getState().setWorkoutNotes('  ');
+      await useWorkout.getState().setWorkoutNotes('');
       expect((await workoutRepo.getActive())?.notes).toBeUndefined();
     });
   });
