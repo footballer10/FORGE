@@ -14,6 +14,7 @@ export { backupRepo } from './backup';
 import { undoRepo } from './undo';
 export { undoRepo, UNDO_EVENT, type RowRefs } from './undo';
 export { trashRepo } from './trash';
+export { analyticsRepo, type LiftedExercise, type ExerciseAnalyticsInput } from './analytics';
 export { newId, nowIso, type NewEntity, type Repository } from './base';
 
 export const exerciseRepo = {

@@ -59,7 +59,7 @@ export const E1RM_FORMULAS: readonly E1rmFormulaInfo[] = [
 ];
 
 export function formulaInfo(id: E1rmFormula): E1rmFormulaInfo {
-  return E1RM_FORMULAS.find((f) => f.id === id) ?? E1RM_FORMULAS[0];
+  return E1RM_FORMULAS.find((f) => f.id === id) ?? E1RM_FORMULAS[0]!;
 }
 
 /** e1RM with the chosen formula. 0 when weight or reps are unusable. */

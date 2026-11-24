@@ -91,7 +91,7 @@ export function detectPrs(sets: readonly LiftSet[], formula: E1rmFormula): PrEve
     else byWorkout.set(s.workoutId, [s]);
   }
   const workouts = [...byWorkout.entries()]
-    .map(([id, list]) => ({ id, list, date: list.reduce((m, s) => (s.date < m ? s.date : m), list[0].date) }))
+    .map(([id, list]) => ({ id, list, date: list.reduce((m, s) => (s.date < m ? s.date : m), list[0]!.date) }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
   const bestRep = new Map<number, number>();

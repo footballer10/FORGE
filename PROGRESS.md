@@ -3,8 +3,8 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
-- **Done last session:** Milestone 3d — progression rules (double progression, % e1RM, RPE target) as pure functions with tests, a rule picker in the routine/session editor, and suggestions applied when a workout starts from a routine or planned session. Milestone 3 is complete. 189 tests pass.
-- **Next session:** Milestone 4 (strength analytics) is large: split it first (suggest 4a: all six e1RM formulas + per-exercise chart with formula picker + PR detection; 4b: weekly hard sets per muscle, period comparisons, strength score/tiers, body map, plateau and balance checks).
+- **Done last session:** Milestone 4a — six e1RM formulas, PR detection (rep-range, e1RM, volume), repository queries for analytics, and a Strength tab with a per-exercise e1RM chart, formula picker (saved to the profile) and PR timeline. 208 tests pass.
+- **Next session:** Milestone 4b (weekly hard sets per muscle with 1.0/0.5 weights, period comparisons, strength score, tiers from editable standards, body map, plateau and balance checks). Large: consider splitting 4b into 4b-i (volume, comparisons, plateau) and 4b-ii (score, tiers, body map, balance).
 - **Known issues:** see bottom.
 
 ## Decisions (defaults chosen; change by asking)
@@ -50,9 +50,12 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Plan vs completed: sets are matched to targets by position within the exercise, warm-ups and working sets separately; only completed sets count. Reps are "on target" inside [reps, repsMax]; weight is compared in the target's unit with a 1% tolerance. Adherence = planned sets with a completed set / planned sets (extra sets and unplanned exercises are listed, not counted).
 - Linking: finishing a workout started from a planned session sets `completedWorkoutId` and clears `skipped`; deleting that workout unlinks it (undo restores the link). Editing a past workout never relinks.
 - Calendar and heatmap: local days, Monday weeks. Shade = completed non-warm-up sets that day relative to the busiest day among the last 26 weeks (four steps at >0, >25%, >50%, >75%); the formula is printed under the heatmap. Tapping a calendar day lists its workouts with Open (edit).
-- Progression: only `src/domain/e1rm.ts` has Epley so far (weight × (1 + reps/30), a single is its own max); M4 adds the other formulas there. Suggestions use the LAST session of the exercise only (not a best-ever e1RM). Working sets = working, AMRAP, failure with weight and reps; warm-ups and drop sets are ignored. Result is rounded to the exercise increment (rule increment for double progression, converted to the set's unit).
+- Progression still uses Epley from `src/domain/e1rm.ts` (weight × (1 + reps/30), a single is its own max); the other five formulas live there too and are used by analytics only. Suggestions use the LAST session of the exercise only (not a best-ever e1RM). Working sets = working, AMRAP, failure with weight and reps; warm-ups and drop sets are ignored. Result is rounded to the exercise increment (rule increment for double progression, converted to the set's unit).
 - Progression is shown, not silent: the suggested weight/reps prefill working sets whose target has no fixed weight (a fixed target weight wins), and the formula plus inputs appear as a "Suggested ..." line on the exercise while logging. Everything stays editable. Without usable history (or no RPE for the RPE rule) nothing is suggested.
 - Default rest 120 s for compound lifts, 90 s otherwise; default increment 5 lb barbell, 5 lb dumbbell (per implement), 2.5 lb fallback for small plates is a per-exercise edit.
+
+- Analytics (4a): only finished, non-trashed workouts count. Effective load per `domain/load.ts`; bodyweight lifts use the nearest weigh-in on or before the set, else the workout snapshot, else the set is skipped. Analysis unit is the profile unit. e1RM uses sets of 1–12 reps, one point per workout (its best set); a single is its own max in every formula. Default formula Epley, changed in the chart screen and stored on the profile.
+- PRs (4a): the first value of each kind is a baseline, not a PR; ties are not PRs. Kinds: rep (heaviest load at exactly 1, 2, 3, 4, 5, 6, 8, 10 or 12 reps), e1RM (chosen formula), volume (load × reps summed over the exercise in one workout). Evaluated per workout, so several sets in one workout yield at most one PR per kind and rep count.
 
 ## Milestone 0 — Foundation
 - [x] SPEC.md, CLAUDE.md, PROGRESS.md
@@ -119,9 +122,9 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Milestone 4 — Strength analytics (split 4a/4b)
 ### 4a — e1RM, PRs, per-exercise view
-- [ ] e1RM formulas (Epley, Brzycki, Lombardi, Mayhew, O'Conner, Wathan) + tests
-- [ ] PR detection: rep-range, e1RM, volume + PR timeline (tests)
-- [ ] Per-exercise e1RM chart with formula picker (Strength tab)
+- [x] e1RM formulas (Epley, Brzycki, Lombardi, Mayhew, O'Conner, Wathan) + tests
+- [x] PR detection: rep-range, e1RM, volume + PR timeline (tests)
+- [x] Per-exercise e1RM chart with formula picker (Strength tab)
 ### 4b — Volume, scores, checks
 - [ ] Weekly hard sets per muscle (primary 1.0, secondary 0.5 — shown)
 - [ ] Period comparisons (month vs last; 3/6/12 months)
@@ -199,3 +202,6 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Program screens were verified in headless Chromium only (create, activate, version, start); not on a device.
 - Progression uses only the last session, so one bad day lowers or holds the next suggestion; a best-recent e1RM option can come with M4. `TargetSet.percentE1rm` (per-set percent) exists in the type but has no editor and is not applied; use the exercise-level % e1RM rule instead.
 - The RPE rule treats RPE as reps in reserve = 10 − RPE and Epley beyond ~12 reps is unreliable; suggestions are estimates.
+- Strength tab (4a) was typechecked, unit-tested and built but not opened in a browser or on a device; check the chart on the phone.
+- PR timeline and e1RM series recompute from all of an exercise's sets on open (fine for personal data). The Strength list shows only exercises with completed non-warm-up sets, including ones with no usable load (they show an explanation).
+- Rep PRs only track the listed rep counts (7, 9, 11 are skipped) and are not credited across counts (a heavier 5 does not set a 3-rep PR).
