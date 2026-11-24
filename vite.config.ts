@@ -43,6 +43,15 @@ export default defineConfig({
       },
     }),
   ],
+  build: {
+    // Recharts (charts chunk) and the exercise library JSON are lazy chunks; the entry bundle is well under this.
+    chunkSizeWarningLimit: 800,
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => (id.includes('node_modules/recharts') || id.includes('node_modules/d3-') ? 'charts' : undefined),
+      },
+    },
+  },
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],
