@@ -1,5 +1,5 @@
 import { draftsFromTargets } from '../../domain/routine';
-import type { ID, Routine, SetEntry, Workout, WorkoutExercise, WeightUnit } from '../../domain/types';
+import type { ID, RoutineExercise, SetEntry, Workout, WorkoutExercise, WeightUnit } from '../../domain/types';
 import { db } from '../schema';
 import { createRepo, nowIso, type NewEntity } from './base';
 import { undoRepo } from './undo';
@@ -36,13 +36,22 @@ export const workoutRepo = {
   },
 
   /**
-   * New in-progress workout from a routine. Exercises deleted since are skipped. Each exercise gets
+   * New in-progress workout from a routine or planned session. Exercises deleted since are skipped. Each exercise gets
    * sets built from its targets (weights from the last session where the target has none) and keeps
    * the targets and rest override for display while logging.
    */
-  async startFromRoutine(routine: Routine, fallbackUnit: WeightUnit): Promise<Workout> {
-    const w = await workoutBase.create({ name: routine.name, kind: 'strength', startedAt: nowIso(), routineId: routine.id });
-    const ordered = [...routine.exercises].sort((a, b) => a.order - b.order);
+  async startFromPlan(
+    plan: { name: string; exercises: RoutineExercise[]; routineId?: ID; plannedSessionId?: ID },
+    fallbackUnit: WeightUnit,
+  ): Promise<Workout> {
+    const w = await workoutBase.create({
+      name: plan.name,
+      kind: 'strength',
+      startedAt: nowIso(),
+      ...(plan.routineId ? { routineId: plan.routineId } : {}),
+      ...(plan.plannedSessionId ? { plannedSessionId: plan.plannedSessionId } : {}),
+    });
+    const ordered = [...plan.exercises].sort((a, b) => a.order - b.order);
     for (const re of ordered) {
       const ex = await db.exercises.get(re.exerciseId);
       if (!ex || ex.deletedAt) continue;
@@ -56,6 +65,10 @@ export const workoutRepo = {
       for (const draft of draftsFromTargets(re.targets, last, fallbackUnit)) await workoutRepo.addSet(we.id, draft);
     }
     return w;
+  },
+
+  startFromRoutine(routine: { id: ID; name: string; exercises: RoutineExercise[] }, fallbackUnit: WeightUnit): Promise<Workout> {
+    return workoutRepo.startFromPlan({ name: routine.name, exercises: routine.exercises, routineId: routine.id }, fallbackUnit);
   },
 
   finish(id: ID): Promise<Workout> {

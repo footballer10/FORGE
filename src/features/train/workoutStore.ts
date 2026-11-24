@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { exerciseRepo, metaRepo, nowIso, profileRepo, routineRepo, undoRepo, workoutRepo } from '../../db/repositories';
+import { exerciseRepo, metaRepo, nowIso, plannedSessionRepo, profileRepo, routineRepo, undoRepo, workoutRepo } from '../../db/repositories';
 import { canComplete, prefillDrafts } from '../../domain/logging';
 import { moveItem } from '../../domain/order';
 import { restAfterExercise, toggleSupersetLink } from '../../domain/superset';
@@ -31,6 +31,8 @@ interface State {
   start: () => Promise<void>;
   /** Start a workout from a routine. Returns false if one is already active or the routine is gone. */
   startFromRoutine: (routineId: ID) => Promise<boolean>;
+  /** Start a workout from a planned program session (linked via plannedSessionId). */
+  startFromPlanned: (plannedSessionId: ID) => Promise<boolean>;
   addExercise: (exerciseId: ID) => Promise<void>;
   removeExercise: (workoutExerciseId: ID) => Promise<void>;
   addSet: (workoutExerciseId: ID) => Promise<void>;
@@ -142,6 +144,16 @@ export const useWorkout = create<State>((set, get) => {
       const routine = await routineRepo.get(routineId);
       if (!routine || routine.deletedAt) return false;
       const w = await workoutRepo.startFromRoutine(routine, get().unit);
+      set({ rows: [] });
+      await refresh(w.id);
+      return true;
+    },
+
+    async startFromPlanned(plannedSessionId) {
+      if (get().workout) return false;
+      const ps = await plannedSessionRepo.get(plannedSessionId);
+      if (!ps || ps.deletedAt) return false;
+      const w = await workoutRepo.startFromPlan({ name: ps.name, exercises: ps.exercises, plannedSessionId: ps.id }, get().unit);
       set({ rows: [] });
       await refresh(w.id);
       return true;
