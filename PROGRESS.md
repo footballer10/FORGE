@@ -3,8 +3,8 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
-- **Done last session:** Milestone 4b-ii part 2 — muscle body map (front/back SVG, shaded by the selected week's weighted sets) and balance checks (push:pull, squat:hinge) on the Progress tab. Milestone 4 is complete. 235 tests pass; map checked in headless Chromium.
-- **Next session:** Milestone 5 (body & athletic): large, split first (suggest 5a: bodyweight log + EWMA trend; 5b: fitness tests + results; 5c: conditioning sessions + progress photos).
+- **Done last session:** Milestone 5a — bodyweight log (add with date, edit, soft-delete) and EWMA trend chart on the Progress tab; pure maths in `domain/bodyweight.ts`, storage in `bodyRepo`. 242 tests pass; panel checked in headless Chromium.
+- **Next session:** Milestone 5b (fitness tests + results history: pull-up max, push-ups, 1.5 mi, 40 yd, broad jump, vertical, custom). Then 5c (conditioning sessions, progress photos).
 - **Known issues:** see bottom.
 
 ## Decisions (defaults chosen; change by asking)
@@ -52,6 +52,7 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Calendar and heatmap: local days, Monday weeks. Shade = completed non-warm-up sets that day relative to the busiest day among the last 26 weeks (four steps at >0, >25%, >50%, >75%); the formula is printed under the heatmap. Tapping a calendar day lists its workouts with Open (edit).
 - Progression still uses Epley from `src/domain/e1rm.ts` (weight × (1 + reps/30), a single is its own max); the other five formulas live there too and are used by analytics only. Suggestions use the LAST session of the exercise only (not a best-ever e1RM). Working sets = working, AMRAP, failure with weight and reps; warm-ups and drop sets are ignored. Result is rounded to the exercise increment (rule increment for double progression, converted to the set's unit).
 - Progression is shown, not silent: the suggested weight/reps prefill working sets whose target has no fixed weight (a fixed target weight wins), and the formula plus inputs appear as a "Suggested ..." line on the exercise while logging. Everything stays editable. Without usable history (or no RPE for the RPE rule) nothing is suggested.
+- Bodyweight (5a): one value per day (several weigh-ins on a day are averaged); trend = EWMA with α = 0.1 per day, gap of g days uses 1 − 0.9^g; the first weigh-in seeds it. Shown with formula text under the chart. Entries keep the unit they were logged in and are converted to the profile unit for the trend. Delete is a soft delete with no undo bar entry. Panel sits at the top of Progress; the strength score's quick "Log today" box stays and writes the same rows.
 - Default rest 120 s for compound lifts, 90 s otherwise; default increment 5 lb barbell, 5 lb dumbbell (per implement), 2.5 lb fallback for small plates is a per-exercise edit.
 
 - Analytics (4a): only finished, non-trashed workouts count. Effective load per `domain/load.ts`; bodyweight lifts use the nearest weigh-in on or before the set, else the workout snapshot, else the set is skipped. Analysis unit is the profile unit. e1RM uses sets of 1–12 reps, one point per workout (its best set); a single is its own max in every formula. Default formula Epley, changed in the chart screen and stored on the profile.
@@ -143,11 +144,11 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - [x] Plateau detection (N weeks without e1RM gain)
 - [x] Balance checks: push:pull, squat:hinge
 
-## Milestone 5 — Body & athletic
-- [ ] Bodyweight log + smoothed trend (EWMA, shown)
-- [ ] Fitness tests + results history (pull-up max, push-ups, 1.5 mi, 40 yd, broad, vertical, custom)
-- [ ] Conditioning sessions (time/distance sets)
-- [ ] Progress photos (IndexedDB blobs, device only)
+## Milestone 5 — Body & athletic (split 5a/5b/5c)
+- [x] 5a: Bodyweight log + smoothed trend (EWMA, shown)
+- [ ] 5b: Fitness tests + results history (pull-up max, push-ups, 1.5 mi, 40 yd, broad, vertical, custom)
+- [ ] 5c: Conditioning sessions (time/distance sets)
+- [ ] 5c: Progress photos (IndexedDB blobs, device only)
 
 ## Milestone 6 — Claude coach
 - [ ] Training profile editor
@@ -216,8 +217,9 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Rep PRs only track the listed rep counts (7, 9, 11 are skipped) and are not credited across counts (a heavier 5 does not set a 3-rep PR).
 - Progress tab volume panel and Strength plateau flags were typechecked, unit-tested and built, not opened in a browser or on a device. The plateau window (6 weeks) and minimum sessions (3) are not editable yet.
 - Strength tab loads every set into memory twice (list + plateau data); fine for personal data.
-- Strength score setup and weigh-in entry were checked only for display (headless Chromium, seeded data); the setup editor (add lift, edit thresholds) was typechecked but not clicked through. No way to edit or delete a logged weigh-in until M5.
+- Strength score setup and weigh-in entry were checked only for display (headless Chromium, seeded data); the setup editor (add lift, edit thresholds) was typechecked but not clicked through. Weigh-ins can now be edited or deleted on the Progress tab (5a).
 - Tier templates assume a trained adult male; the profile `sex` field is not used yet. Edit thresholds per lift.
 - Bodyweight lifts (pull-ups, dips) have no template; add them with any template and edit the thresholds.
 - Balance thresholds (1.5×) and window (4 weeks) are fixed constants with no setting; unilateral and carry patterns are not counted. The balance cards were typechecked and unit-tested, and the page rendered without errors, but I only inspected the body map visually.
 - Body map regions are tap-sized shapes with hover/long-press titles only; tapping a region does nothing yet.
+- Bodyweight panel (5a): weight-only (no body fat or measurements yet, though `BodyMetricKind` has them); range pills are 30 d / 90 d / 1 yr / All; the date field is the browser's native picker (not tested on iPhone Safari). Deleting a weigh-in has no undo.
