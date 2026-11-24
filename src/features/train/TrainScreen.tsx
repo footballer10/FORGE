@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ScreenHeader } from '../../components/ScreenHeader';
-import type { Exercise } from '../../domain/types';
+import type { Exercise, ID } from '../../domain/types';
 import { ExerciseBrowser } from '../exercises/ExerciseBrowser';
 import { ExerciseForm } from '../exercises/ExerciseForm';
 import { ActiveWorkout } from './ActiveWorkout';
@@ -10,8 +10,8 @@ import { useWorkout } from './workoutStore';
 type View =
   | { kind: 'home' }
   | { kind: 'library' }
-  | { kind: 'form'; exercise?: Exercise; returnTo: 'library' | 'pick' }
-  | { kind: 'pick' };
+  | { kind: 'form'; exercise?: Exercise; returnTo: 'library' | 'pick'; swapWeId?: ID }
+  | { kind: 'pick'; swapWeId?: ID };
 
 export function TrainScreen() {
   const [view, setView] = useState<View>({ kind: 'home' });
@@ -19,16 +19,17 @@ export function TrainScreen() {
   const active = useWorkout((s) => s.workout);
   const start = useWorkout((s) => s.start);
   const addExercise = useWorkout((s) => s.addExercise);
+  const swapExercise = useWorkout((s) => s.swapExercise);
 
   if (view.kind === 'pick') {
     return (
       <ExerciseBrowser
-        title="Add exercise"
+        title={view.swapWeId ? 'Swap exercise' : 'Add exercise'}
         onSelect={(e) => {
-          void addExercise(e.id);
+          void (view.swapWeId ? swapExercise(view.swapWeId, e.id) : addExercise(e.id));
           setView({ kind: 'home' });
         }}
-        onCreate={() => setView({ kind: 'form', returnTo: 'pick' })}
+        onCreate={() => setView({ kind: 'form', returnTo: 'pick', ...(view.swapWeId ? { swapWeId: view.swapWeId } : {}) })}
         onBack={() => setView({ kind: 'home' })}
       />
     );
@@ -44,11 +45,11 @@ export function TrainScreen() {
     );
   }
   if (view.kind === 'form') {
-    return <ExerciseForm key={view.exercise?.id ?? 'new'} exercise={view.exercise} onDone={() => setView({ kind: view.returnTo })} />;
+    return <ExerciseForm key={view.exercise?.id ?? 'new'} exercise={view.exercise} onDone={() => setView(view.returnTo === 'pick' ? { kind: 'pick', ...(view.swapWeId ? { swapWeId: view.swapWeId } : {}) } : { kind: 'library' })} />;
   }
 
   if (!loaded) return <div className="min-h-full" />;
-  if (active) return <ActiveWorkout onAddExercise={() => setView({ kind: 'pick' })} />;
+  if (active) return <ActiveWorkout onAddExercise={() => setView({ kind: 'pick' })} onSwapExercise={(swapWeId) => setView({ kind: 'pick', swapWeId })} />;
 
   return (
     <div className="flex min-h-full flex-col pb-6">

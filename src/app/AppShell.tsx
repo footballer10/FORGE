@@ -6,6 +6,8 @@ import { TrainScreen } from '../features/train/TrainScreen';
 import { StrengthScreen } from '../features/strength/StrengthScreen';
 import { ProgressScreen } from '../features/progress/ProgressScreen';
 import { CoachScreen } from '../features/coach/CoachScreen';
+import { RestTimer } from '../features/train/RestTimer';
+import { useWakeLock } from '../features/train/useWakeLock';
 import { useWorkout } from '../features/train/workoutStore';
 
 const SCREENS = {
@@ -20,6 +22,10 @@ export function AppShell() {
   const tab = useUi((s) => s.tab);
   const theme = useUi((s) => s.theme);
   const Screen = SCREENS[tab];
+  const workoutActive = useWorkout((s) => !!s.workout);
+
+  // Keep the screen on for the whole workout, whichever tab is open.
+  useWakeLock(workoutActive);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -40,6 +46,7 @@ export function AppShell() {
       <main className="pt-safe px-safe flex-1 overflow-y-auto overscroll-contain">
         <Screen />
       </main>
+      <RestTimer />
       <TabBar />
     </div>
   );

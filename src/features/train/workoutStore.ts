@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { exerciseRepo, nowIso, profileRepo, workoutRepo } from '../../db/repositories';
 import { canComplete, prefillDrafts } from '../../domain/logging';
+import { moveItem } from '../../domain/order';
+import { adjustRest, isStale, restEndsAt, restSecondsFor } from '../../domain/restTimer';
 import type { Exercise, ID, SetEntry, WeightUnit, Workout, WorkoutExercise } from '../../domain/types';
 
 export interface ExerciseRow {
@@ -16,6 +18,10 @@ interface State {
   workout?: Workout;
   rows: ExerciseRow[];
   unit: WeightUnit;
+  /** Absolute end of the running rest timer (ISO), if any. Persisted on the workout. */
+  restEndsAt?: string;
+  /** Length the current rest started with, for the progress bar only. */
+  restTotalSec?: number;
   /** Resume an unfinished workout (crash / reopen) or find none. */
   load: () => Promise<void>;
   start: () => Promise<void>;
@@ -29,6 +35,17 @@ interface State {
   /** Drops unticked sets and empty exercises, then ends the workout. Returns false if nothing was completed. */
   finish: () => Promise<boolean>;
   discard: () => Promise<void>;
+  startRest: (seconds: number) => Promise<void>;
+  adjustRest: (deltaSec: number) => Promise<void>;
+  skipRest: () => Promise<void>;
+  setWorkoutNotes: (notes: string) => Promise<void>;
+  /** Note for this exercise in this session only. */
+  setExerciseNote: (workoutExerciseId: ID, notes: string) => Promise<void>;
+  /** Sticky note stored on the exercise itself; shown every time it is logged. */
+  setStickyNote: (exerciseId: ID, note: string) => Promise<void>;
+  moveExercise: (workoutExerciseId: ID, delta: -1 | 1) => Promise<void>;
+  /** Replace an exercise that has no completed sets. Returns false when sets are already done. */
+  swapExercise: (workoutExerciseId: ID, newExerciseId: ID) => Promise<boolean>;
 }
 
 /**
@@ -75,8 +92,13 @@ export const useWorkout = create<State>((set, get) => {
 
     async load() {
       const [profile, active] = await Promise.all([profileRepo.get(), workoutRepo.getActive()]);
-      set({ unit: profile.weightUnit, rows: [] });
-      if (active) await refresh(active.id);
+      set({ unit: profile.weightUnit, rows: [], restEndsAt: undefined, restTotalSec: undefined });
+      if (active) {
+        await refresh(active.id);
+        const ends = active.restTimerEndsAt;
+        if (ends && !isStale(ends, Date.now())) set({ restEndsAt: ends });
+        else if (ends) await workoutRepo.update(active.id, { restTimerEndsAt: undefined });
+      }
       set({ loaded: true });
     },
 
@@ -142,6 +164,8 @@ export const useWorkout = create<State>((set, get) => {
       }
       if (!canComplete(found.set, found.row.exercise.loadModel)) return false;
       await get().updateSet(setId, { completedAt: nowIso() });
+      const sec = restSecondsFor(found.row.exercise, found.set.type);
+      if (sec > 0) await get().startRest(sec);
       return true;
     },
 
@@ -163,7 +187,7 @@ export const useWorkout = create<State>((set, get) => {
         if (done.length === 0) await workoutRepo.removeExercise(r.we.id);
       }
       await workoutRepo.finish(w.id);
-      set({ workout: undefined, rows: [] });
+      set({ workout: undefined, rows: [], restEndsAt: undefined, restTotalSec: undefined });
       return true;
     },
 
@@ -171,7 +195,77 @@ export const useWorkout = create<State>((set, get) => {
       const w = get().workout;
       if (!w) return;
       await workoutRepo.softDelete(w.id);
-      set({ workout: undefined, rows: [] });
+      set({ workout: undefined, rows: [], restEndsAt: undefined, restTotalSec: undefined });
+    },
+
+    async startRest(seconds) {
+      const w = get().workout;
+      if (!w) return;
+      const ends = restEndsAt(Date.now(), seconds);
+      set({ restEndsAt: ends, restTotalSec: seconds });
+      await workoutRepo.update(w.id, { restTimerEndsAt: ends });
+    },
+
+    async adjustRest(deltaSec) {
+      const w = get().workout;
+      const cur = get().restEndsAt;
+      if (!w || !cur) return;
+      const ends = adjustRest(cur, deltaSec, Date.now());
+      set((st) => ({ restEndsAt: ends, restTotalSec: Math.max(1, (st.restTotalSec ?? 0) + deltaSec) }));
+      await workoutRepo.update(w.id, { restTimerEndsAt: ends });
+    },
+
+    async skipRest() {
+      const w = get().workout;
+      set({ restEndsAt: undefined, restTotalSec: undefined });
+      if (w) await workoutRepo.update(w.id, { restTimerEndsAt: undefined });
+    },
+
+    async setWorkoutNotes(notes) {
+      const w = get().workout;
+      if (!w) return;
+      const value = notes === '' ? undefined : notes;
+      set({ workout: { ...w, notes: value } });
+      await workoutRepo.update(w.id, { notes: value });
+    },
+
+    async setExerciseNote(workoutExerciseId, notes) {
+      const value = notes === '' ? undefined : notes;
+      set((st) => ({ rows: st.rows.map((r) => (r.we.id === workoutExerciseId ? { ...r, we: { ...r.we, notes: value } } : r)) }));
+      await workoutRepo.updateExercise(workoutExerciseId, { notes: value });
+    },
+
+    async setStickyNote(exerciseId, note) {
+      const value = note === '' ? undefined : note;
+      set((st) => ({
+        rows: st.rows.map((r) => (r.exercise.id === exerciseId ? { ...r, exercise: { ...r.exercise, stickyNote: value } } : r)),
+      }));
+      await exerciseRepo.update(exerciseId, { stickyNote: value });
+    },
+
+    async moveExercise(workoutExerciseId, delta) {
+      const w = get().workout;
+      if (!w) return;
+      const ids = get().rows.map((r) => r.we.id);
+      const next = moveItem(ids, ids.indexOf(workoutExerciseId), delta);
+      if (next.every((id, i) => id === ids[i])) return;
+      await workoutRepo.reorderExercises(next);
+      await refresh(w.id);
+    },
+
+    async swapExercise(workoutExerciseId, newExerciseId) {
+      const w = get().workout;
+      const row = get().rows.find((r) => r.we.id === workoutExerciseId);
+      if (!w || !row) return false;
+      if (row.sets.some((s) => s.completedAt)) return false;
+      if (row.we.exerciseId === newExerciseId) return true;
+      const last = await workoutRepo.lastSetsFor(newExerciseId, w.id);
+      await workoutRepo.replaceExercise(workoutExerciseId, newExerciseId);
+      for (const draft of prefillDrafts(last)) {
+        await workoutRepo.addSet(workoutExerciseId, { ...draft, unit: last[0]?.unit ?? get().unit });
+      }
+      await refresh(w.id);
+      return true;
     },
   };
 });

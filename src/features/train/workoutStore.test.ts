@@ -11,7 +11,7 @@ const base = {
 
 beforeEach(async () => {
   await clearAllData();
-  useWorkout.setState({ loaded: false, workout: undefined, rows: [] });
+  useWorkout.setState({ loaded: false, workout: undefined, rows: [], restEndsAt: undefined, restTotalSec: undefined });
 });
 
 const sets = () => useWorkout.getState().rows[0]!.sets;
@@ -48,7 +48,7 @@ describe('workout store', () => {
     await useWorkout.getState().updateSet(id, { weight: 200, reps: 3 });
     await useWorkout.getState().toggleComplete(id);
 
-    useWorkout.setState({ loaded: false, workout: undefined, rows: [] }); // simulate app restart
+    useWorkout.setState({ loaded: false, workout: undefined, rows: [], restEndsAt: undefined, restTotalSec: undefined }); // simulate app restart
     await useWorkout.getState().load();
     expect(useWorkout.getState().workout).toBeTruthy();
     expect(sets()[0]).toMatchObject({ weight: 200, reps: 3 });
@@ -90,5 +90,139 @@ describe('workout store', () => {
     await useWorkout.getState().addExercise(bench.id);
     await useWorkout.getState().removeExercise(useWorkout.getState().rows[0]!.we.id);
     expect(useWorkout.getState().rows).toHaveLength(0);
+  });
+
+  describe('rest timer', () => {
+    const tick = async (reps = 5) => {
+      const st = useWorkout.getState();
+      const id = st.rows[0]!.sets[0]!.id;
+      await st.updateSet(id, { weight: 100, reps });
+      await useWorkout.getState().toggleComplete(id);
+      return id;
+    };
+
+    it('starts on completing a working set with the exercise rest, and persists the end time', async () => {
+      const bench = await exerciseRepo.create({ ...base, name: 'Bench', defaultRestSec: 90 });
+      await useWorkout.getState().start();
+      await useWorkout.getState().addExercise(bench.id);
+      const before = Date.now();
+      await tick();
+      const ends = Date.parse(useWorkout.getState().restEndsAt!);
+      expect(ends - before).toBeGreaterThanOrEqual(89_000);
+      expect(ends - before).toBeLessThan(91_500);
+      expect((await workoutRepo.getActive())?.restTimerEndsAt).toBe(useWorkout.getState().restEndsAt);
+    });
+
+    it('does not start for warm-ups; skip clears it', async () => {
+      const bench = await exerciseRepo.create({ ...base, name: 'Bench' });
+      await useWorkout.getState().start();
+      await useWorkout.getState().addExercise(bench.id);
+      await useWorkout.getState().updateSet(sets()[0]!.id, { type: 'warmup' });
+      await tick();
+      expect(useWorkout.getState().restEndsAt).toBeUndefined();
+
+      await useWorkout.getState().startRest(60);
+      expect(useWorkout.getState().restEndsAt).toBeTruthy();
+      await useWorkout.getState().skipRest();
+      expect(useWorkout.getState().restEndsAt).toBeUndefined();
+      expect((await workoutRepo.getActive())?.restTimerEndsAt).toBeUndefined();
+    });
+
+    it('adjusts by 15 s', async () => {
+      const bench = await exerciseRepo.create({ ...base, name: 'Bench' });
+      await useWorkout.getState().start();
+      await useWorkout.getState().addExercise(bench.id);
+      await useWorkout.getState().startRest(60);
+      const a = Date.parse(useWorkout.getState().restEndsAt!);
+      await useWorkout.getState().adjustRest(15);
+      expect(Date.parse(useWorkout.getState().restEndsAt!) - a).toBe(15_000);
+    });
+
+    it('resumes a running timer after reload, but drops a stale one', async () => {
+      const bench = await exerciseRepo.create({ ...base, name: 'Bench' });
+      await useWorkout.getState().start();
+      await useWorkout.getState().addExercise(bench.id);
+      await useWorkout.getState().startRest(120);
+      const ends = useWorkout.getState().restEndsAt;
+      useWorkout.setState({ loaded: false, workout: undefined, rows: [], restEndsAt: undefined });
+      await useWorkout.getState().load();
+      expect(useWorkout.getState().restEndsAt).toBe(ends);
+
+      const w = (await workoutRepo.getActive())!;
+      await workoutRepo.update(w.id, { restTimerEndsAt: new Date(Date.now() - 600_000).toISOString() });
+      await useWorkout.getState().load();
+      expect(useWorkout.getState().restEndsAt).toBeUndefined();
+      expect((await workoutRepo.getActive())?.restTimerEndsAt).toBeUndefined();
+    });
+  });
+
+  describe('notes', () => {
+    it('saves session notes, per-session exercise notes, and a sticky note on the exercise', async () => {
+      const bench = await exerciseRepo.create({ ...base, name: 'Bench' });
+      await useWorkout.getState().start();
+      await useWorkout.getState().addExercise(bench.id);
+      const weId = useWorkout.getState().rows[0]!.we.id;
+      await useWorkout.getState().setWorkoutNotes('Felt slow');
+      await useWorkout.getState().setExerciseNote(weId, 'Left shoulder tight');
+      await useWorkout.getState().setStickyNote(bench.id, 'Seat 4, grip on rings');
+      expect((await workoutRepo.getActive())?.notes).toBe('Felt slow');
+      expect(useWorkout.getState().rows[0]?.we.notes).toBe('Left shoulder tight');
+      expect((await exerciseRepo.get(bench.id))?.stickyNote).toBe('Seat 4, grip on rings');
+      expect(useWorkout.getState().rows[0]?.exercise.stickyNote).toBe('Seat 4, grip on rings');
+
+      await useWorkout.getState().setWorkoutNotes('');
+      expect((await workoutRepo.getActive())?.notes).toBeUndefined();
+    });
+  });
+
+  describe('reorder and swap', () => {
+    it('moves exercises up/down and persists order; new exercise after a removal does not collide', async () => {
+      const a = await exerciseRepo.create({ ...base, name: 'A' });
+      const b = await exerciseRepo.create({ ...base, name: 'B' });
+      const c = await exerciseRepo.create({ ...base, name: 'C' });
+      await useWorkout.getState().start();
+      for (const e of [a, b, c]) await useWorkout.getState().addExercise(e.id);
+      const names = () => useWorkout.getState().rows.map((r) => r.exercise.name);
+      const idOf = (n: string) => useWorkout.getState().rows.find((r) => r.exercise.name === n)!.we.id;
+
+      await useWorkout.getState().moveExercise(idOf('C'), -1);
+      expect(names()).toEqual(['A', 'C', 'B']);
+      await useWorkout.getState().moveExercise(idOf('A'), -1); // already first: no-op
+      expect(names()).toEqual(['A', 'C', 'B']);
+
+      useWorkout.setState({ rows: [] });
+      await useWorkout.getState().load();
+      expect(names()).toEqual(['A', 'C', 'B']);
+
+      await useWorkout.getState().removeExercise(idOf('C'));
+      const d = await exerciseRepo.create({ ...base, name: 'D' });
+      await useWorkout.getState().addExercise(d.id);
+      expect(names()).toEqual(['A', 'B', 'D']);
+    });
+
+    it('swaps an exercise with no completed sets and re-prefills from the new one', async () => {
+      const a = await exerciseRepo.create({ ...base, name: 'A' });
+      const b = await exerciseRepo.create({ ...base, name: 'B' });
+      await useWorkout.getState().start();
+      await useWorkout.getState().addExercise(a.id);
+      const weId = useWorkout.getState().rows[0]!.we.id;
+      expect(await useWorkout.getState().swapExercise(weId, b.id)).toBe(true);
+      const row = useWorkout.getState().rows[0]!;
+      expect(row.exercise.name).toBe('B');
+      expect(row.sets).toHaveLength(1);
+      expect(row.sets[0]?.exerciseId).toBe(b.id);
+    });
+
+    it('refuses to swap once a set is completed', async () => {
+      const a = await exerciseRepo.create({ ...base, name: 'A' });
+      const b = await exerciseRepo.create({ ...base, name: 'B' });
+      await useWorkout.getState().start();
+      await useWorkout.getState().addExercise(a.id);
+      const id = sets()[0]!.id;
+      await useWorkout.getState().updateSet(id, { weight: 100, reps: 5 });
+      await useWorkout.getState().toggleComplete(id);
+      expect(await useWorkout.getState().swapExercise(useWorkout.getState().rows[0]!.we.id, b.id)).toBe(false);
+      expect(useWorkout.getState().rows[0]?.exercise.name).toBe('A');
+    });
   });
 });

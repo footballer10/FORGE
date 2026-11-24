@@ -4,11 +4,14 @@ import { convertWeight } from '../../domain/units';
 import { fieldsFor, type SetField } from '../../domain/logging';
 import type { ID } from '../../domain/types';
 import { SetRow } from './SetRow';
+import { ExerciseSheet } from './ExerciseSheet';
 import { SetSheet } from './SetSheet';
 import { useWorkout, type ExerciseRow } from './workoutStore';
 
 interface Props {
   onAddExercise: () => void;
+  /** Open the picker to replace this workout exercise. */
+  onSwapExercise: (workoutExerciseId: ID) => void;
 }
 
 const WEIGHT_HEADER: Record<string, string> = {
@@ -33,10 +36,14 @@ function Elapsed({ startedAt }: { startedAt: string }) {
 }
 
 /** The logging screen. No gamification here (CLAUDE.md). */
-export function ActiveWorkout({ onAddExercise }: Props) {
-  const { workout, rows, unit, updateSet, toggleComplete, addSet, removeSet, removeExercise, finish, discard } = useWorkout();
+export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
+  const {
+    workout, rows, unit, updateSet, toggleComplete, addSet, removeSet, removeExercise, finish, discard,
+    setWorkoutNotes, setExerciseNote, setStickyNote, moveExercise,
+  } = useWorkout();
   const [edit, setEdit] = useState<{ setId: ID; field: SetField } | null>(null);
   const [details, setDetails] = useState<ID | null>(null);
+  const [menu, setMenu] = useState<ID | null>(null);
   const [message, setMessage] = useState('');
 
   if (!workout) return null;
@@ -45,6 +52,8 @@ export function ActiveWorkout({ onAddExercise }: Props) {
   const editSet = editRow?.sets.find((s) => s.id === edit?.setId);
   const detailRow = details ? rows.find((r) => r.sets.some((s) => s.id === details)) : undefined;
   const detailSet = detailRow?.sets.find((s) => s.id === details);
+  const menuIndex = rows.findIndex((r) => r.we.id === menu);
+  const menuRow = menuIndex >= 0 ? rows[menuIndex] : undefined;
 
   const stepFor = (row: ExerciseRow, field: SetField): number => {
     if (field === 'weight') return Math.round(convertWeight(row.exercise.weightIncrement, row.exercise.incrementUnit, editSet?.unit ?? unit) * 100) / 100;
@@ -82,14 +91,16 @@ export function ActiveWorkout({ onAddExercise }: Props) {
             <div className="flex items-start justify-between gap-2 pb-2">
               <div>
                 <h2 className="text-2xl uppercase">{row.exercise.name}</h2>
-                {row.exercise.stickyNote && <p className="text-sm text-muted">{row.exercise.stickyNote}</p>}
+                {row.exercise.stickyNote && <p className="whitespace-pre-line text-sm text-muted">{row.exercise.stickyNote}</p>}
+                {row.we.notes && <p className="whitespace-pre-line text-sm text-fg">{row.we.notes}</p>}
               </div>
               <button
                 type="button"
+                aria-label={`${row.exercise.name} options`}
                 className="min-h-tap min-w-tap text-sm text-muted"
-                onClick={() => window.confirm(`Remove ${row.exercise.name} from this workout?`) && void removeExercise(row.we.id)}
+                onClick={() => setMenu(row.we.id)}
               >
-                Remove
+                Options
               </button>
             </div>
             <div className="flex items-center gap-2 px-1 pb-1 text-xs uppercase text-muted">
@@ -126,6 +137,15 @@ export function ActiveWorkout({ onAddExercise }: Props) {
         );
       })}
 
+      <label htmlFor="session-notes" className="pb-1 pt-2 text-sm text-muted">Session notes</label>
+      <textarea
+        id="session-notes"
+        className="min-h-[72px] w-full rounded-card border border-line bg-surface p-3 text-base text-fg placeholder:text-muted"
+        placeholder="Sleep, energy, anything worth remembering"
+        value={workout.notes ?? ''}
+        onChange={(e) => void setWorkoutNotes(e.target.value)}
+      />
+
       {/* Primary actions in the bottom third. */}
       <div className="mt-auto flex flex-col gap-2 pt-4">
         <button type="button" onClick={onAddExercise} className="min-h-[56px] w-full rounded-card border border-line bg-surface text-base text-fg">
@@ -158,6 +178,28 @@ export function ActiveWorkout({ onAddExercise }: Props) {
             setEdit(n ? { setId: edit.setId, field: n } : null);
           }}
           onClose={() => setEdit(null)}
+        />
+      )}
+
+      {menuRow && (
+        <ExerciseSheet
+          row={menuRow}
+          index={menuIndex}
+          count={rows.length}
+          onStickyNote={(n) => void setStickyNote(menuRow.exercise.id, n)}
+          onSessionNote={(n) => void setExerciseNote(menuRow.we.id, n)}
+          onMove={(d) => void moveExercise(menuRow.we.id, d)}
+          onSwap={() => {
+            setMenu(null);
+            onSwapExercise(menuRow.we.id);
+          }}
+          onRemove={() => {
+            if (window.confirm(`Remove ${menuRow.exercise.name} from this workout?`)) {
+              setMenu(null);
+              void removeExercise(menuRow.we.id);
+            }
+          }}
+          onClose={() => setMenu(null)}
         />
       )}
 
