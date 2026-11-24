@@ -9,8 +9,24 @@ import type { ID, SetEntry } from '../../domain/types';
 import { balanceChecks, detectPlateau, totalsBetween, volumeSets } from '../../domain/volume';
 import { analyticsRepo } from './analytics';
 import { fitnessRepo } from './fitness';
+import { nowIso } from './base';
 import { profileRepo } from './profile';
-import { programRepo } from './index';
+import { aiDecisionRepo, exerciseRepo, programRepo } from './index';
+import { treeToDraft, type DraftWeek } from '../../domain/program';
+import { carryOverHistory, diffDrafts, extractJson, proposalToDraft, validateProposal, type DiffLine, type Proposal } from '../../domain/programProposal';
+import type { Program } from '../../domain/types';
+
+export interface ProposalPreview {
+  errors: string[];
+  proposal?: Proposal;
+  draft?: DraftWeek[];
+  /** Exercise names in the proposal that are not in the library. */
+  missing: string[];
+  diff: DiffLine[];
+  /** The active program the proposal would replace, if any. */
+  current?: Program;
+  baseDraft?: DraftWeek[];
+}
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const MAX_LIFTS = 15;
@@ -136,6 +152,53 @@ export const coachRepo = {
       muscleSetsPerWeek, unassignedSets: totals.unassigned, balance,
       lifts: lifts.slice(0, MAX_LIFTS), prs, tests, ...(program ? { program } : {}),
     };
+  },
+
+  /** Parse, validate and resolve pasted text into a reviewable proposal. Saves nothing. */
+  async prepareProposal(text: string): Promise<ProposalPreview> {
+    const json = extractJson(text);
+    if (json.error) return { errors: [json.error], missing: [], diff: [] };
+    const { proposal, errors } = validateProposal(json.value);
+    if (!proposal) return { errors, missing: [], diff: [] };
+
+    const profile = await profileRepo.get();
+    const all = await exerciseRepo.list();
+    const byName = new Map<string, string>();
+    const names = new Map<string, string>();
+    for (const e of all) {
+      names.set(e.id, e.name);
+      for (const n of [e.name, ...e.aliases]) if (!byName.has(n.trim().toLowerCase())) byName.set(n.trim().toLowerCase(), e.id);
+    }
+    const { draft, missing } = proposalToDraft(proposal, (n) => byName.get(n.trim().toLowerCase()), profile.weightUnit, () => crypto.randomUUID());
+
+    const active = (await programRepo.listLatest()).find((p) => p.status === 'active');
+    const tree = active ? await programRepo.getTree(active.id) : undefined;
+    const baseDraft = tree ? treeToDraft(tree) : [];
+    const diff = diffDrafts(baseDraft, draft, names, profile.weightUnit);
+    return { errors: [], proposal, draft, missing, diff, ...(active ? { current: active, baseDraft } : {}) };
+  },
+
+  /** Save an approved proposal as a program (new version of the active one, or a separate draft) and log the decision. */
+  async approveProposal(preview: ProposalPreview, mode: 'update' | 'new', rawText: string): Promise<Program> {
+    if (!preview.proposal || !preview.draft || preview.missing.length) throw new Error('Proposal is not ready to save.');
+    const p = preview.proposal;
+    const update = mode === 'update' && !!preview.current;
+    const program = await programRepo.saveVersion({
+      ...(update ? { previousId: preview.current!.id } : {}),
+      fields: { name: p.name, ...(p.description ? { description: p.description } : {}), ...(p.daysPerWeek ? { daysPerWeek: p.daysPerWeek } : {}) },
+      weeks: update ? carryOverHistory(preview.draft, preview.baseDraft ?? []) : preview.draft,
+      reason: p.reason, author: 'claude',
+    });
+    await aiDecisionRepo.create({
+      date: nowIso(), summary: `${p.name}: ${update ? `${preview.diff.length} change(s) to the active program` : 'new program'}`,
+      reason: p.reason, status: 'approved', programId: program.id, programVersion: program.version, payload: rawText,
+    });
+    return program;
+  },
+
+  async rejectProposal(preview: ProposalPreview, rawText: string): Promise<void> {
+    if (!preview.proposal) return;
+    await aiDecisionRepo.create({ date: nowIso(), summary: `${preview.proposal.name}: rejected`, reason: preview.proposal.reason, status: 'rejected', payload: rawText });
   },
 
   async summaryText(days: number, today?: string): Promise<string> {
