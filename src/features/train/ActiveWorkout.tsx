@@ -41,7 +41,7 @@ function Elapsed({ startedAt }: { startedAt: string }) {
 /** The logging screen. No gamification here (CLAUDE.md). */
 export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
   const {
-    workout, rows, unit, updateSet, toggleComplete, addSet, removeSet, removeExercise, finish, discard,
+    prSetIds, workout, rows, unit, updateSet, toggleComplete, addSet, removeSet, removeExercise, finish, discard,
     setWorkoutNotes, setExerciseNote, setStickyNote, moveExercise, toggleSuperset, showPairTotal, equipment,
   } = useWorkout();
   const [edit, setEdit] = useState<{ setId: ID; field: SetField } | null>(null);
@@ -139,6 +139,7 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
                   editing={edit?.setId === s.id ? edit.field : undefined}
                   onEdit={(field) => setEdit({ setId: s.id, field })}
                   onOpenDetails={() => setDetails(s.id)}
+                  pr={!!s.completedAt && prSetIds.includes(s.id)}
                   pairTotal={showPairTotal && row.exercise.loadModel === 'perImplement' ? displayWeight(s, row.exercise, true, s.unit) : undefined}
                   onToggle={() => {
                     setEdit(null);

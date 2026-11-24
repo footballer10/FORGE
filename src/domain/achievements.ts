@@ -1,4 +1,5 @@
 import { convertWeight } from './units';
+import { streakRuns, type WeekResult } from './streaks';
 import type { ID, WeightUnit } from './types';
 
 /**
@@ -11,6 +12,8 @@ export const WORKOUT_MILESTONES = [1, 10, 25, 50, 100, 250, 500] as const;
 export const SET_MILESTONES = [100, 500, 1000, 5000, 10000] as const;
 export const PR_MILESTONES = [1, 10, 25, 50, 100] as const;
 /** Lift e1RM milestones in lb. Keys always use lb; other units are converted before comparing. */
+/** Consecutive weeks of hitting the planned training days. */
+export const STREAK_MILESTONES = [4, 12, 26, 52] as const;
 export const LIFT_MILESTONES_LB = [135, 225, 315, 405, 495] as const;
 
 export interface AchievementWorkout {
@@ -33,6 +36,8 @@ export interface AchievementInput {
   /** PR events (any kind), one entry each. */
   prs: readonly { date: string; workoutId: ID }[];
   lifts: readonly AchievementLift[];
+  /** Weekly results from `weeklyResults` (omit when there is no weekly target). */
+  weeks?: readonly WeekResult[];
   unit: WeightUnit;
 }
 
@@ -49,6 +54,7 @@ export interface EarnedAchievement {
 export const workoutKey = (n: number) => `workouts-${n}`;
 export const setKey = (n: number) => `sets-${n}`;
 export const prKey = (n: number) => `prs-${n}`;
+export const streakKey = (n: number) => `streak-${n}`;
 export const liftKey = (exerciseId: ID, lb: number) => `lift-${exerciseId}-${lb}`;
 
 const plural = (n: number, one: string, many: string) => `${n.toLocaleString('en-US')} ${n === 1 ? one : many}`;
@@ -99,6 +105,18 @@ export function evaluateAchievements(input: AchievementInput): EarnedAchievement
       (n) => ({ key: prKey(n), title: n === 1 ? 'First PR' : `${n} PRs`, description: `Set ${plural(n, 'personal record', 'personal records')} (rep, e1RM or volume).` }),
     ),
   );
+
+  for (const run of streakRuns(input.weeks ?? [])) {
+    if (!(STREAK_MILESTONES as readonly number[]).includes(run.length) || !run.result.hitAt) continue;
+    out.push({
+      key: streakKey(run.length),
+      title: `${run.length}-week streak`,
+      description: `Hit the planned training days ${plural(run.length, 'week', 'weeks')} in a row.`,
+      achievedAt: run.result.hitAt,
+      workoutId: run.result.workoutId as ID,
+      value: run.length,
+    });
+  }
 
   for (const lift of input.lifts) {
     const pts = [...lift.points].sort((a, b) => a.date.localeCompare(b.date));

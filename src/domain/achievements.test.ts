@@ -61,4 +61,12 @@ describe('achievements', () => {
     expect(nextMilestone([1, 10, 25], 10)).toBe(25);
     expect(nextMilestone([1, 10], 10)).toBeUndefined();
   });
+
+  it('earns streak achievements when a run reaches the milestone', () => {
+    const weeks = Array.from({ length: 5 }, (_, i) => ({ weekStart: `2026-03-${String(2 + i * 7).padStart(2, '0')}`, days: 3, hit: true, hitAt: day(i + 1), workoutId: `w${i + 1}` }));
+    const got = evaluateAchievements(base({ weeks })).filter((a) => a.key.startsWith('streak-'));
+    expect(got.map((a) => [a.key, a.workoutId])).toEqual([['streak-4', 'w4']]);
+    const broken = weeks.map((w, i) => (i === 2 ? { ...w, hit: false } : w));
+    expect(evaluateAchievements(base({ weeks: broken })).some((a) => a.key.startsWith('streak-'))).toBe(false);
+  });
 });
