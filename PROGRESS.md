@@ -95,11 +95,15 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - [x] Undo last action
 - [x] Trash: soft-deleted workouts, 30-day purge, restore
 
-## Milestone 3 — Routines & programs
+## Milestone 3 — Routines & programs (split 3a–3d)
+### 3a — Routines
 - [ ] Routine CRUD with target sets/reps/rest/RPE; start workout from routine
+### 3b — Programs
 - [ ] Program → weeks → planned sessions; versioning with change reason
+### 3c — Planned vs completed, history
 - [ ] Planned vs completed linking and view
 - [ ] History calendar + training-day heatmap
+### 3d — Progression
 - [ ] Progression rules: double progression, % e1RM, RPE target → suggested weight (pure + tests)
 
 ## Milestone 4 — Strength analytics (likely split 4a/4b)
