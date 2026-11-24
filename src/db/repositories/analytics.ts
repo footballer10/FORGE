@@ -1,4 +1,4 @@
-import type { BodyMetric, Exercise, ID, SetEntry, Workout } from '../../domain/types';
+import type { BodyMetric, Exercise, ID, SetEntry, WeightUnit, Workout } from '../../domain/types';
 import { db } from '../schema';
 import { profileRepo } from './profile';
 
@@ -6,6 +6,14 @@ export interface LiftedExercise {
   exercise: Exercise;
   sets: number;
   lastDate: string;
+}
+
+export interface TrainingData {
+  sets: SetEntry[];
+  exercises: Map<ID, Exercise>;
+  workouts: Map<ID, Workout>;
+  metrics: BodyMetric[];
+  unit: WeightUnit;
 }
 
 export interface ExerciseAnalyticsInput {
@@ -45,6 +53,19 @@ export const analyticsRepo = {
     for (const w of rows) if (w && w.endedAt && !w.deletedAt) workouts.set(w.id, w);
     const metrics = await db.bodyMetrics.where('kind').equals('bodyweight').filter((m) => !m.deletedAt).toArray();
     return { exercise, sets, workouts, metrics };
+  },
+
+  /** Every completed non-warm-up set of finished, non-trashed workouts, with exercises, workouts and weigh-ins. */
+  async trainingData(): Promise<TrainingData> {
+    const workouts = new Map<ID, Workout>();
+    for (const w of await db.workouts.filter((w) => !!w.endedAt && !w.deletedAt).toArray()) workouts.set(w.id, w);
+    const sets = await db.sets
+      .filter((s) => !s.deletedAt && !!s.completedAt && s.type !== 'warmup' && workouts.has(s.workoutId))
+      .toArray();
+    const exercises = new Map<ID, Exercise>();
+    for (const e of await db.exercises.bulkGet([...new Set(sets.map((s) => s.exerciseId))])) if (e) exercises.set(e.id, e);
+    const metrics = await db.bodyMetrics.where('kind').equals('bodyweight').filter((m) => !m.deletedAt).toArray();
+    return { sets, exercises, workouts, metrics, unit: (await profileRepo.get()).weightUnit };
   },
 
   async weightUnit() {

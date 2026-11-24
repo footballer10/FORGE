@@ -3,8 +3,8 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
-- **Done last session:** Milestone 4a — six e1RM formulas, PR detection (rep-range, e1RM, volume), repository queries for analytics, and a Strength tab with a per-exercise e1RM chart, formula picker (saved to the profile) and PR timeline. 208 tests pass.
-- **Next session:** Milestone 4b (weekly hard sets per muscle with 1.0/0.5 weights, period comparisons, strength score, tiers from editable standards, body map, plateau and balance checks). Large: consider splitting 4b into 4b-i (volume, comparisons, plateau) and 4b-ii (score, tiers, body map, balance).
+- **Done last session:** Milestone 4b-i — weekly hard sets per muscle (primary 1.0, secondary 0.5), period comparisons (month, 3/6/12 months) on the Progress tab, and plateau detection with a flag on the Strength list. 223 tests pass.
+- **Next session:** Milestone 4b-ii: strength score (chosen lifts + weights, formula shown), strength tiers from editable standards tables, muscle body map (front/back SVG), balance checks (push:pull, squat:hinge). Large: consider splitting score+tiers from body map+balance.
 - **Known issues:** see bottom.
 
 ## Decisions (defaults chosen; change by asking)
@@ -56,6 +56,9 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 - Analytics (4a): only finished, non-trashed workouts count. Effective load per `domain/load.ts`; bodyweight lifts use the nearest weigh-in on or before the set, else the workout snapshot, else the set is skipped. Analysis unit is the profile unit. e1RM uses sets of 1–12 reps, one point per workout (its best set); a single is its own max in every formula. Default formula Epley, changed in the chart screen and stored on the profile.
 - PRs (4a): the first value of each kind is a baseline, not a PR; ties are not PRs. Kinds: rep (heaviest load at exactly 1, 2, 3, 4, 5, 6, 8, 10 or 12 reps), e1RM (chosen formula), volume (load × reps summed over the exercise in one workout). Evaluated per workout, so several sets in one workout yield at most one PR per kind and rep count.
+- Volume (4b-i): a hard set is a completed non-warm-up set of a finished, non-trashed workout; it counts even with no reps/load. Muscle credit: primary 1.0, secondary 0.5 (a muscle listed as both counts once, as primary). Exercises with no muscles are counted in the set total and reported as "unassigned", not spread anywhere. Volume (load × reps) uses effective load and is 0 for sets with unknown load.
+- Period comparison (4b-i): month = this calendar month so far vs the whole previous month; 3/6/12 months = last N months to today vs the N months before. Windows differ in length for "month", and totals are plain sums, so the UI says they are not per-week rates.
+- Plateau (4b-i): 6 weeks (constant `PLATEAU_WEEKS`, no setting yet), best e1RM in the window does not beat the earlier best, needs an earlier best and at least 3 sessions in the window. Uses the formula chosen on the profile.
 
 ## Milestone 0 — Foundation
 - [x] SPEC.md, CLAUDE.md, PROGRESS.md
@@ -125,13 +128,14 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - [x] e1RM formulas (Epley, Brzycki, Lombardi, Mayhew, O'Conner, Wathan) + tests
 - [x] PR detection: rep-range, e1RM, volume + PR timeline (tests)
 - [x] Per-exercise e1RM chart with formula picker (Strength tab)
-### 4b — Volume, scores, checks
-- [ ] Weekly hard sets per muscle (primary 1.0, secondary 0.5 — shown)
-- [ ] Period comparisons (month vs last; 3/6/12 months)
+### 4b-i — Volume, comparisons, plateau
+- [x] Weekly hard sets per muscle (primary 1.0, secondary 0.5 — shown)
+- [x] Period comparisons (month vs last; 3/6/12 months)
+### 4b-ii — Score, tiers, map, balance
 - [ ] Strength score: chosen lifts + weights, formula displayed
 - [ ] Strength tiers from editable standards tables
 - [ ] Muscle body map (front/back SVG)
-- [ ] Plateau detection (N weeks without e1RM gain)
+- [x] Plateau detection (N weeks without e1RM gain)
 - [ ] Balance checks: push:pull, squat:hinge
 
 ## Milestone 5 — Body & athletic
@@ -205,3 +209,5 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Strength tab (4a) was typechecked, unit-tested and built but not opened in a browser or on a device; check the chart on the phone.
 - PR timeline and e1RM series recompute from all of an exercise's sets on open (fine for personal data). The Strength list shows only exercises with completed non-warm-up sets, including ones with no usable load (they show an explanation).
 - Rep PRs only track the listed rep counts (7, 9, 11 are skipped) and are not credited across counts (a heavier 5 does not set a 3-rep PR).
+- Progress tab volume panel and Strength plateau flags were typechecked, unit-tested and built, not opened in a browser or on a device. The plateau window (6 weeks) and minimum sessions (3) are not editable yet.
+- Strength tab loads every set into memory twice (list + plateau data); fine for personal data.
