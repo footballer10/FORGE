@@ -43,3 +43,59 @@ describe('coachRepo.summaryText', () => {
     expect(text).toContain('no active program');
   });
 });
+
+import { db } from '../schema';
+import { programRepo } from './index';
+
+describe('coachRepo proposals', () => {
+  const prop = (reps: number, exercise = 'Bench') => JSON.stringify({
+    schemaVersion: 1, name: 'Block', reason: 'Because', weeks: [{ sessions: [{ name: 'Push', exercises: [{ exercise, sets: [{ count: 3, reps, weight: 135 }] }] }] }],
+  });
+
+  it('reports parse, validation and missing-exercise problems without saving', async () => {
+    await exerciseRepo.create(ex);
+    expect((await coachRepo.prepareProposal('nope')).errors[0]).toMatch(/No JSON/);
+    expect((await coachRepo.prepareProposal('{"name":"x"}')).errors.length).toBeGreaterThan(0);
+    const miss = await coachRepo.prepareProposal(prop(5, 'Mystery Lift'));
+    expect(miss.missing).toEqual(['Mystery Lift']);
+    expect(await db.programs.count()).toBe(0);
+  });
+
+  it('creates a program, then updates it as a new version, logging each decision', async () => {
+    await exerciseRepo.create({ ...ex, aliases: ['Flat Bench'] });
+    const first = await coachRepo.prepareProposal('```json\n' + prop(5, 'flat bench') + '\n```');
+    expect(first.errors).toEqual([]);
+    expect(first.missing).toEqual([]);
+    expect(first.current).toBeUndefined();
+    const created = await coachRepo.approveProposal(first, 'update', prop(5, 'flat bench'));
+    expect(created.version).toBe(1);
+    expect(created.author).toBe('claude');
+    await programRepo.setStatus(created.id, 'active');
+
+    const second = await coachRepo.prepareProposal(prop(3));
+    expect(second.current?.id).toBe(created.id);
+    expect(second.diff[0]!.text).toContain('3×5 @ 135 lb → 3×3 @ 135 lb');
+    const v2 = await coachRepo.approveProposal(second, 'update', prop(3));
+    expect(v2.version).toBe(2);
+    expect(v2.previousVersionId).toBe(created.id);
+    expect(v2.status).toBe('active');
+
+    const third = await coachRepo.prepareProposal(prop(8));
+    await coachRepo.rejectProposal(third, prop(8));
+    const decisions = await db.aiDecisions.toArray();
+    expect(decisions.map((d) => d.status).sort()).toEqual(['approved', 'approved', 'rejected']);
+    expect(decisions.find((d) => d.programVersion === 2)!.payload).toContain('"reps":3');
+    expect((await programRepo.listLatest()).length).toBe(1);
+  });
+
+  it('can save as a separate program instead of updating', async () => {
+    await exerciseRepo.create(ex);
+    const a = await coachRepo.approveProposal(await coachRepo.prepareProposal(prop(5)), 'new', prop(5));
+    await programRepo.setStatus(a.id, 'active');
+    const b = await coachRepo.approveProposal(await coachRepo.prepareProposal(prop(4)), 'new', prop(4));
+    expect(b.version).toBe(1);
+    expect(b.previousVersionId).toBeUndefined();
+    expect(b.status).toBe('draft');
+    expect((await programRepo.listLatest()).length).toBe(2);
+  });
+});
