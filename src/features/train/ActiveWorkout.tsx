@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Keypad } from '../../components/Keypad';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { convertWeight } from '../../domain/units';
 import { displayWeight } from '../../domain/load';
 import { fieldsFor, type SetField } from '../../domain/logging';
@@ -49,6 +50,7 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
   const [menu, setMenu] = useState<ID | null>(null);
   const [plates, setPlates] = useState<ID | null>(null);
   const [message, setMessage] = useState('');
+  const [confirm, setConfirm] = useState<'discard' | 'remove' | null>(null);
 
   if (!workout) return null;
   const editing = isEditingPast(workout);
@@ -75,10 +77,10 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
   };
 
   const onDiscard = async () => {
-    if (editing || window.confirm('Discard this workout? It will be moved to the trash.')) {
+    if (editing) {
       setEdit(null);
       await discard();
-    }
+    } else setConfirm('discard');
   };
 
   return (
@@ -214,10 +216,7 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
             onSwapExercise(menuRow.we.id);
           }}
           onRemove={() => {
-            if (window.confirm(`Remove ${menuRow.exercise.name} from this workout?`)) {
-              setMenu(null);
-              void removeExercise(menuRow.we.id);
-            }
+            setConfirm('remove');
           }}
           onClose={() => setMenu(null)}
         />
@@ -244,6 +243,34 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
             void removeSet(detailSet.id);
           }}
           onClose={() => setDetails(null)}
+        />
+      )}
+      {confirm === 'discard' && (
+        <ConfirmDialog
+          title="Discard workout?"
+          body="It will be moved to the trash."
+          confirmLabel="Discard"
+          destructive
+          onCancel={() => setConfirm(null)}
+          onConfirm={() => {
+            setConfirm(null);
+            setEdit(null);
+            void discard();
+          }}
+        />
+      )}
+      {confirm === 'remove' && menuRow && (
+        <ConfirmDialog
+          title={`Remove ${menuRow.exercise.name}?`}
+          body="Its sets are removed from this workout."
+          confirmLabel="Remove"
+          destructive
+          onCancel={() => setConfirm(null)}
+          onConfirm={() => {
+            setConfirm(null);
+            setMenu(null);
+            void removeExercise(menuRow.we.id);
+          }}
         />
       )}
     </div>
