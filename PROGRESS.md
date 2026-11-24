@@ -3,8 +3,8 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
-- **Done last session:** Milestone 1b-i — rest timer (timestamp-based, persisted, ±15 s, skip, vibration), screen wake lock, sticky/session notes, per-exercise options sheet (move up/down, swap, remove). 64 tests pass.
-- **Next session:** Milestone 1b-ii (supersets/circuits, edit + duplicate past workouts, plate calculator, dumbbell pair-total display). 1b was split in two this session.
+- **Done last session:** Milestone 1b-ii — supersets (rest only after the last exercise of the round), edit past workouts in place, repeat a past workout, plate calculator, dumbbell pair-total display. Milestone 1b is complete. 79 tests pass.
+- **Next session:** Milestone 2 (import, export & safety). It is large: split it in PROGRESS.md first (suggest 2a: Strong CSV parser + import preview; 2b: export, restore, backup reminder, undo, trash).
 - **Known issues:** see bottom.
 
 ## Decisions (defaults chosen; change by asking)
@@ -22,6 +22,11 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Rest bar lives in `AppShell` above the tab bar, so it shows on every tab; wake lock is also held at shell level while a workout is active.
 - Swap is allowed only while the exercise has no completed sets (its empty sets are soft-deleted and re-prefilled from the new exercise); otherwise remove + add.
 - Notes write through on every keystroke (crash safety). Sticky note is stored on the exercise; "this workout only" note on the workout exercise; session note on the workout.
+- Supersets: link an exercise with the next from its Options sheet; groups are labelled A, B, ... and rest starts after the last exercise of the group in workout order.
+- Editing a past workout reopens it in the logging screen with its original end time kept; the ID is stored in `meta.editingWorkoutId` so a reload resumes the edit. No rest timer while editing. "Close without finishing" just closes (edits are already saved).
+- Repeat copies exercises, supersets and set structure (type/weight/reps/time/distance) as unticked sets; notes, RPE/RIR are not copied.
+- Plate calculator uses the exercise's `barWeight`, else the default equipment profile's bar (45 lb) and plates; shown only for barbell exercises with the `total` load model. Greedy, per side, with a "closest" note when the target is not reachable.
+- Dumbbell pair total is display-only, a small "N total" line under the weight; the toggle lives on the Train home screen until a Settings screen exists.
 - Default rest 120 s for compound lifts, 90 s otherwise; default increment 5 lb barbell, 5 lb dumbbell (per implement), 2.5 lb fallback for small plates is a per-exercise edit.
 
 ## Milestone 0 — Foundation
@@ -54,10 +59,10 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - [x] Reorder / swap / remove exercises mid-workout
 
 ## Milestone 1b-ii — Logging extras, part 2
-- [ ] Supersets/circuits: group, timer after last exercise of the round
-- [ ] Edit and duplicate past workouts
-- [ ] Plate calculator (bar weight, available plates, per side)
-- [ ] Display setting: show dumbbell pair total
+- [x] Supersets/circuits: group, timer after last exercise of the round
+- [x] Edit and duplicate past workouts
+- [x] Plate calculator (bar weight, available plates, per side)
+- [x] Display setting: show dumbbell pair total
 
 ## Milestone 2 — Import, export & safety
 - [ ] Strong CSV parser (pure) + tests: dumbbell, bodyweight, kg, lb, duration/distance
@@ -114,6 +119,9 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - [ ] Cloudflare Pages deploy
 
 ## Known issues
+- No Settings screen yet: pair-total toggle is on the Train home; plate sizes and bar weight come from the default equipment profile with no editor (M8 / later).
+- Editing a past workout changes its sets but not its start/end times or name (no editor for those yet).
+- Superset rounds are not enforced or visually sequenced; supersets only affect when the rest timer starts.
 - `navigator.vibrate` is unsupported on iOS Safari, so on iPhone the rest timer ends with no buzz or sound (a visual change only). Needs a decision (e.g. audio cue) later; not added to avoid guessing.
 - The rest timer cannot alert while the PWA is backgrounded or locked (no push/background timers on iOS); it is correct on return, just silent.
 - Reorder is up/down buttons, not drag-and-drop (no new dependency).
