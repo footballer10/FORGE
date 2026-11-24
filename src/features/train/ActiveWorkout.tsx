@@ -3,6 +3,7 @@ import { Keypad } from '../../components/Keypad';
 import { convertWeight } from '../../domain/units';
 import { displayWeight } from '../../domain/load';
 import { fieldsFor, type SetField } from '../../domain/logging';
+import { describeTargets } from '../../domain/routine';
 import type { ID } from '../../domain/types';
 import { SetRow } from './SetRow';
 import { ExerciseSheet } from './ExerciseSheet';
@@ -100,6 +101,7 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
                   {row.exercise.name}
                 </h2>
                 {row.exercise.stickyNote && <p className="whitespace-pre-line text-sm text-muted">{row.exercise.stickyNote}</p>}
+                {row.we.targets && <p className="num text-sm text-muted">Target {describeTargets(row.we.targets)}</p>}
                 {row.we.notes && <p className="whitespace-pre-line text-sm text-fg">{row.we.notes}</p>}
               </div>
               {row.exercise.equipment === 'barbell' && row.exercise.loadModel === 'total' && (
