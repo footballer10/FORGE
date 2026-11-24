@@ -1,50 +1,76 @@
 import { useState } from 'react';
-import { EmptyState } from '../../components/EmptyState';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import type { Exercise } from '../../domain/types';
 import { ExerciseBrowser } from '../exercises/ExerciseBrowser';
 import { ExerciseForm } from '../exercises/ExerciseForm';
+import { ActiveWorkout } from './ActiveWorkout';
+import { HistoryList } from './HistoryList';
+import { useWorkout } from './workoutStore';
 
-type View = { kind: 'home' } | { kind: 'library' } | { kind: 'form'; exercise?: Exercise };
+type View =
+  | { kind: 'home' }
+  | { kind: 'library' }
+  | { kind: 'form'; exercise?: Exercise; returnTo: 'library' | 'pick' }
+  | { kind: 'pick' };
 
 export function TrainScreen() {
   const [view, setView] = useState<View>({ kind: 'home' });
+  const loaded = useWorkout((s) => s.loaded);
+  const active = useWorkout((s) => s.workout);
+  const start = useWorkout((s) => s.start);
+  const addExercise = useWorkout((s) => s.addExercise);
 
+  if (view.kind === 'pick') {
+    return (
+      <ExerciseBrowser
+        title="Add exercise"
+        onSelect={(e) => {
+          void addExercise(e.id);
+          setView({ kind: 'home' });
+        }}
+        onCreate={() => setView({ kind: 'form', returnTo: 'pick' })}
+        onBack={() => setView({ kind: 'home' })}
+      />
+    );
+  }
   if (view.kind === 'library') {
     return (
       <ExerciseBrowser
         title="Exercises"
-        onSelect={(exercise) => setView({ kind: 'form', exercise })}
-        onCreate={() => setView({ kind: 'form' })}
+        onSelect={(exercise) => setView({ kind: 'form', exercise, returnTo: 'library' })}
+        onCreate={() => setView({ kind: 'form', returnTo: 'library' })}
         onBack={() => setView({ kind: 'home' })}
       />
     );
   }
   if (view.kind === 'form') {
-    return <ExerciseForm key={view.exercise?.id ?? 'new'} exercise={view.exercise} onDone={() => setView({ kind: 'library' })} />;
+    return <ExerciseForm key={view.exercise?.id ?? 'new'} exercise={view.exercise} onDone={() => setView({ kind: view.returnTo })} />;
   }
+
+  if (!loaded) return <div className="min-h-full" />;
+  if (active) return <ActiveWorkout onAddExercise={() => setView({ kind: 'pick' })} />;
 
   return (
     <div className="flex min-h-full flex-col pb-6">
       <ScreenHeader title="Train" />
-      <EmptyState title="No workout in progress" body="Start an empty workout or pick a routine." />
       <button
         type="button"
         onClick={() => setView({ kind: 'library' })}
-        className="mt-3 min-h-tap rounded-card border border-line bg-surface px-4 text-left text-base text-fg"
+        className="mb-4 min-h-tap rounded-card border border-line bg-surface px-4 text-left text-base text-fg"
       >
         Exercise library
       </button>
+      <h2 className="pb-2 text-2xl uppercase">History</h2>
+      <HistoryList />
       {/* Primary action sits in the bottom third for one-handed use. */}
-      <div className="mt-auto pt-6">
+      <div className="sticky bottom-0 mt-auto bg-bg pt-4">
         <button
           type="button"
-          disabled
-          className="num min-h-[56px] w-full rounded-card bg-accent text-xl font-semibold uppercase tracking-wider text-accent-fg disabled:opacity-60"
+          onClick={() => void start().then(() => setView({ kind: 'pick' }))}
+          className="num min-h-[56px] w-full rounded-card bg-accent text-xl font-semibold uppercase tracking-wider text-accent-fg"
         >
           Start workout
         </button>
-        <p className="pt-2 text-center text-xs text-muted">Logging arrives in the next milestone (1a-ii).</p>
       </div>
     </div>
   );
