@@ -40,7 +40,12 @@ export function HomeScreen() {
   const empty = data && !data.streak && !data.prs.length && !data.achievements.length;
   return (
     <div className="flex flex-col gap-4 pb-6">
-      <ScreenHeader title="Forge" />
+      <div className="flex items-center justify-between">
+        <ScreenHeader title="Forge" />
+        <button type="button" aria-label="Settings" onClick={() => useUi.getState().setSettingsOpen(true)} className="min-h-tap min-w-tap px-2 text-sm text-muted">
+          Settings
+        </button>
+      </div>
       <BackupReminder
         onOpen={() => {
           useUi.getState().setOpenBackup(true);
