@@ -3,8 +3,8 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
-- **Done last session:** Milestone 3b — programs: create/edit weeks and planned sessions (phase, deload, copy week), versioning with a required change reason, active/completed/archived status, start a workout from a planned session (sets `plannedSessionId`), version history. 165 tests pass.
-- **Next session:** Milestone 3c (planned vs completed: link a finished workout to its planned session, skip a session, compare plan and result; history calendar + training-day heatmap). Then 3d (progression rules, pure + tests).
+- **Done last session:** Milestone 3c — finishing a planned workout links it to its session (`completedWorkoutId`), skip/unskip, plan-vs-completed view per session, Train history List/Calendar toggle with a month calendar and a 26-week training-day heatmap. 176 tests pass.
+- **Next session:** Milestone 3d (progression rules: double progression, % e1RM, RPE target → suggested weight; pure + tests). It needs e1RM formulas, which are in Milestone 4; 3d should include a minimal Epley helper and note it, or do the e1RM formulas first (ask the user).
 - **Known issues:** see bottom.
 
 ## Decisions (defaults chosen; change by asking)
@@ -47,6 +47,9 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Programs: only one program is active; activating one sets any other active program to draft. A new version keeps the old status (an archived program re-saved becomes a draft).
 - Programs: "next session" is the first session in plan order that is not done or skipped. Sessions with no exercises get no Start button. Week and day numbers always follow list order (reordering renumbers).
 - Planned sessions reuse the routine exercise editor (`ExercisesEditor`), so targets, rest overrides and supersets work the same; starting one copies targets and rest onto the workout like a routine.
+- Plan vs completed: sets are matched to targets by position within the exercise, warm-ups and working sets separately; only completed sets count. Reps are "on target" inside [reps, repsMax]; weight is compared in the target's unit with a 1% tolerance. Adherence = planned sets with a completed set / planned sets (extra sets and unplanned exercises are listed, not counted).
+- Linking: finishing a workout started from a planned session sets `completedWorkoutId` and clears `skipped`; deleting that workout unlinks it (undo restores the link). Editing a past workout never relinks.
+- Calendar and heatmap: local days, Monday weeks. Shade = completed non-warm-up sets that day relative to the busiest day among the last 26 weeks (four steps at >0, >25%, >50%, >75%); the formula is printed under the heatmap. Tapping a calendar day lists its workouts with Open (edit).
 - Default rest 120 s for compound lifts, 90 s otherwise; default increment 5 lb barbell, 5 lb dumbbell (per implement), 2.5 lb fallback for small plates is a per-exercise edit.
 
 ## Milestone 0 — Foundation
@@ -107,8 +110,8 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 ### 3b — Programs
 - [x] Program → weeks → planned sessions; versioning with change reason
 ### 3c — Planned vs completed, history
-- [ ] Planned vs completed linking and view
-- [ ] History calendar + training-day heatmap
+- [x] Planned vs completed linking and view
+- [x] History calendar + training-day heatmap
 ### 3d — Progression
 - [ ] Progression rules: double progression, % e1RM, RPE target → suggested weight (pure + tests)
 
@@ -185,6 +188,8 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Routine editor uses up/down buttons, no drag and drop; the draft is lost if you leave the editor without saving (no unsaved-changes prompt).
 - Trashed routines can only be restored through the undo bar (20 s / Backup screen latest entry); no Trash screen entry.
 - Routine screens were verified in headless Chromium only (create, start); not on a device.
-- Starting a planned session sets `workout.plannedSessionId` but finishing does not yet write `completedWorkoutId` back; the session stays "next" until 3c. There is no skip button yet either.
+- Restoring a deleted workout from the Trash screen does not relink its planned session (undo does).
+- Planned sessions are linked only when the workout was started from the session; a workout logged freehand is never matched to a plan automatically.
+- Calendar loads every finished workout into memory (fine for years of personal data); heatmap and calendar were checked in headless Chromium only.
 - Program editor keeps its draft in memory only (leaving loses it); no drag and drop; scheduled dates per session are stored but have no editor.
 - Program screens were verified in headless Chromium only (create, activate, version, start); not on a device.

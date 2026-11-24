@@ -28,7 +28,26 @@ export const workoutRepo = {
 
   /** Move a workout to the trash and record an undo entry. */
   async deleteUndoable(id: ID, label = 'Deleted workout'): Promise<void> {
-    await undoRepo.run(label, { workouts: [id] }, () => workoutBase.softDelete(id));
+    // A planned session linked to this workout goes back to "not done" (undo restores the link).
+    const linked = await db.plannedSessions.where('completedWorkoutId').equals(id).primaryKeys();
+    await undoRepo.run(label, { workouts: [id], plannedSessions: linked }, async () => {
+      await workoutBase.softDelete(id);
+      const t = nowIso();
+      for (const sid of linked) await db.plannedSessions.update(sid, { completedWorkoutId: undefined, updatedAt: t });
+    });
+  },
+
+  /** Finished workouts with their completed non-warm-up set count, for the calendar and heatmap. */
+  async dayStatsInput(sinceIso?: string): Promise<{ id: ID; startedAt: string; hardSets: number }[]> {
+    const workouts = await db.workouts
+      .filter((w) => !!w.endedAt && !w.deletedAt && (!sinceIso || w.startedAt >= sinceIso))
+      .toArray();
+    const ids = new Set(workouts.map((w) => w.id));
+    const counts = new Map<ID, number>();
+    await db.sets
+      .filter((s) => !s.deletedAt && !!s.completedAt && s.type !== 'warmup' && ids.has(s.workoutId))
+      .each((s) => counts.set(s.workoutId, (counts.get(s.workoutId) ?? 0) + 1));
+    return workouts.map((w) => ({ id: w.id, startedAt: w.startedAt, hardSets: counts.get(w.id) ?? 0 }));
   },
 
   start(input: Partial<NewEntity<Workout>> = {}): Promise<Workout> {

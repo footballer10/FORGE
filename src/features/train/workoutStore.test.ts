@@ -346,3 +346,45 @@ describe('start from routine', () => {
     expect(secs).toBeLessThanOrEqual(60);
   });
 });
+
+describe('planned session link', () => {
+  it('links on finish, unlinks when the workout is deleted, undo relinks', async () => {
+    const { plannedSessionRepo, programRepo, undoRepo } = await import('../../db/repositories');
+    const bench = await exerciseRepo.create({ ...base, name: 'Bench' });
+    const p = await programRepo.saveVersion({
+      fields: { name: 'P' }, reason: 'x',
+      weeks: [{ key: 'w', sessions: [{ key: 's', name: 'Push', exercises: [{ exerciseId: bench.id, order: 0, targets: [{ type: 'working', reps: 5 }] }] }] }],
+    });
+    const ps = (await plannedSessionRepo.list()).find((s) => s.programId === p.id)!;
+    expect(await useWorkout.getState().startFromPlanned(ps.id)).toBe(true);
+    await useWorkout.getState().toggleComplete(sets()[0]!.id);
+    await useWorkout.getState().finish();
+    const wid = (await workoutRepo.listHistory())[0]!.id;
+    expect((await plannedSessionRepo.get(ps.id))?.completedWorkoutId).toBe(wid);
+
+    await workoutRepo.deleteUndoable(wid);
+    expect((await plannedSessionRepo.get(ps.id))?.completedWorkoutId).toBeUndefined();
+    await undoRepo.undoLatest();
+    expect((await plannedSessionRepo.get(ps.id))?.completedWorkoutId).toBe(wid);
+
+    // undoing the finish unlinks again
+    await undoRepo.undoLatest(); // the earlier "Finished workout" entry
+    expect((await plannedSessionRepo.get(ps.id))?.completedWorkoutId).toBeUndefined();
+  });
+
+  it('dayStatsInput counts completed non-warm-up sets of finished workouts', async () => {
+    const bench = await exerciseRepo.create({ ...base, name: 'Bench' });
+    await useWorkout.getState().start();
+    await useWorkout.getState().addExercise(bench.id);
+    const we = useWorkout.getState().rows[0]!.we.id;
+    await useWorkout.getState().updateSet(sets()[0]!.id, { reps: 5, type: 'warmup' });
+    await useWorkout.getState().toggleComplete(sets()[0]!.id);
+    await useWorkout.getState().addSet(we);
+    await useWorkout.getState().updateSet(sets()[1]!.id, { reps: 5, type: 'working' });
+    await useWorkout.getState().toggleComplete(sets()[1]!.id);
+    await useWorkout.getState().finish();
+    const stats = await workoutRepo.dayStatsInput();
+    expect(stats).toHaveLength(1);
+    expect(stats[0]!.hardSets).toBe(1);
+  });
+});
