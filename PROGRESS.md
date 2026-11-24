@@ -3,8 +3,8 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
-- **Done last session:** Milestone 1a-ii — logging core: write-through workout store with resume, custom keypad (± = exercise increment), set rows prefilled from last session, set types + RPE/RIR sheet, finish/discard, history list. 49 tests pass.
-- **Next session:** Milestone 1b-i (rest timer, wake lock, notes, reorder/swap). Milestone 1b was split in two (1b-ii: supersets, edit/duplicate past workouts, plate calculator, pair total).
+- **Done last session:** Milestone 1b-i — rest timer (timestamp-based, persisted, ±15 s, skip, vibration), screen wake lock, sticky/session notes, per-exercise options sheet (move up/down, swap, remove). 64 tests pass.
+- **Next session:** Milestone 1b-ii (supersets/circuits, edit + duplicate past workouts, plate calculator, dumbbell pair-total display). 1b was split in two this session.
 - **Known issues:** see bottom.
 
 ## Decisions (defaults chosen; change by asking)
@@ -18,6 +18,10 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Auto-generated aliases per library exercise: bare name and "Name (Equipment)" Strong-style, for import matching in M2.
 - Finish requires at least one ticked set; the keypad replaces the prefilled value on first digit (backspace edits it).
 - Profile is a singleton row with id `'me'`.
+- Rest timer starts when a non-warm-up set is ticked, using the exercise's default rest; warm-ups start no timer. A timer that expired more than 3 s before the app resumed is dropped silently (no late buzz).
+- Rest bar lives in `AppShell` above the tab bar, so it shows on every tab; wake lock is also held at shell level while a workout is active.
+- Swap is allowed only while the exercise has no completed sets (its empty sets are soft-deleted and re-prefilled from the new exercise); otherwise remove + add.
+- Notes write through on every keystroke (crash safety). Sticky note is stored on the exercise; "this workout only" note on the workout exercise; session note on the workout.
 - Default rest 120 s for compound lifts, 90 s otherwise; default increment 5 lb barbell, 5 lb dumbbell (per implement), 2.5 lb fallback for small plates is a per-exercise edit.
 
 ## Milestone 0 — Foundation
@@ -44,10 +48,10 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - [x] Finish / discard workout; basic workout history list
 
 ## Milestone 1b-i — Logging extras, part 1
-- [ ] Timestamp-based rest timer (per-exercise default, survives lock), vibration on end
-- [ ] Screen Wake Lock while a workout is active (re-acquire on visibility change)
-- [ ] Sticky exercise notes + session notes
-- [ ] Reorder / swap / remove exercises mid-workout
+- [x] Timestamp-based rest timer (per-exercise default, survives lock), vibration on end
+- [x] Screen Wake Lock while a workout is active (re-acquire on visibility change)
+- [x] Sticky exercise notes + session notes
+- [x] Reorder / swap / remove exercises mid-workout
 
 ## Milestone 1b-ii — Logging extras, part 2
 - [ ] Supersets/circuits: group, timer after last exercise of the round
@@ -110,6 +114,10 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - [ ] Cloudflare Pages deploy
 
 ## Known issues
+- `navigator.vibrate` is unsupported on iOS Safari, so on iPhone the rest timer ends with no buzz or sound (a visual change only). Needs a decision (e.g. audio cue) later; not added to avoid guessing.
+- The rest timer cannot alert while the PWA is backgrounded or locked (no push/background timers on iOS); it is correct on return, just silent.
+- Reorder is up/down buttons, not drag-and-drop (no new dependency).
+- `window.confirm` is still used for Remove in the options sheet (M8).
 - Finish drops unticked sets and exercises with no completed sets (documented behaviour); there is no undo until M2.
 - Discard soft-deletes the workout (goes to trash once the trash screen exists in M2).
 - Remove-exercise / discard use `window.confirm`; replace with in-app dialogs in M8 polish.
