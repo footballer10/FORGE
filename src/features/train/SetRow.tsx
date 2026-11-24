@@ -11,6 +11,8 @@ interface Props {
   onEdit: (field: SetField) => void;
   onOpenDetails: () => void;
   onToggle: () => void;
+  /** Pair total to show under the weight (display only), when enabled for dumbbells. */
+  pairTotal?: number;
 }
 
 function display(set: SetEntry, field: SetField): string {
@@ -19,7 +21,7 @@ function display(set: SetEntry, field: SetField): string {
   return field === 'durationSec' ? formatDuration(v) : String(Math.round(v * 100) / 100);
 }
 
-export function SetRow({ set, index, fields, loadModel, previous, editing, onEdit, onOpenDetails, onToggle }: Props) {
+export function SetRow({ set, index, fields, loadModel, previous, editing, onEdit, onOpenDetails, onToggle, pairTotal }: Props) {
   const done = !!set.completedAt;
   const badge = SET_TYPES.find((t) => t.type === set.type)?.short || String(index + 1);
   return (
@@ -45,6 +47,7 @@ export function SetRow({ set, index, fields, loadModel, previous, editing, onEdi
           className={`num min-h-tap flex-1 rounded-card border text-2xl ${editing === f ? 'border-accent' : 'border-line'} ${done ? 'text-muted' : 'text-fg'}`}
         >
           {display(set, f)}
+          {f === 'weight' && pairTotal !== undefined && <span className="block text-xs text-muted">{Math.round(pairTotal * 100) / 100} total</span>}
         </button>
       ))}
       <button

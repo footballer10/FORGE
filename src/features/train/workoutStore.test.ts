@@ -225,4 +225,87 @@ describe('workout store', () => {
       expect(useWorkout.getState().rows[0]?.exercise.name).toBe('A');
     });
   });
+
+  describe('supersets', () => {
+    it('rests only after the last exercise of the round', async () => {
+      const a = await exerciseRepo.create({ ...base, name: 'A' });
+      const b = await exerciseRepo.create({ ...base, name: 'B' });
+      await useWorkout.getState().start();
+      await useWorkout.getState().addExercise(a.id);
+      await useWorkout.getState().addExercise(b.id);
+      await useWorkout.getState().toggleSuperset(useWorkout.getState().rows[0]!.we.id);
+      expect(useWorkout.getState().rows.map((r) => r.we.supersetGroup)).toEqual(['A', 'A']);
+
+      const tickRow = async (i: number) => {
+        const sid = useWorkout.getState().rows[i]!.sets[0]!.id;
+        await useWorkout.getState().updateSet(sid, { weight: 50, reps: 8 });
+        await useWorkout.getState().toggleComplete(sid);
+      };
+      await tickRow(0);
+      expect(useWorkout.getState().restEndsAt).toBeUndefined();
+      await tickRow(1);
+      expect(useWorkout.getState().restEndsAt).toBeTruthy();
+
+      await useWorkout.getState().toggleSuperset(useWorkout.getState().rows[0]!.we.id); // unlink
+      expect(useWorkout.getState().rows.map((r) => r.we.supersetGroup)).toEqual([undefined, undefined]);
+    });
+  });
+
+  describe('past workouts', () => {
+    const logOne = async () => {
+      const bench = await exerciseRepo.create({ ...base, name: 'Bench' });
+      await useWorkout.getState().start();
+      await useWorkout.getState().addExercise(bench.id);
+      const id = sets()[0]!.id;
+      await useWorkout.getState().updateSet(id, { weight: 135, reps: 5 });
+      await useWorkout.getState().toggleComplete(id);
+      await useWorkout.getState().setWorkoutNotes('keep me');
+      await useWorkout.getState().finish();
+      return (await workoutRepo.listHistory())[0]!;
+    };
+
+    it('edits a finished workout in place, keeps its end time, starts no rest timer, survives reload', async () => {
+      const done = await logOne();
+      await useWorkout.getState().openPast(done.id);
+      expect(useWorkout.getState().workout?.id).toBe(done.id);
+
+      useWorkout.setState({ loaded: false, workout: undefined, rows: [] });
+      await useWorkout.getState().load(); // reload mid-edit resumes the edit
+      expect(useWorkout.getState().workout?.id).toBe(done.id);
+
+      await useWorkout.getState().updateSet(sets()[0]!.id, { weight: 140 });
+      await useWorkout.getState().addSet(useWorkout.getState().rows[0]!.we.id);
+      await useWorkout.getState().updateSet(sets()[1]!.id, { weight: 140, reps: 5 });
+      await useWorkout.getState().toggleComplete(sets()[1]!.id);
+      expect(useWorkout.getState().restEndsAt).toBeUndefined();
+
+      expect(await useWorkout.getState().finish()).toBe(true);
+      const after = await workoutRepo.getFull(done.id);
+      expect(after?.workout.endedAt).toBe(done.endedAt);
+      expect(after?.exercises[0]?.sets.map((s) => s.weight)).toEqual([140, 140]);
+      expect(useWorkout.getState().workout).toBeUndefined();
+      expect(await workoutRepo.getActive()).toBeUndefined();
+      await useWorkout.getState().load();
+      expect(useWorkout.getState().workout).toBeUndefined(); // edit mode cleared
+    });
+
+    it('closing an edit does not delete the workout', async () => {
+      const done = await logOne();
+      await useWorkout.getState().openPast(done.id);
+      await useWorkout.getState().discard();
+      expect((await workoutRepo.listHistory()).map((w) => w.id)).toEqual([done.id]);
+    });
+
+    it('duplicates structure without completions or notes, as a new active workout', async () => {
+      const done = await logOne();
+      expect(await useWorkout.getState().duplicate(done.id)).toBe(true);
+      const w = useWorkout.getState().workout!;
+      expect(w.id).not.toBe(done.id);
+      expect(w.endedAt).toBeUndefined();
+      expect(w.notes).toBeUndefined();
+      expect(sets().map((s) => [s.weight, s.reps, s.completedAt])).toEqual([[135, 5, undefined]]);
+      expect(await useWorkout.getState().duplicate(done.id)).toBe(false); // one active workout at a time
+      expect((await workoutRepo.listHistory()).map((x) => x.id)).toEqual([done.id]); // original untouched
+    });
+  });
 });

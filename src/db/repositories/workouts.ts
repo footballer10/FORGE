@@ -67,6 +67,39 @@ export const workoutRepo = {
     return workoutExerciseBase.create({ workoutId, exerciseId, order, ...extra });
   },
 
+  /**
+   * New in-progress workout with the same exercises, supersets and set structure (type, weight,
+   * reps, duration, distance) as `id`, nothing ticked off. Notes, RPE and RIR are not copied.
+   */
+  async duplicate(id: ID): Promise<Workout | undefined> {
+    const src = await workoutRepo.getFull(id);
+    if (!src) return undefined;
+    const w = await workoutBase.create({ name: src.workout.name, kind: src.workout.kind, startedAt: nowIso() });
+    for (const e of src.exercises) {
+      const we = await workoutExerciseBase.create({
+        workoutId: w.id,
+        exerciseId: e.exerciseId,
+        order: e.order,
+        ...(e.supersetGroup ? { supersetGroup: e.supersetGroup } : {}),
+      });
+      for (const s of e.sets) {
+        await setBase.create({
+          workoutExerciseId: we.id,
+          workoutId: w.id,
+          exerciseId: e.exerciseId,
+          order: s.order,
+          type: s.type,
+          unit: s.unit,
+          ...(s.weight !== undefined ? { weight: s.weight } : {}),
+          ...(s.reps !== undefined ? { reps: s.reps } : {}),
+          ...(s.durationSec !== undefined ? { durationSec: s.durationSec } : {}),
+          ...(s.distanceM !== undefined ? { distanceM: s.distanceM } : {}),
+        });
+      }
+    }
+    return w;
+  },
+
   /** Persist a new exercise order: `orderedIds` are WorkoutExercise IDs, first = position 0. */
   async reorderExercises(orderedIds: ID[]): Promise<void> {
     await db.transaction('rw', db.workoutExercises, async () => {

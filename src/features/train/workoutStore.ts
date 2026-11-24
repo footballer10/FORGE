@@ -1,9 +1,10 @@
 import { create } from 'zustand';
-import { exerciseRepo, nowIso, profileRepo, workoutRepo } from '../../db/repositories';
+import { exerciseRepo, metaRepo, nowIso, profileRepo, workoutRepo } from '../../db/repositories';
 import { canComplete, prefillDrafts } from '../../domain/logging';
 import { moveItem } from '../../domain/order';
+import { restAfterExercise, toggleSupersetLink } from '../../domain/superset';
 import { adjustRest, isStale, restEndsAt, restSecondsFor } from '../../domain/restTimer';
-import type { Exercise, ID, SetEntry, WeightUnit, Workout, WorkoutExercise } from '../../domain/types';
+import type { EquipmentProfile, Exercise, ID, SetEntry, WeightUnit, Workout, WorkoutExercise } from '../../domain/types';
 
 export interface ExerciseRow {
   we: WorkoutExercise;
@@ -18,6 +19,9 @@ interface State {
   workout?: Workout;
   rows: ExerciseRow[];
   unit: WeightUnit;
+  showPairTotal: boolean;
+  /** Equipment profile used for the plate calculator. */
+  equipment?: EquipmentProfile;
   /** Absolute end of the running rest timer (ISO), if any. Persisted on the workout. */
   restEndsAt?: string;
   /** Length the current rest started with, for the progress bar only. */
@@ -35,6 +39,13 @@ interface State {
   /** Drops unticked sets and empty exercises, then ends the workout. Returns false if nothing was completed. */
   finish: () => Promise<boolean>;
   discard: () => Promise<void>;
+  /** Reopen a finished workout for editing in place (its end time is kept). */
+  openPast: (workoutId: ID) => Promise<void>;
+  /** Start a new workout from a past one's structure. Returns false if a workout is already active. */
+  duplicate: (workoutId: ID) => Promise<boolean>;
+  /** Link / unlink this exercise with the next one as a superset. */
+  toggleSuperset: (workoutExerciseId: ID) => Promise<void>;
+  setShowPairTotal: (show: boolean) => Promise<void>;
   startRest: (seconds: number) => Promise<void>;
   adjustRest: (deltaSec: number) => Promise<void>;
   skipRest: () => Promise<void>;
@@ -47,6 +58,12 @@ interface State {
   /** Replace an exercise that has no completed sets. Returns false when sets are already done. */
   swapExercise: (workoutExerciseId: ID, newExerciseId: ID) => Promise<boolean>;
 }
+
+/** meta key holding the ID of a finished workout that is being edited (survives reload). */
+const EDITING_KEY = 'editingWorkoutId';
+
+/** True when the open workout is a finished one being edited. */
+export const isEditingPast = (w?: Workout) => !!w?.endedAt;
 
 /**
  * Active-workout state. The database is the source of truth: every action writes through the
@@ -89,10 +106,19 @@ export const useWorkout = create<State>((set, get) => {
     loaded: false,
     rows: [],
     unit: 'lb',
+    showPairTotal: false,
 
     async load() {
-      const [profile, active] = await Promise.all([profileRepo.get(), workoutRepo.getActive()]);
-      set({ unit: profile.weightUnit, rows: [], restEndsAt: undefined, restTotalSec: undefined });
+      const [profile, openRun] = await Promise.all([profileRepo.get(), workoutRepo.getActive()]);
+      let active = openRun;
+      if (!active) {
+        const editingId = await metaRepo.get<string>(EDITING_KEY);
+        const past = editingId ? await workoutRepo.get(editingId) : undefined;
+        if (past && !past.deletedAt) active = past;
+        else if (editingId) await metaRepo.set(EDITING_KEY, null);
+      }
+      const equipment = profile.equipmentProfiles.find((e) => e.id === profile.defaultEquipmentProfileId);
+      set({ unit: profile.weightUnit, showPairTotal: profile.showDumbbellPairTotal, ...(equipment ? { equipment } : {}), rows: [], restEndsAt: undefined, restTotalSec: undefined });
       if (active) {
         await refresh(active.id);
         const ends = active.restTimerEndsAt;
@@ -165,7 +191,9 @@ export const useWorkout = create<State>((set, get) => {
       if (!canComplete(found.set, found.row.exercise.loadModel)) return false;
       await get().updateSet(setId, { completedAt: nowIso() });
       const sec = restSecondsFor(found.row.exercise, found.set.type);
-      if (sec > 0) await get().startRest(sec);
+      const items = get().rows.map((r) => ({ id: r.we.id, supersetGroup: r.we.supersetGroup }));
+      const due = restAfterExercise(items, found.row.we.id);
+      if (sec > 0 && due && !isEditingPast(get().workout)) await get().startRest(sec);
       return true;
     },
 
@@ -181,12 +209,14 @@ export const useWorkout = create<State>((set, get) => {
       if (!w) return false;
       const rows = get().rows;
       if (!rows.some((r) => r.sets.some((s) => s.completedAt))) return false;
+      const editing = isEditingPast(w);
       for (const r of rows) {
         const done = r.sets.filter((s) => s.completedAt);
         for (const s of r.sets) if (!s.completedAt) await workoutRepo.removeSet(s.id);
         if (done.length === 0) await workoutRepo.removeExercise(r.we.id);
       }
-      await workoutRepo.finish(w.id);
+      if (editing) await metaRepo.set(EDITING_KEY, null);
+      else await workoutRepo.finish(w.id);
       set({ workout: undefined, rows: [], restEndsAt: undefined, restTotalSec: undefined });
       return true;
     },
@@ -194,8 +224,41 @@ export const useWorkout = create<State>((set, get) => {
     async discard() {
       const w = get().workout;
       if (!w) return;
-      await workoutRepo.softDelete(w.id);
+      if (isEditingPast(w)) await metaRepo.set(EDITING_KEY, null); // edits are already saved; just close
+      else await workoutRepo.softDelete(w.id);
       set({ workout: undefined, rows: [], restEndsAt: undefined, restTotalSec: undefined });
+    },
+
+    async openPast(workoutId) {
+      if (get().workout) return;
+      await metaRepo.set(EDITING_KEY, workoutId);
+      set({ rows: [] });
+      await refresh(workoutId);
+    },
+
+    async duplicate(workoutId) {
+      if (get().workout) return false;
+      const w = await workoutRepo.duplicate(workoutId);
+      if (!w) return false;
+      set({ rows: [] });
+      await refresh(w.id);
+      return true;
+    },
+
+    async toggleSuperset(workoutExerciseId) {
+      const w = get().workout;
+      if (!w) return;
+      const items = get().rows.map((r) => ({ id: r.we.id, supersetGroup: r.we.supersetGroup }));
+      const groups = toggleSupersetLink(items, workoutExerciseId);
+      for (const it of items) {
+        if (groups[it.id] !== it.supersetGroup) await workoutRepo.updateExercise(it.id, { supersetGroup: groups[it.id] });
+      }
+      await refresh(w.id);
+    },
+
+    async setShowPairTotal(show) {
+      set({ showPairTotal: show });
+      await profileRepo.update({ showDumbbellPairTotal: show });
     },
 
     async startRest(seconds) {

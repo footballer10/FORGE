@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Keypad } from '../../components/Keypad';
 import { convertWeight } from '../../domain/units';
+import { displayWeight } from '../../domain/load';
 import { fieldsFor, type SetField } from '../../domain/logging';
 import type { ID } from '../../domain/types';
 import { SetRow } from './SetRow';
 import { ExerciseSheet } from './ExerciseSheet';
 import { SetSheet } from './SetSheet';
-import { useWorkout, type ExerciseRow } from './workoutStore';
+import { PlateSheet } from './PlateSheet';
+import { isEditingPast, useWorkout, type ExerciseRow } from './workoutStore';
 
 interface Props {
   onAddExercise: () => void;
@@ -39,20 +41,23 @@ function Elapsed({ startedAt }: { startedAt: string }) {
 export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
   const {
     workout, rows, unit, updateSet, toggleComplete, addSet, removeSet, removeExercise, finish, discard,
-    setWorkoutNotes, setExerciseNote, setStickyNote, moveExercise,
+    setWorkoutNotes, setExerciseNote, setStickyNote, moveExercise, toggleSuperset, showPairTotal, equipment,
   } = useWorkout();
   const [edit, setEdit] = useState<{ setId: ID; field: SetField } | null>(null);
   const [details, setDetails] = useState<ID | null>(null);
   const [menu, setMenu] = useState<ID | null>(null);
+  const [plates, setPlates] = useState<ID | null>(null);
   const [message, setMessage] = useState('');
 
   if (!workout) return null;
+  const editing = isEditingPast(workout);
 
   const editRow = edit ? rows.find((r) => r.sets.some((s) => s.id === edit.setId)) : undefined;
   const editSet = editRow?.sets.find((s) => s.id === edit?.setId);
   const detailRow = details ? rows.find((r) => r.sets.some((s) => s.id === details)) : undefined;
   const detailSet = detailRow?.sets.find((s) => s.id === details);
   const menuIndex = rows.findIndex((r) => r.we.id === menu);
+  const plateRow = plates ? rows.find((r) => r.we.id === plates) : undefined;
   const menuRow = menuIndex >= 0 ? rows[menuIndex] : undefined;
 
   const stepFor = (row: ExerciseRow, field: SetField): number => {
@@ -69,7 +74,7 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
   };
 
   const onDiscard = async () => {
-    if (window.confirm('Discard this workout? It will be moved to the trash.')) {
+    if (editing || window.confirm('Discard this workout? It will be moved to the trash.')) {
       setEdit(null);
       await discard();
     }
@@ -79,7 +84,7 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
     <div className="flex min-h-full flex-col pb-6" style={{ paddingBottom: edit ? 340 : undefined }}>
       <div className="flex items-baseline justify-between pb-3 pt-6">
         <h1 className="text-4xl uppercase">{workout.name}</h1>
-        <Elapsed startedAt={workout.startedAt} />
+        {editing ? <span className="text-sm text-muted">Editing · {new Date(workout.startedAt).toLocaleDateString()}</span> : <Elapsed startedAt={workout.startedAt} />}
       </div>
 
       {rows.length === 0 && <p className="py-4 text-sm text-muted">Add your first exercise to start logging.</p>}
@@ -90,10 +95,18 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
           <section key={row.we.id} className="mb-4 rounded-card border border-line bg-surface p-3" aria-label={row.exercise.name}>
             <div className="flex items-start justify-between gap-2 pb-2">
               <div>
-                <h2 className="text-2xl uppercase">{row.exercise.name}</h2>
+                <h2 className="text-2xl uppercase">
+                  {row.we.supersetGroup && <span className="num mr-2 rounded-card border border-line px-2 text-base text-muted" aria-label={`Superset ${row.we.supersetGroup}`}>SS {row.we.supersetGroup}</span>}
+                  {row.exercise.name}
+                </h2>
                 {row.exercise.stickyNote && <p className="whitespace-pre-line text-sm text-muted">{row.exercise.stickyNote}</p>}
                 {row.we.notes && <p className="whitespace-pre-line text-sm text-fg">{row.we.notes}</p>}
               </div>
+              {row.exercise.equipment === 'barbell' && row.exercise.loadModel === 'total' && (
+                <button type="button" className="min-h-tap min-w-tap text-sm text-muted" onClick={() => setPlates(row.we.id)}>
+                  Plates
+                </button>
+              )}
               <button
                 type="button"
                 aria-label={`${row.exercise.name} options`}
@@ -123,6 +136,7 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
                   editing={edit?.setId === s.id ? edit.field : undefined}
                   onEdit={(field) => setEdit({ setId: s.id, field })}
                   onOpenDetails={() => setDetails(s.id)}
+                  pairTotal={showPairTotal && row.exercise.loadModel === 'perImplement' ? displayWeight(s, row.exercise, true, s.unit) : undefined}
                   onToggle={() => {
                     setEdit(null);
                     void toggleComplete(s.id);
@@ -157,10 +171,10 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
           onClick={() => void onFinish()}
           className="num min-h-[56px] w-full rounded-card bg-accent text-xl font-semibold uppercase tracking-wider text-accent-fg"
         >
-          Finish workout
+          {editing ? 'Save changes' : 'Finish workout'}
         </button>
         <button type="button" onClick={() => void onDiscard()} className="min-h-tap text-sm text-muted">
-          Discard workout
+          {editing ? 'Close without finishing' : 'Discard workout'}
         </button>
       </div>
 
@@ -186,6 +200,8 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
           row={menuRow}
           index={menuIndex}
           count={rows.length}
+          linkedToNext={!!menuRow.we.supersetGroup && rows[menuIndex + 1]?.we.supersetGroup === menuRow.we.supersetGroup}
+          onSuperset={() => void toggleSuperset(menuRow.we.id)}
           onStickyNote={(n) => void setStickyNote(menuRow.exercise.id, n)}
           onSessionNote={(n) => void setExerciseNote(menuRow.we.id, n)}
           onMove={(d) => void moveExercise(menuRow.we.id, d)}
@@ -200,6 +216,17 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
             }
           }}
           onClose={() => setMenu(null)}
+        />
+      )}
+
+      {plateRow && (
+        <PlateSheet
+          exerciseName={plateRow.exercise.name}
+          unit={unit}
+          initialTarget={plateTarget(plateRow, unit)}
+          bar={convertWeight(plateRow.exercise.barWeight?.value ?? equipment?.barWeight?.value ?? 45, plateRow.exercise.barWeight?.unit ?? equipment?.barWeight?.unit ?? 'lb', unit)}
+          plates={(equipment?.plates ?? [45, 35, 25, 10, 5, 2.5].map((value) => ({ value, unit: 'lb' as const }))).map((p) => Math.round(convertWeight(p.value, p.unit, unit) * 100) / 100)}
+          onClose={() => setPlates(null)}
         />
       )}
 
@@ -221,4 +248,10 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
 
 function nextField(fields: SetField[], current: SetField): SetField | undefined {
   return fields[fields.indexOf(current) + 1];
+}
+
+/** Weight to preload in the plate calculator: first unfinished set, else the last set. */
+function plateTarget(row: ExerciseRow, unit: 'lb' | 'kg'): number {
+  const s = row.sets.find((x) => !x.completedAt && x.weight !== undefined) ?? [...row.sets].reverse().find((x) => x.weight !== undefined);
+  return s?.weight === undefined ? 0 : Math.round(convertWeight(s.weight, s.unit, unit) * 100) / 100;
 }
