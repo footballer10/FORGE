@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { compareWindows, detectPlateau, periodWindows, totalsBetween, volumeSets, weeklyTotals, type VolumeSet } from './volume';
+import { balanceChecks, compareWindows, detectPlateau, periodWindows, totalsBetween, volumeSets, weeklyTotals, type VolumeSet } from './volume';
 import type { SetEntry } from './types';
 
 const vs = (day: string, primary: string[], secondary: string[] = [], volume = 100): VolumeSet => ({ day, primary: primary as never, secondary: secondary as never, volume });
@@ -80,7 +80,7 @@ describe('detectPlateau', () => {
 
 describe('volumeSets', () => {
   const base = { createdAt: '', updatedAt: '', workoutExerciseId: 'we', workoutId: 'w1', exerciseId: 'e', order: 0, unit: 'lb' as const, type: 'working' as const, completedAt: '2026-05-05T15:00:00.000Z' };
-  const ex = new Map([['e', { primaryMuscles: ['chest' as const], secondaryMuscles: [], loadModel: 'total' as const }]]);
+  const ex = new Map([['e', { primaryMuscles: ['chest' as const], secondaryMuscles: [], pattern: 'horizontalPush' as const, loadModel: 'total' as const }]]);
   const wk = new Map([['w1', { endedAt: 'x' }], ['w2', { endedAt: 'x', deletedAt: 'y' }], ['w3', {}]]);
   it('keeps hard sets of finished workouts and computes volume', () => {
     const rows = volumeSets(
@@ -92,5 +92,22 @@ describe('volumeSets', () => {
   });
   it('counts a set with no reps as a hard set with volume 0', () => {
     expect(volumeSets([{ id: '1', ...base, durationSec: 30 }] as SetEntry[], ex, wk, [], 'lb')[0]!.volume).toBe(0);
+  });
+});
+
+describe('balanceChecks', () => {
+  const ps = (pattern: string, n: number, day = '2026-05-05'): VolumeSet[] => Array.from({ length: n }, () => ({ day, primary: [], secondary: [], pattern: pattern as never, volume: 0 }));
+  it('counts sets by pattern inside the window and flags the heavy side', () => {
+    const sets = [...ps('horizontalPush', 6), ...ps('verticalPush', 3), ...ps('horizontalPull', 4), ...ps('verticalPull', 2), ...ps('horizontalPush', 50, '2026-01-01')];
+    const [pp] = balanceChecks(sets, '2026-05-01', '2026-06-01');
+    expect(pp).toMatchObject({ a: { sets: 9 }, b: { sets: 6 }, status: 'balanced' });
+    expect(pp!.ratio).toBeCloseTo(1.5, 6); // exactly the limit is not flagged
+    expect(balanceChecks([...ps('horizontalPush', 10), ...ps('horizontalPull', 5)], '2026-05-01', '2026-06-01')[0]!.status).toBe('aHeavy');
+  });
+  it('squat side includes lunges; one-sided and empty cases', () => {
+    const [, sh] = balanceChecks([...ps('squat', 3), ...ps('lunge', 1), ...ps('hinge', 8)], '2026-05-01', '2026-06-01');
+    expect(sh).toMatchObject({ a: { sets: 4 }, b: { sets: 8 }, status: 'bHeavy' });
+    expect(balanceChecks(ps('squat', 2), '2026-05-01', '2026-06-01')[1]).toMatchObject({ status: 'aHeavy', ratio: undefined });
+    expect(balanceChecks([], '2026-05-01', '2026-06-01')[0]!.status).toBe('noData');
   });
 });

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { EmptyState } from '../../components/EmptyState';
 import { analyticsRepo, UNDO_EVENT, type TrainingData } from '../../db/repositories';
 import { addDays, localDateKey } from '../../domain/calendar';
-import { PRIMARY_WEIGHT, SECONDARY_WEIGHT, compareWindows, periodWindows, totalsBetween, volumeSets, weeklyTotals, type PeriodPreset } from '../../domain/volume';
+import { BodyMap } from './BodyMap';
+import { balanceChecks, PRIMARY_WEIGHT, SECONDARY_WEIGHT, compareWindows, periodWindows, totalsBetween, volumeSets, weeklyTotals, type PeriodPreset } from '../../domain/volume';
 
 const PRESETS: { id: PeriodPreset; label: string }[] = [
   { id: 'month', label: 'Month' },
@@ -11,6 +12,8 @@ const PRESETS: { id: PeriodPreset; label: string }[] = [
   { id: '12m', label: '12 mo' },
 ];
 const WEEKS = 8;
+/** Window for balance checks, ending today. */
+const BALANCE_WEEKS = 4;
 const n1 = (n: number) => String(Math.round(n * 10) / 10);
 const short = (key: string) => new Date(`${key}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -61,6 +64,8 @@ export function VolumePanel() {
   const cur = useMemo(() => totalsBetween(sets, win.current.from, win.current.to), [sets, win]);
   const prev = useMemo(() => totalsBetween(sets, win.previous.from, win.previous.to), [sets, win]);
   const rows = useMemo(() => compareWindows(cur, prev), [cur, prev]);
+  const balFrom = addDays(today, -7 * BALANCE_WEEKS + 1);
+  const balance = useMemo(() => balanceChecks(sets, balFrom, addDays(today, 1)), [sets, balFrom, today]);
   if (!data) return null;
   if (sets.length === 0) return <EmptyState title="Nothing tracked yet" body="Weekly hard sets per muscle and period comparisons appear here after your first finished workout." />;
 
@@ -113,10 +118,36 @@ export function VolumePanel() {
             ))}
           </ul>
         )}
+        <div className="mt-4"><BodyMap values={week.totals.byMuscle} /></div>
         <p className="mt-2 text-xs text-muted">
           Hard set = completed, non-warm-up set. A primary muscle gets {PRIMARY_WEIGHT} per set, a secondary muscle {SECONDARY_WEIGHT}. Weeks start Monday.
           {unassigned > 0 && ` ${unassigned} set${unassigned > 1 ? 's' : ''} this week are on exercises with no muscles assigned (edit them in the library).`}
         </p>
+      </section>
+
+      <section>
+        <h2 className="pb-2 text-2xl uppercase">Balance</h2>
+        <p className="pb-2 text-xs text-muted">Last {BALANCE_WEEKS} weeks ({short(balFrom)} – {short(today)}), hard sets by movement pattern.</p>
+        <ul className="flex flex-col gap-2">
+          {balance.map((b) => {
+            const note = b.status === 'noData' ? 'No sets in this window.'
+              : b.status === 'balanced' ? 'Balanced.'
+              : `${b.status === 'aHeavy' ? b.a.name : b.b.name}-heavy.`;
+            return (
+              <li key={b.id} className="rounded-card border border-line bg-surface p-3 text-sm">
+                <div className="flex items-baseline justify-between">
+                  <span className="font-medium">{b.label}</span>
+                  <span className={`tabular-nums ${b.status === 'aHeavy' || b.status === 'bHeavy' ? 'text-accent' : 'text-muted'}`}>
+                    {b.a.sets} : {b.b.sets}{b.ratio !== undefined ? ` (${b.ratio.toFixed(2)})` : ''}
+                  </span>
+                </div>
+                <div className="text-muted">{note}</div>
+                <div className="pt-1 text-xs text-muted">{b.a.name}: {b.a.includes}. {b.b.name}: {b.b.includes}.</div>
+              </li>
+            );
+          })}
+        </ul>
+        <p className="mt-2 text-xs text-muted">Ratio = first ÷ second. {balance[0]?.rule} Core, isolation and other patterns are not counted.</p>
       </section>
 
       <section>

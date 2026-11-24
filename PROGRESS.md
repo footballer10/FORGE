@@ -3,8 +3,8 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
-- **Done last session:** Milestone 4b-ii part 1 — strength score (chosen lifts + weights, formula and inputs shown), tiers from editable thresholds, and a quick bodyweight entry on the Strength tab. Also checked the 4a, 4b-i and score screens in headless Chromium at phone width (no errors). 233 tests pass.
-- **Next session:** Milestone 4b-ii part 2: muscle body map (front/back SVG) and balance checks (push:pull, squat:hinge). Then Milestone 5.
+- **Done last session:** Milestone 4b-ii part 2 — muscle body map (front/back SVG, shaded by the selected week's weighted sets) and balance checks (push:pull, squat:hinge) on the Progress tab. Milestone 4 is complete. 235 tests pass; map checked in headless Chromium.
+- **Next session:** Milestone 5 (body & athletic): large, split first (suggest 5a: bodyweight log + EWMA trend; 5b: fitness tests + results; 5c: conditioning sessions + progress photos).
 - **Known issues:** see bottom.
 
 ## Decisions (defaults chosen; change by asking)
@@ -62,6 +62,8 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Strength score (4b-ii): score = 100 × Σ(weight × e1RM ÷ bodyweight) ÷ Σ(weight) over chosen lifts that have an e1RM in the last 12 weeks (best, chosen formula). Lifts with no recent e1RM are left out and the card says what share of the lift weights was used. Bodyweight = latest weigh-in on or before today. Lifts, weights and thresholds live on the profile (`strengthScoreLifts`, `strengthStandards`); no schema change.
 - Tiers (4b-ii): thresholds are minimum e1RM ÷ bodyweight per tier; the tier is the highest met, "Below beginner" under the first. Starting templates (squat, bench, deadlift, press, row) are rough multiples chosen by the app for a trained adult male, not from a dataset and not percentiles; copied into the profile when a lift is added, picked by movement pattern, fully editable. Thresholds must be positive and non-decreasing.
 - Bodyweight entry: until Milestone 5 builds the bodyweight log, the score card has a small "Log today" box that writes a normal `BodyMetric` (kind bodyweight) in the profile unit, so M5 inherits the data.
+- Body map (4b-ii): schematic regions, not anatomical. Shade = the selected week's weighted sets relative to the busiest muscle (steps at >0, >25%, >50%, >75%); the rule is printed under the map. Same data and week picker as the weekly list.
+- Balance checks (4b-ii): hard sets by exercise movement pattern over the last 4 weeks (constant). Push = horizontal + vertical push; pull = horizontal + vertical pull; squat side = squat + lunge; hinge = hinge. Flagged when one side has more than 1.5× the other's sets (exactly 1.5 is fine). Core, isolation, carry and other patterns are ignored. Imported exercises count only once their pattern is set in the library.
 
 ## Milestone 0 — Foundation
 - [x] SPEC.md, CLAUDE.md, PROGRESS.md
@@ -137,9 +139,9 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 ### 4b-ii — Score, tiers, map, balance
 - [x] Strength score: chosen lifts + weights, formula displayed
 - [x] Strength tiers from editable standards tables
-- [ ] Muscle body map (front/back SVG)
+- [x] Muscle body map (front/back SVG)
 - [x] Plateau detection (N weeks without e1RM gain)
-- [ ] Balance checks: push:pull, squat:hinge
+- [x] Balance checks: push:pull, squat:hinge
 
 ## Milestone 5 — Body & athletic
 - [ ] Bodyweight log + smoothed trend (EWMA, shown)
@@ -217,3 +219,5 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Strength score setup and weigh-in entry were checked only for display (headless Chromium, seeded data); the setup editor (add lift, edit thresholds) was typechecked but not clicked through. No way to edit or delete a logged weigh-in until M5.
 - Tier templates assume a trained adult male; the profile `sex` field is not used yet. Edit thresholds per lift.
 - Bodyweight lifts (pull-ups, dips) have no template; add them with any template and edit the thresholds.
+- Balance thresholds (1.5×) and window (4 weeks) are fixed constants with no setting; unilateral and carry patterns are not counted. The balance cards were typechecked and unit-tested, and the page rendered without errors, but I only inspected the body map visually.
+- Body map regions are tap-sized shapes with hover/long-press titles only; tapping a region does nothing yet.
