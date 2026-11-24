@@ -3,6 +3,7 @@ import { ScreenHeader } from '../../components/ScreenHeader';
 import { coachRepo } from '../../db/repositories';
 import { SUMMARY_RANGES } from '../../domain/coachSummary';
 import { ProfileEditor } from './ProfileEditor';
+import { ProposalPanel } from './ProposalPanel';
 
 export function CoachScreen() {
   const [editing, setEditing] = useState(false);
@@ -57,6 +58,8 @@ export function CoachScreen() {
         <button type="button" onClick={() => void copy()} className="mt-3 min-h-tap w-full rounded-card bg-accent px-4 font-display text-xl uppercase text-white">Copy summary</button>
         {status && <p role="status" className="mt-2 text-sm text-muted">{status}</p>}
       </section>
+
+      <ProposalPanel />
 
       <section className="mt-4 rounded-card border border-line bg-surface p-4" aria-label="Training profile">
         <h2 className="font-display text-xl">Training profile</h2>

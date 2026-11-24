@@ -168,4 +168,4 @@ Progression (all optional; the app only suggests, you can always override):
 ```
 
 The JSON Schema describes the shape; the app's validator also checks the cross-field rules (`repsMax` needs `reps`,
-`weight` and `percentE1rm` are exclusive, and a `distanceM` must be at least 1).
+`weight` and `percentE1rm` are exclusive). The same format text is built into the app (Coach tab, "Copy format for Claude").

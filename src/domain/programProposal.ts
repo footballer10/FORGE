@@ -301,3 +301,44 @@ export function diffDrafts(old: DraftWeek[], next: DraftWeek[], names: ReadonlyM
   }
   return out;
 }
+
+/** Text the user pastes into Claude so its answer fits the format (mirrors docs/program-schema.md). */
+export const PROGRAM_FORMAT_PROMPT = `When you propose a training program, reply with ONE JSON object (inside a \`\`\`json fence) in exactly this format. I will review a diff and approve it in my app; nothing changes before that.
+
+Rules: no comments or trailing commas; unknown fields are errors; "exercise" must be a name from my exercise library (e.g. "Barbell Squat", "Pull-up"); weights are numbers in my unit unless a set has "unit": "lb" or "kg"; dumbbell weights are per dumbbell; "reason" is required and must say why the change is made, citing my numbers.
+
+{
+  "schemaVersion": 1,
+  "name": "text",
+  "description": "optional text",
+  "reason": "why this change",
+  "daysPerWeek": 3,
+  "weeks": [
+    {
+      "phase": "optional: offseason|preseason|inseason|hypertrophy|strength|power|deload|testing",
+      "deload": false,
+      "notes": "optional",
+      "sessions": [
+        {
+          "name": "Lower A",
+          "notes": "optional",
+          "exercises": [
+            {
+              "exercise": "Barbell Squat",
+              "restSec": 180,
+              "superset": "optional label shared by consecutive exercises",
+              "notes": "optional",
+              "progression": { "kind": "doubleProgression", "repsMin": 6, "repsMax": 8 },
+              "sets": [
+                { "type": "warmup", "reps": 5, "weight": 135 },
+                { "count": 4, "reps": 5, "weight": 225, "rpe": 8 }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+Set fields: type (warmup|working|drop|failure|amrap, default working), count (repeat N times), reps, repsMax (range), weight, unit, percentE1rm (0.75 = 75%, not with weight), rpe, durationSec, distanceM. A set needs reps, durationSec or distanceM. Progression kinds: none; doubleProgression (repsMin, repsMax); percentE1rm (percent); rpeTarget (rpe). Limits: 52 weeks, 7 sessions per week, 20 exercises per session.`;
