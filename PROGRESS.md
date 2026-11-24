@@ -3,8 +3,8 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
-- **Done last session:** Milestone 4b-i — weekly hard sets per muscle (primary 1.0, secondary 0.5), period comparisons (month, 3/6/12 months) on the Progress tab, and plateau detection with a flag on the Strength list. 223 tests pass.
-- **Next session:** Milestone 4b-ii: strength score (chosen lifts + weights, formula shown), strength tiers from editable standards tables, muscle body map (front/back SVG), balance checks (push:pull, squat:hinge). Large: consider splitting score+tiers from body map+balance.
+- **Done last session:** Milestone 4b-ii part 1 — strength score (chosen lifts + weights, formula and inputs shown), tiers from editable thresholds, and a quick bodyweight entry on the Strength tab. Also checked the 4a, 4b-i and score screens in headless Chromium at phone width (no errors). 233 tests pass.
+- **Next session:** Milestone 4b-ii part 2: muscle body map (front/back SVG) and balance checks (push:pull, squat:hinge). Then Milestone 5.
 - **Known issues:** see bottom.
 
 ## Decisions (defaults chosen; change by asking)
@@ -59,6 +59,9 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Volume (4b-i): a hard set is a completed non-warm-up set of a finished, non-trashed workout; it counts even with no reps/load. Muscle credit: primary 1.0, secondary 0.5 (a muscle listed as both counts once, as primary). Exercises with no muscles are counted in the set total and reported as "unassigned", not spread anywhere. Volume (load × reps) uses effective load and is 0 for sets with unknown load.
 - Period comparison (4b-i): month = this calendar month so far vs the whole previous month; 3/6/12 months = last N months to today vs the N months before. Windows differ in length for "month", and totals are plain sums, so the UI says they are not per-week rates.
 - Plateau (4b-i): 6 weeks (constant `PLATEAU_WEEKS`, no setting yet), best e1RM in the window does not beat the earlier best, needs an earlier best and at least 3 sessions in the window. Uses the formula chosen on the profile.
+- Strength score (4b-ii): score = 100 × Σ(weight × e1RM ÷ bodyweight) ÷ Σ(weight) over chosen lifts that have an e1RM in the last 12 weeks (best, chosen formula). Lifts with no recent e1RM are left out and the card says what share of the lift weights was used. Bodyweight = latest weigh-in on or before today. Lifts, weights and thresholds live on the profile (`strengthScoreLifts`, `strengthStandards`); no schema change.
+- Tiers (4b-ii): thresholds are minimum e1RM ÷ bodyweight per tier; the tier is the highest met, "Below beginner" under the first. Starting templates (squat, bench, deadlift, press, row) are rough multiples chosen by the app for a trained adult male, not from a dataset and not percentiles; copied into the profile when a lift is added, picked by movement pattern, fully editable. Thresholds must be positive and non-decreasing.
+- Bodyweight entry: until Milestone 5 builds the bodyweight log, the score card has a small "Log today" box that writes a normal `BodyMetric` (kind bodyweight) in the profile unit, so M5 inherits the data.
 
 ## Milestone 0 — Foundation
 - [x] SPEC.md, CLAUDE.md, PROGRESS.md
@@ -132,8 +135,8 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - [x] Weekly hard sets per muscle (primary 1.0, secondary 0.5 — shown)
 - [x] Period comparisons (month vs last; 3/6/12 months)
 ### 4b-ii — Score, tiers, map, balance
-- [ ] Strength score: chosen lifts + weights, formula displayed
-- [ ] Strength tiers from editable standards tables
+- [x] Strength score: chosen lifts + weights, formula displayed
+- [x] Strength tiers from editable standards tables
 - [ ] Muscle body map (front/back SVG)
 - [x] Plateau detection (N weeks without e1RM gain)
 - [ ] Balance checks: push:pull, squat:hinge
@@ -211,3 +214,6 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Rep PRs only track the listed rep counts (7, 9, 11 are skipped) and are not credited across counts (a heavier 5 does not set a 3-rep PR).
 - Progress tab volume panel and Strength plateau flags were typechecked, unit-tested and built, not opened in a browser or on a device. The plateau window (6 weeks) and minimum sessions (3) are not editable yet.
 - Strength tab loads every set into memory twice (list + plateau data); fine for personal data.
+- Strength score setup and weigh-in entry were checked only for display (headless Chromium, seeded data); the setup editor (add lift, edit thresholds) was typechecked but not clicked through. No way to edit or delete a logged weigh-in until M5.
+- Tier templates assume a trained adult male; the profile `sex` field is not used yet. Edit thresholds per lift.
+- Bodyweight lifts (pull-ups, dips) have no template; add them with any template and edit the thresholds.

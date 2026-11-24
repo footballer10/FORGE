@@ -1,6 +1,9 @@
-import type { BodyMetric, Exercise, ID, SetEntry, WeightUnit, Workout } from '../../domain/types';
+import type { Profile, BodyMetric, Exercise, ID, SetEntry, WeightUnit, Workout } from '../../domain/types';
 import { db } from '../schema';
+import { createRepo } from './base';
 import { profileRepo } from './profile';
+
+const bodyMetrics = createRepo(db.bodyMetrics);
 
 export interface LiftedExercise {
   exercise: Exercise;
@@ -66,6 +69,25 @@ export const analyticsRepo = {
     for (const e of await db.exercises.bulkGet([...new Set(sets.map((s) => s.exerciseId))])) if (e) exercises.set(e.id, e);
     const metrics = await db.bodyMetrics.where('kind').equals('bodyweight').filter((m) => !m.deletedAt).toArray();
     return { sets, exercises, workouts, metrics, unit: (await profileRepo.get()).weightUnit };
+  },
+
+  /** Strength score lifts and tier standards stored on the profile. */
+  async scoreSetup(): Promise<Pick<Profile, 'strengthScoreLifts' | 'strengthStandards'>> {
+    const p = await profileRepo.get();
+    return { strengthScoreLifts: p.strengthScoreLifts, strengthStandards: p.strengthStandards };
+  },
+  async saveScoreSetup(setup: Pick<Profile, 'strengthScoreLifts' | 'strengthStandards'>): Promise<void> {
+    await profileRepo.update(setup);
+  },
+  /** Record a weigh-in (same table the Milestone 5 bodyweight log will use). */
+  async logBodyweight(date: string, value: number, unit: WeightUnit): Promise<void> {
+    await bodyMetrics.create({ date, kind: 'bodyweight', value, unit });
+  },
+
+  async exercisesByIds(ids: ID[]): Promise<Map<ID, Exercise>> {
+    const out = new Map<ID, Exercise>();
+    for (const e of await db.exercises.bulkGet(ids)) if (e) out.set(e.id, e);
+    return out;
   },
 
   async weightUnit() {
