@@ -13,6 +13,8 @@ interface Props {
   onToggle: () => void;
   /** Pair total to show under the weight (display only), when enabled for dumbbells. */
   pairTotal?: number;
+  /** Rep PR just set: short highlight. */
+  pr?: boolean;
 }
 
 function display(set: SetEntry, field: SetField): string {
@@ -21,18 +23,18 @@ function display(set: SetEntry, field: SetField): string {
   return field === 'durationSec' ? formatDuration(v) : String(Math.round(v * 100) / 100);
 }
 
-export function SetRow({ set, index, fields, loadModel, previous, editing, onEdit, onOpenDetails, onToggle, pairTotal }: Props) {
+export function SetRow({ set, index, fields, loadModel, previous, editing, onEdit, onOpenDetails, onToggle, pairTotal, pr }: Props) {
   const done = !!set.completedAt;
   const badge = SET_TYPES.find((t) => t.type === set.type)?.short || String(index + 1);
   return (
-    <div className={`flex items-center gap-2 rounded-card px-1 py-1 ${done ? 'bg-surface-2' : ''}`}>
+    <div className={`flex items-center gap-2 rounded-card px-1 py-1 ${done ? 'bg-surface-2' : ''} ${pr ? 'animate-pr ring-1 ring-accent' : ''}`}>
       <button
         type="button"
         onClick={onOpenDetails}
         aria-label={`Set ${index + 1} details${set.rpe ? `, RPE ${set.rpe}` : ''}${set.rir !== undefined ? `, ${set.rir} reps in reserve` : ''}`}
         className="num min-h-tap min-w-tap rounded-card text-xl text-muted"
       >
-        {badge}
+        {pr ? <span className="text-sm font-bold text-accent">PR</span> : badge}
         {(set.rpe !== undefined || set.rir !== undefined) && <span className="text-xs text-accent">•</span>}
       </button>
       <span className="num w-20 shrink-0 truncate text-sm text-muted" aria-label="Previous session">

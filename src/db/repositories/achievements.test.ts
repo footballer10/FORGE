@@ -40,3 +40,19 @@ describe('achievementsRepo.sync', () => {
     expect(await achievementsRepo.sync()).toEqual([]);
   });
 });
+
+describe('achievementsRepo summary and streak', () => {
+  it('summarises a finished workout with its PRs and the streak', async () => {
+    const e = await exerciseRepo.create(ex);
+    await profileRepo.update({ plannedDaysPerWeek: 1 });
+    await session(e.id, '2026-04-01', 135);
+    const w = await session(e.id, '2026-04-08', 140);
+    const s = await achievementsRepo.summaryFor(w.id);
+    expect(s?.hardSets).toBe(1);
+    expect(s?.exercises).toBe(1);
+    expect(s?.prs.length).toBeGreaterThan(0);
+    expect(s?.prs[0]?.exerciseName).toBe('Bench');
+    expect((await achievementsRepo.recentPrs(2)).length).toBe(2);
+    expect((await achievementsRepo.streak())?.target).toBe(1);
+  });
+});

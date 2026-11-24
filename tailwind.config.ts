@@ -24,6 +24,8 @@ export default {
       minWidth: { tap: '44px' },
       borderRadius: { card: '14px' },
       transitionDuration: { quick: '180ms' },
+      keyframes: { pr: { '0%': { transform: 'scale(1)' }, '50%': { transform: 'scale(1.03)' }, '100%': { transform: 'scale(1)' } } },
+      animation: { pr: 'pr 240ms ease-out 1' },
     },
   },
   plugins: [],

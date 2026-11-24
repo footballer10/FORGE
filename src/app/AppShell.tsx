@@ -6,6 +6,7 @@ import { TrainScreen } from '../features/train/TrainScreen';
 import { StrengthScreen } from '../features/strength/StrengthScreen';
 import { ProgressScreen } from '../features/progress/ProgressScreen';
 import { CoachScreen } from '../features/coach/CoachScreen';
+import { WorkoutSummarySheet } from '../features/home/WorkoutSummarySheet';
 import { UndoBar } from './UndoBar';
 import { trashRepo } from '../db/repositories';
 import { RestTimer } from '../features/train/RestTimer';
@@ -53,6 +54,7 @@ export function AppShell() {
       <main className="pt-safe px-safe flex-1 overflow-y-auto overscroll-contain">
         <Screen />
       </main>
+      <WorkoutSummarySheet />
       <UndoBar />
       <RestTimer />
       <TabBar />

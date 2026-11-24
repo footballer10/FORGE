@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { exerciseRepo, metaRepo, nowIso, plannedSessionRepo, profileRepo, routineRepo, undoRepo, workoutRepo } from '../../db/repositories';
+import { achievementsRepo, exerciseRepo, metaRepo, nowIso, plannedSessionRepo, profileRepo, routineRepo, undoRepo, workoutRepo } from '../../db/repositories';
 import { canComplete, prefillDrafts } from '../../domain/logging';
 import { moveItem } from '../../domain/order';
 import { restAfterExercise, toggleSupersetLink } from '../../domain/superset';
@@ -26,6 +26,11 @@ interface State {
   restEndsAt?: string;
   /** Length the current rest started with, for the progress bar only. */
   restTotalSec?: number;
+  /** Sets that just set a rep PR (brief highlight; memory only). */
+  prSetIds: ID[];
+  /** Workout just finished (not an edit): the summary sheet shows it. */
+  finishedId?: ID;
+  clearFinished: () => void;
   /** Resume an unfinished workout (crash / reopen) or find none. */
   load: () => Promise<void>;
   /** Start an empty workout; `conditioning` marks it as a time/distance session. */
@@ -109,6 +114,8 @@ export const useWorkout = create<State>((set, get) => {
 
   return {
     loaded: false,
+    prSetIds: [],
+    clearFinished: () => set({ finishedId: undefined }),
     rows: [],
     unit: 'lb',
     showPairTotal: false,
@@ -219,6 +226,15 @@ export const useWorkout = create<State>((set, get) => {
       const items = get().rows.map((r) => ({ id: r.we.id, supersetGroup: r.we.supersetGroup }));
       const due = restAfterExercise(items, found.row.we.id);
       if (sec > 0 && due && !isEditingPast(get().workout)) await get().startRest(sec);
+      // Brief PR highlight for a working set that beats the history (never blocks logging).
+      if (found.set.type !== 'warmup') {
+        void achievementsRepo
+          .isRepPr(setId)
+          .then((pr) => {
+            if (pr) set((st) => ({ prSetIds: [...st.prSetIds, setId] }));
+          })
+          .catch(() => undefined);
+      }
       return true;
     },
 
@@ -248,7 +264,7 @@ export const useWorkout = create<State>((set, get) => {
           for (const id of planned) await plannedSessionRepo.update(id, { completedWorkoutId: w.id, skipped: undefined });
         }
       });
-      set({ workout: undefined, rows: [], restEndsAt: undefined, restTotalSec: undefined });
+      set({ workout: undefined, rows: [], restEndsAt: undefined, restTotalSec: undefined, prSetIds: [], ...(editing ? {} : { finishedId: w.id }) });
       return true;
     },
 
