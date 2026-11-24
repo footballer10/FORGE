@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { UNDO_EVENT, exerciseRepo, workoutRepo, type FullWorkout } from '../../db/repositories';
+import { UNDO_EVENT, exerciseRepo, routineRepo, workoutRepo, type FullWorkout } from '../../db/repositories';
 import { useWorkout } from './workoutStore';
 import { durationMinutes } from '../../domain/logging';
+import { targetsFromSets } from '../../domain/routine';
 import type { Exercise } from '../../domain/types';
 
 const dateFmt = new Intl.DateTimeFormat(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
@@ -14,6 +15,21 @@ export function HistoryList() {
   const [names, setNames] = useState<Map<string, Exercise>>(new Map());
 
   const [tick, setTick] = useState(0);
+  const [saved, setSaved] = useState<string | null>(null);
+
+  async function saveAsRoutine({ workout, exercises }: FullWorkout) {
+    await routineRepo.create({
+      name: workout.name,
+      exercises: exercises.map((e, order) => ({
+        exerciseId: e.exerciseId,
+        order,
+        ...(e.supersetGroup ? { supersetGroup: e.supersetGroup } : {}),
+        targets: targetsFromSets(e.sets),
+      })),
+    });
+    setSaved(workout.id);
+    window.dispatchEvent(new Event(UNDO_EVENT)); // refreshes the routine list
+  }
   // Reload after any undoable action (delete, undo) so the list never shows stale rows.
   useEffect(() => {
     const bump = () => setTick((t) => t + 1);
@@ -40,7 +56,8 @@ export function HistoryList() {
 
   return (
     <ul className="flex flex-col gap-2">
-      {items.map(({ workout, exercises }) => {
+      {items.map((full) => {
+        const { workout, exercises } = full;
         const setCount = exercises.reduce((n, e) => n + e.sets.filter((s) => s.completedAt).length, 0);
         return (
           <li key={workout.id} className="rounded-card border border-line bg-surface p-3">
@@ -55,6 +72,7 @@ export function HistoryList() {
             <div className="flex gap-2 pt-2">
               <button type="button" onClick={() => void openPast(workout.id)} className="min-h-tap flex-1 rounded-card border border-line text-sm text-fg">Edit</button>
               <button type="button" onClick={() => void duplicate(workout.id)} className="min-h-tap flex-1 rounded-card border border-line text-sm text-fg">Repeat</button>
+              <button type="button" disabled={saved === workout.id} onClick={() => void saveAsRoutine(full)} className="min-h-tap flex-1 rounded-card border border-line text-sm text-fg">{saved === workout.id ? 'Saved' : 'Routine'}</button>
               <button type="button" onClick={() => void workoutRepo.deleteUndoable(workout.id)} className="min-h-tap flex-1 rounded-card border border-line text-sm text-fg">Delete</button>
             </div>
           </li>

@@ -5,7 +5,10 @@ import { HomeScreen } from '../features/home/HomeScreen';
 import { TrainScreen } from '../features/train/TrainScreen';
 import { StrengthScreen } from '../features/strength/StrengthScreen';
 import { ProgressScreen } from '../features/progress/ProgressScreen';
+import { SettingsScreen } from '../features/settings/SettingsScreen';
+import { Onboarding } from '../features/settings/Onboarding';
 import { CoachScreen } from '../features/coach/CoachScreen';
+import { WorkoutSummarySheet } from '../features/home/WorkoutSummarySheet';
 import { UndoBar } from './UndoBar';
 import { trashRepo } from '../db/repositories';
 import { RestTimer } from '../features/train/RestTimer';
@@ -23,6 +26,7 @@ const SCREENS = {
 export function AppShell() {
   const tab = useUi((s) => s.tab);
   const theme = useUi((s) => s.theme);
+  const settingsOpen = useUi((s) => s.settingsOpen);
   const Screen = SCREENS[tab];
   const workoutActive = useWorkout((s) => !!s.workout);
 
@@ -51,8 +55,10 @@ export function AppShell() {
   return (
     <div className="flex h-full flex-col">
       <main className="pt-safe px-safe flex-1 overflow-y-auto overscroll-contain">
-        <Screen />
+        {settingsOpen ? <SettingsScreen /> : <Screen />}
       </main>
+      <WorkoutSummarySheet />
+      <Onboarding />
       <UndoBar />
       <RestTimer />
       <TabBar />

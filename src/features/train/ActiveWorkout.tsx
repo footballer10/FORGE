@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { Keypad } from '../../components/Keypad';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { convertWeight } from '../../domain/units';
 import { displayWeight } from '../../domain/load';
 import { fieldsFor, type SetField } from '../../domain/logging';
+import { describeTargets } from '../../domain/routine';
 import type { ID } from '../../domain/types';
 import { SetRow } from './SetRow';
 import { ExerciseSheet } from './ExerciseSheet';
@@ -40,7 +42,7 @@ function Elapsed({ startedAt }: { startedAt: string }) {
 /** The logging screen. No gamification here (CLAUDE.md). */
 export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
   const {
-    workout, rows, unit, updateSet, toggleComplete, addSet, removeSet, removeExercise, finish, discard,
+    prSetIds, workout, rows, unit, updateSet, toggleComplete, addSet, removeSet, removeExercise, finish, discard,
     setWorkoutNotes, setExerciseNote, setStickyNote, moveExercise, toggleSuperset, showPairTotal, equipment,
   } = useWorkout();
   const [edit, setEdit] = useState<{ setId: ID; field: SetField } | null>(null);
@@ -48,6 +50,7 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
   const [menu, setMenu] = useState<ID | null>(null);
   const [plates, setPlates] = useState<ID | null>(null);
   const [message, setMessage] = useState('');
+  const [confirm, setConfirm] = useState<'discard' | 'remove' | null>(null);
 
   if (!workout) return null;
   const editing = isEditingPast(workout);
@@ -74,10 +77,10 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
   };
 
   const onDiscard = async () => {
-    if (editing || window.confirm('Discard this workout? It will be moved to the trash.')) {
+    if (editing) {
       setEdit(null);
       await discard();
-    }
+    } else setConfirm('discard');
   };
 
   return (
@@ -100,6 +103,8 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
                   {row.exercise.name}
                 </h2>
                 {row.exercise.stickyNote && <p className="whitespace-pre-line text-sm text-muted">{row.exercise.stickyNote}</p>}
+                {row.we.targets && <p className="num text-sm text-muted">Target {describeTargets(row.we.targets)}</p>}
+                {row.we.progressionNote && <p className="text-sm text-muted">{row.we.progressionNote}</p>}
                 {row.we.notes && <p className="whitespace-pre-line text-sm text-fg">{row.we.notes}</p>}
               </div>
               {row.exercise.equipment === 'barbell' && row.exercise.loadModel === 'total' && (
@@ -136,6 +141,7 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
                   editing={edit?.setId === s.id ? edit.field : undefined}
                   onEdit={(field) => setEdit({ setId: s.id, field })}
                   onOpenDetails={() => setDetails(s.id)}
+                  pr={!!s.completedAt && prSetIds.includes(s.id)}
                   pairTotal={showPairTotal && row.exercise.loadModel === 'perImplement' ? displayWeight(s, row.exercise, true, s.unit) : undefined}
                   onToggle={() => {
                     setEdit(null);
@@ -210,10 +216,7 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
             onSwapExercise(menuRow.we.id);
           }}
           onRemove={() => {
-            if (window.confirm(`Remove ${menuRow.exercise.name} from this workout?`)) {
-              setMenu(null);
-              void removeExercise(menuRow.we.id);
-            }
+            setConfirm('remove');
           }}
           onClose={() => setMenu(null)}
         />
@@ -240,6 +243,34 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
             void removeSet(detailSet.id);
           }}
           onClose={() => setDetails(null)}
+        />
+      )}
+      {confirm === 'discard' && (
+        <ConfirmDialog
+          title="Discard workout?"
+          body="It will be moved to the trash."
+          confirmLabel="Discard"
+          destructive
+          onCancel={() => setConfirm(null)}
+          onConfirm={() => {
+            setConfirm(null);
+            setEdit(null);
+            void discard();
+          }}
+        />
+      )}
+      {confirm === 'remove' && menuRow && (
+        <ConfirmDialog
+          title={`Remove ${menuRow.exercise.name}?`}
+          body="Its sets are removed from this workout."
+          confirmLabel="Remove"
+          destructive
+          onCancel={() => setConfirm(null)}
+          onConfirm={() => {
+            setConfirm(null);
+            setMenu(null);
+            void removeExercise(menuRow.we.id);
+          }}
         />
       )}
     </div>
