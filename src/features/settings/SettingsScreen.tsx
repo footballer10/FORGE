@@ -6,6 +6,9 @@ import { parseDays } from '../../domain/profileForm';
 import type { E1rmFormula, LengthUnit, Profile, WeightUnit } from '../../domain/types';
 import { useWorkout } from '../train/workoutStore';
 
+const isInstalled = (): boolean =>
+  (navigator as Navigator & { standalone?: boolean }).standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+
 const row = 'flex min-h-tap items-center justify-between gap-3 py-2';
 const seg = (on: boolean) => `min-h-tap rounded-card border px-4 ${on ? 'border-accent text-fg' : 'border-line text-muted'}`;
 
@@ -123,6 +126,20 @@ export function SettingsScreen() {
             ))}
           </div>
         </div>
+      </section>
+
+      <section className="rounded-card border border-line bg-surface px-4 py-3" aria-label="Install on iPhone">
+        <h2 className="text-sm text-muted">Install on your iPhone</h2>
+        {isInstalled() ? (
+          <p className="mt-1 text-sm">Forge is installed and running from the Home Screen. It works offline.</p>
+        ) : (
+          <ol className="mt-1 list-decimal pl-5 text-sm">
+            <li>Open this page in Safari.</li>
+            <li>Tap the Share button.</li>
+            <li>Choose Add to Home Screen, then Add.</li>
+          </ol>
+        )}
+        <p className="mt-2 text-xs text-muted">Installing also stops Safari from clearing your data after a few weeks of inactivity. Your workouts live only on this device, so keep exporting backups from Train.</p>
       </section>
 
       <p className="text-xs text-muted">Plate sizes, bar weight and equipment are in Coach → Training profile. Backup and restore are in Train.</p>
