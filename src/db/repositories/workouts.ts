@@ -1,6 +1,7 @@
 import type { ID, SetEntry, Workout, WorkoutExercise } from '../../domain/types';
 import { db } from '../schema';
 import { createRepo, nowIso, type NewEntity } from './base';
+import { undoRepo } from './undo';
 
 export interface FullWorkout {
   workout: Workout;
@@ -22,6 +23,11 @@ export const workoutRepo = {
   async getActive(): Promise<Workout | undefined> {
     const open = await db.workouts.filter((w) => !w.endedAt && !w.deletedAt).toArray();
     return open.sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0];
+  },
+
+  /** Move a workout to the trash and record an undo entry. */
+  async deleteUndoable(id: ID, label = 'Deleted workout'): Promise<void> {
+    await undoRepo.run(label, { workouts: [id] }, () => workoutBase.softDelete(id));
   },
 
   start(input: Partial<NewEntity<Workout>> = {}): Promise<Workout> {
@@ -148,11 +154,15 @@ export const workoutRepo = {
    * Excludes the given workout (usually the active one).
    */
   async lastSetsFor(exerciseId: ID, excludeWorkoutId?: ID): Promise<SetEntry[]> {
-    const sets = await db.sets
+    const all = await db.sets
       .where('exerciseId')
       .equals(exerciseId)
       .filter((s) => !s.deletedAt && !!s.completedAt && s.workoutId !== excludeWorkoutId)
       .toArray();
+    // Sets of trashed workouts must not feed prefill (or, later, analytics).
+    const workoutIds = [...new Set(all.map((s) => s.workoutId))];
+    const trashed = new Set((await db.workouts.bulkGet(workoutIds)).filter((w) => !w || w.deletedAt).map((w) => w?.id));
+    const sets = all.filter((s) => !trashed.has(s.workoutId));
     if (sets.length === 0) return [];
     const latest = sets.reduce((a, b) => ((a.completedAt ?? '') > (b.completedAt ?? '') ? a : b));
     return sets.filter((s) => s.workoutId === latest.workoutId).sort((a, b) => a.order - b.order);

@@ -10,6 +10,8 @@ export { workoutRepo, type FullWorkout } from './workouts';
 export { profileRepo, defaultProfile } from './profile';
 export { importer } from './importer';
 export { backupRepo } from './backup';
+export { undoRepo, UNDO_EVENT, type RowRefs } from './undo';
+export { trashRepo } from './trash';
 export { newId, nowIso, type NewEntity, type Repository } from './base';
 
 export const exerciseRepo = {

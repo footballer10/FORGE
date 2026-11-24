@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { exerciseRepo, metaRepo, nowIso, profileRepo, workoutRepo } from '../../db/repositories';
+import { exerciseRepo, metaRepo, nowIso, profileRepo, undoRepo, workoutRepo } from '../../db/repositories';
 import { canComplete, prefillDrafts } from '../../domain/logging';
 import { moveItem } from '../../domain/order';
 import { restAfterExercise, toggleSupersetLink } from '../../domain/superset';
@@ -210,13 +210,14 @@ export const useWorkout = create<State>((set, get) => {
       const rows = get().rows;
       if (!rows.some((r) => r.sets.some((s) => s.completedAt))) return false;
       const editing = isEditingPast(w);
-      for (const r of rows) {
-        const done = r.sets.filter((s) => s.completedAt);
-        for (const s of r.sets) if (!s.completedAt) await workoutRepo.removeSet(s.id);
-        if (done.length === 0) await workoutRepo.removeExercise(r.we.id);
-      }
-      if (editing) await metaRepo.set(EDITING_KEY, null);
-      else await workoutRepo.finish(w.id);
+      const dropSets = rows.flatMap((r) => r.sets.filter((s) => !s.completedAt).map((s) => s.id));
+      const dropExercises = rows.filter((r) => !r.sets.some((s) => s.completedAt)).map((r) => r.we.id);
+      await undoRepo.run(editing ? 'Saved workout edits' : 'Finished workout', { workouts: [w.id], sets: dropSets, workoutExercises: dropExercises }, async () => {
+        for (const id of dropSets) await workoutRepo.removeSet(id);
+        for (const id of dropExercises) await workoutRepo.removeExercise(id);
+        if (editing) await metaRepo.set(EDITING_KEY, null);
+        else await workoutRepo.finish(w.id);
+      });
       set({ workout: undefined, rows: [], restEndsAt: undefined, restTotalSec: undefined });
       return true;
     },
@@ -225,7 +226,7 @@ export const useWorkout = create<State>((set, get) => {
       const w = get().workout;
       if (!w) return;
       if (isEditingPast(w)) await metaRepo.set(EDITING_KEY, null); // edits are already saved; just close
-      else await workoutRepo.softDelete(w.id);
+      else await workoutRepo.deleteUndoable(w.id, 'Discarded workout');
       set({ workout: undefined, rows: [], restEndsAt: undefined, restTotalSec: undefined });
     },
 
