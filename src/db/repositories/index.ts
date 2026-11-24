@@ -18,6 +18,7 @@ export { bodyRepo } from './body';
 export { fitnessRepo } from './fitness';
 export { photoRepo } from './photos';
 export { coachRepo, type ProposalPreview } from './coach';
+export { achievementsRepo } from './achievements';
 export { analyticsRepo, type LiftedExercise, type ExerciseAnalyticsInput, type TrainingData } from './analytics';
 export { newId, nowIso, type NewEntity, type Repository } from './base';
 

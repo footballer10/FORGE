@@ -3,8 +3,8 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
-- **Done last session:** Milestone 6b — Coach tab "Program from Claude": `docs/program-schema.md` (rules, example, JSON Schema) and an in-app "Copy format for Claude" prompt; paste → extract JSON → validate (all errors listed with paths) → resolve exercise names → diff against the active program → Approve (saved as a new version, author `claude`, or as a separate draft) or Reject; every approve/reject writes an `AiDecision` with the raw payload. Milestone 6 is complete. Tests and build pass; checked in headless Chromium (missing exercise blocks, approve saves).
-- **Next session:** Milestone 7 (gamification): suggest splitting 7a (achievement definitions + evaluator, pure + tests) and 7b (weekly streaks + PR celebration UI).
+- **Done last session:** Milestone 7a (achievements engine, no UI): `src/domain/achievements.ts` (pure definitions + evaluator, tests) and `achievementsRepo` (`sync`, `unseen`, `markSeen`, `listNewestFirst`, tests). Tests and build pass.
+- **Next session:** Milestone 7b: weekly streaks vs planned days (pure + tests), then UI: achievements list and "new" cards on Home and the post-workout summary (call `achievementsRepo.sync()` after finish), and the PR celebration (post-set subtle, summary, Home). Nothing on the logging screen except a short set-complete / PR motion (<= 250 ms).
 - **Known issues:** see bottom.
 
 ## Decisions (defaults chosen; change by asking)
@@ -59,6 +59,7 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Coach summary (6a): plain text, sections in a fixed order (profile, training, weekly sets per muscle, balance, lifts, PRs, body, tests, current program, how to answer). Window is the last 28/56/84 days ending today (default 56). Each figure states its unit, window and rule; e1RM uses the profile formula, plateau uses the 6-week rule, balance the 4-week window. Lifts: loaded exercises with sets in the window, top 15 by set count. PRs: the app's own PR events inside the window. Muscle sets are the weighted weekly average. The profile's name and exact birth year are not included (age only). Conditioning sessions are only counted, not detailed. Active program is listed per session with targets and done/skipped state. The text ends with a short "how to answer" note (proposals with reasons; user approves in the app).
 - Profile editor (6a): saved with one button, not per field; equipment weights are stored in the profile weight unit; clearing an optional field removes it from the summary. A profile edit does not create an undo entry.
 - Program proposals (6b): one JSON object, `schemaVersion` 1, hand-written validator (no schema library; the JSON Schema in the doc is for Claude and humans). Unknown fields are errors; all problems are listed with paths. Exercises are matched by exact name or alias (case-insensitive); unmatched names block approval and are never auto-created. `count` repeats a set; unit defaults to the profile unit. Diff matches sessions by position (week, day) and exercises by ID, and shows added, removed and changed targets or rest. With an active program the default is a new version of it (history kept; completed/skipped carry over only where the session is in the same place with the same name); the alternative is a separate draft. Without an active program it is saved as a draft. Approve never activates anything. Rejecting also logs an `AiDecision`. Nothing is saved before Approve.
+- Achievements (7a): milestones only, no points. Families: workouts finished (1, 10, 25, 50, 100, 250, 500), hard sets (100 to 10,000), PRs (1, 10, 25, 50, 100; any PR kind counts), and e1RM at 135/225/315/405/495 lb on the strength-score lifts (kg e1RMs are converted to lb to compare; keys always use lb). Each is dated at the workout that crossed it. Thresholds are the app's own round numbers. `sync()` stores only missing keys, so earned achievements are never removed when data is later edited or deleted; title/description are stored on the row. Weekly-streak achievements come with 7b.
 - Default rest 120 s for compound lifts, 90 s otherwise; default increment 5 lb barbell, 5 lb dumbbell (per implement), 2.5 lb fallback for small plates is a per-exercise edit.
 
 - Analytics (4a): only finished, non-trashed workouts count. Effective load per `domain/load.ts`; bodyweight lifts use the nearest weigh-in on or before the set, else the workout snapshot, else the set is skipped. Analysis unit is the profile unit. e1RM uses sets of 1–12 reps, one point per workout (its best set); a single is its own max in every formula. Default formula Epley, changed in the chart screen and stored on the profile.
@@ -162,10 +163,11 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - [x] 6b: `docs/program-schema.md` + JSON schema
 - [x] 6b: Paste Claude program → validate → diff preview → approve → save (AiDecision logged)
 
-## Milestone 7 — Gamification
-- [ ] Achievement definitions + evaluator (pure + tests)
-- [ ] Weekly streaks vs planned days
-- [ ] PR celebration animation (post-set, summary, Home)
+## Milestone 7 — Gamification (split 7a/7b)
+- [x] 7a: Achievement definitions + evaluator (pure + tests) and repository sync
+- [ ] 7b: Weekly streaks vs planned days
+- [ ] 7b: Achievements list + new-achievement cards (Home, summary)
+- [ ] 7b: PR celebration animation (post-set, summary, Home)
 
 ## Milestone 8 — Polish & install
 - [ ] Empty states, onboarding (units, bodyweight, goals)
@@ -234,3 +236,4 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Photos (5c-ii): not tested on a real iPhone (camera capture, HEIC pickup, share/save). iOS Safari can evict site data for PWAs that are not installed to the Home Screen; photos are in no backup, so the panel tells the user to keep copies. `clearAllData` (used in restore-replace tests) wipes photos too, but app restore never calls it. Full-size blobs are decoded for thumbnails (no separate thumbnail), fine for dozens of photos. The viewer is a simple overlay: no swipe between photos, no pinch zoom beyond the browser default.
 - Coach (6a): the summary and the profile editor were checked in headless Chromium only (not on an iPhone). Copy uses `navigator.clipboard`; if blocked, the text is selected and the user is told to copy by hand. The summary has no conditioning detail, readiness or photo info, and no per-session workout log; it is a rolled-up view, so Claude cannot see individual sets. Profile editor has no unsaved-changes prompt. The weight and length units and the e1RM formula are still not editable in any Settings screen.
 - Coach (6b): checked in headless Chromium only. Diff compares position, so inserting a session early in a week shows as changes to every later day. Per-set RPE/rest edits other than targets and rest are not diffed (notes, supersets, progression rule changes are saved but not shown in the diff). A proposal cannot create exercises; add them in the library first. There is no rollback screen for AI versions yet (the old version is archived and kept; `AiDecision.status` `rolledBack` is unused). No unsaved-text protection: pasted text is lost if you leave the tab's screen state.
+- Achievements (7a): no UI yet. `sync()` re-reads all training data each call (fine for personal data). A lift milestone needs the lift on the strength-score list; imported history is credited on first sync, all unseen.

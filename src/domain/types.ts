@@ -465,6 +465,9 @@ export interface RawImportRow {
 export interface Achievement extends BaseEntity {
   /** Stable key of the achievement definition, e.g. 'bench-225', 'workouts-100'. */
   key: string;
+  /** Display text captured when earned (lift names can change later). */
+  title?: string;
+  description?: string;
   achievedAt: ISODateTime;
   /** The workout/set that earned it. */
   workoutId?: ID;
