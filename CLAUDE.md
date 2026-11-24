@@ -6,7 +6,7 @@ Personal strength-training PWA, iPhone first, one user. Full product spec: `SPEC
 1. Read this file and `PROGRESS.md`. Do not read the whole repo; open only files the current task needs.
 2. Work one milestone (or one split part of it) per session, in small steps.
 3. Commit after each working step so a usage limit never leaves things half-done.
-4. End the session: `npm run test`, `npm run build`, update `PROGRESS.md` (done, next, known issues), commit, push.
+4. End the session: `npm run test`, `npm run build`, update `PROGRESS.md` (done, next, known issues), commit, push, then merge into `main` and push `main` (see Git).
 5. If a milestone is too big, split it in `PROGRESS.md` first.
 
 ## Rules
@@ -71,4 +71,7 @@ public/           icons, manifest assets
 - Name tests `*.test.ts` beside the module.
 
 ## Git
-- Develop on the session branch given by the harness; commit small; push at session end.
+- Develop on the session branch given by the harness; commit small; push it as you go.
+- **At the end of every session, merge the work into `main` and push `main`.** The user has given standing permission for this. Only do it when tests and build pass; if they fail, push the session branch only and say why in `PROGRESS.md` and the summary.
+- Merge with `git fetch origin main && git checkout main && git merge --no-ff <session-branch> && git push origin main`. Never force-push `main`. If the merge conflicts, stop and ask the user.
+- Start each session from the latest `main`.
