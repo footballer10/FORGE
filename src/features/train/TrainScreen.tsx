@@ -4,12 +4,14 @@ import type { Exercise, ID } from '../../domain/types';
 import { ExerciseBrowser } from '../exercises/ExerciseBrowser';
 import { ExerciseForm } from '../exercises/ExerciseForm';
 import { ActiveWorkout } from './ActiveWorkout';
+import { ImportScreen } from '../import/ImportScreen';
 import { HistoryList } from './HistoryList';
 import { useWorkout } from './workoutStore';
 
 type View =
   | { kind: 'home' }
   | { kind: 'library' }
+  | { kind: 'import' }
   | { kind: 'form'; exercise?: Exercise; returnTo: 'library' | 'pick'; swapWeId?: ID }
   | { kind: 'pick'; swapWeId?: ID };
 
@@ -36,6 +38,7 @@ export function TrainScreen() {
       />
     );
   }
+  if (view.kind === 'import') return <ImportScreen onBack={() => setView({ kind: 'home' })} />;
   if (view.kind === 'library') {
     return (
       <ExerciseBrowser
@@ -62,6 +65,13 @@ export function TrainScreen() {
         className="mb-4 min-h-tap rounded-card border border-line bg-surface px-4 text-left text-base text-fg"
       >
         Exercise library
+      </button>
+      <button
+        type="button"
+        onClick={() => setView({ kind: 'import' })}
+        className="mb-4 min-h-tap rounded-card border border-line bg-surface px-4 text-left text-base text-fg"
+      >
+        Import from Strong
       </button>
       <label className="mb-4 flex min-h-tap items-center justify-between rounded-card border border-line bg-surface px-4 text-base text-fg">
         <span>Show dumbbell pair total</span>
