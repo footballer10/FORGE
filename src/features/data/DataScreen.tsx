@@ -1,5 +1,7 @@
-import { useState } from 'react';
-import { backupRepo, metaRepo, nowIso } from '../../db/repositories';
+import { useEffect, useState } from 'react';
+import { UNDO_EVENT, backupRepo, metaRepo, nowIso, undoRepo } from '../../db/repositories';
+import { useWorkout } from '../train/workoutStore';
+import { TrashScreen } from './TrashScreen';
 import { parseExport, type ExportFile, type TableMergePlan } from '../../domain/backup';
 import type { WeightUnit } from '../../domain/types';
 
@@ -36,6 +38,15 @@ export function DataScreen({ onBack }: { onBack: () => void }) {
   const [restore, setRestore] = useState<{ file: ExportFile; plan: TableMergePlan[]; name: string } | null>(null);
   const [confirmReplace, setConfirmReplace] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [trash, setTrash] = useState(false);
+  const [undoLabel, setUndoLabel] = useState<string>();
+  useEffect(() => {
+    const load = () => void undoRepo.latest().then((e) => setUndoLabel(e?.label));
+    load();
+    window.addEventListener(UNDO_EVENT, load);
+    return () => window.removeEventListener(UNDO_EVENT, load);
+  }, []);
+  if (trash) return <TrashScreen onBack={() => setTrash(false)} />;
 
   const run = async (fn: () => Promise<string>) => {
     setBusy(true);
@@ -91,6 +102,19 @@ export function DataScreen({ onBack }: { onBack: () => void }) {
         <h1 className="text-4xl uppercase">Backup</h1>
         <button type="button" onClick={onBack} className="min-h-tap px-2 text-sm text-muted">Close</button>
       </div>
+
+      <section className="flex flex-col gap-2">
+        <h2 className="text-2xl uppercase">Undo &amp; trash</h2>
+        <button
+          type="button"
+          disabled={!undoLabel || busy}
+          onClick={() => void run(async () => `Undone: ${(await undoRepo.undoLatest()) ?? 'nothing'}`).then(() => useWorkout.getState().load())}
+          className={`${button} disabled:opacity-40`}
+        >
+          {undoLabel ? `Undo: ${undoLabel}` : 'Nothing to undo'}
+        </button>
+        <button type="button" onClick={() => setTrash(true)} className={button}>Trash</button>
+      </section>
 
       <section className="flex flex-col gap-2">
         <h2 className="text-2xl uppercase">Export</h2>

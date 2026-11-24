@@ -6,6 +6,8 @@ import { TrainScreen } from '../features/train/TrainScreen';
 import { StrengthScreen } from '../features/strength/StrengthScreen';
 import { ProgressScreen } from '../features/progress/ProgressScreen';
 import { CoachScreen } from '../features/coach/CoachScreen';
+import { UndoBar } from './UndoBar';
+import { trashRepo } from '../db/repositories';
 import { RestTimer } from '../features/train/RestTimer';
 import { useWakeLock } from '../features/train/useWakeLock';
 import { useWorkout } from '../features/train/workoutStore';
@@ -41,11 +43,17 @@ export function AppShell() {
       });
   }, []);
 
+  // Trash older than 30 days is removed for good on launch.
+  useEffect(() => {
+    void trashRepo.purgeExpired().catch(() => undefined);
+  }, []);
+
   return (
     <div className="flex h-full flex-col">
       <main className="pt-safe px-safe flex-1 overflow-y-auto overscroll-contain">
         <Screen />
       </main>
+      <UndoBar />
       <RestTimer />
       <TabBar />
     </div>

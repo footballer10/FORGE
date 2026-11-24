@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { exerciseRepo, workoutRepo, type FullWorkout } from '../../db/repositories';
+import { UNDO_EVENT, exerciseRepo, workoutRepo, type FullWorkout } from '../../db/repositories';
 import { useWorkout } from './workoutStore';
 import { durationMinutes } from '../../domain/logging';
 import type { Exercise } from '../../domain/types';
@@ -13,6 +13,14 @@ export function HistoryList() {
   const [items, setItems] = useState<FullWorkout[] | null>(null);
   const [names, setNames] = useState<Map<string, Exercise>>(new Map());
 
+  const [tick, setTick] = useState(0);
+  // Reload after any undoable action (delete, undo) so the list never shows stale rows.
+  useEffect(() => {
+    const bump = () => setTick((t) => t + 1);
+    window.addEventListener(UNDO_EVENT, bump);
+    return () => window.removeEventListener(UNDO_EVENT, bump);
+  }, []);
+
   useEffect(() => {
     let live = true;
     void (async () => {
@@ -25,7 +33,7 @@ export function HistoryList() {
     return () => {
       live = false;
     };
-  }, []);
+  }, [tick]);
 
   if (items === null) return null;
   if (items.length === 0) return <p className="py-4 text-sm text-muted">No finished workouts yet.</p>;
@@ -47,6 +55,7 @@ export function HistoryList() {
             <div className="flex gap-2 pt-2">
               <button type="button" onClick={() => void openPast(workout.id)} className="min-h-tap flex-1 rounded-card border border-line text-sm text-fg">Edit</button>
               <button type="button" onClick={() => void duplicate(workout.id)} className="min-h-tap flex-1 rounded-card border border-line text-sm text-fg">Repeat</button>
+              <button type="button" onClick={() => void workoutRepo.deleteUndoable(workout.id)} className="min-h-tap flex-1 rounded-card border border-line text-sm text-fg">Delete</button>
             </div>
           </li>
         );
