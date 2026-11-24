@@ -117,10 +117,12 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 ### 3d — Progression
 - [x] Progression rules: double progression, % e1RM, RPE target → suggested weight (pure + tests)
 
-## Milestone 4 — Strength analytics (likely split 4a/4b)
+## Milestone 4 — Strength analytics (split 4a/4b)
+### 4a — e1RM, PRs, per-exercise view
 - [ ] e1RM formulas (Epley, Brzycki, Lombardi, Mayhew, O'Conner, Wathan) + tests
-- [ ] Per-exercise e1RM chart with formula picker
 - [ ] PR detection: rep-range, e1RM, volume + PR timeline (tests)
+- [ ] Per-exercise e1RM chart with formula picker (Strength tab)
+### 4b — Volume, scores, checks
 - [ ] Weekly hard sets per muscle (primary 1.0, secondary 0.5 — shown)
 - [ ] Period comparisons (month vs last; 3/6/12 months)
 - [ ] Strength score: chosen lifts + weights, formula displayed
