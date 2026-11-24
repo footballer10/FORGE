@@ -236,11 +236,16 @@ export const useWorkout = create<State>((set, get) => {
       const editing = isEditingPast(w);
       const dropSets = rows.flatMap((r) => r.sets.filter((s) => !s.completedAt).map((s) => s.id));
       const dropExercises = rows.filter((r) => !r.sets.some((s) => s.completedAt)).map((r) => r.we.id);
-      await undoRepo.run(editing ? 'Saved workout edits' : 'Finished workout', { workouts: [w.id], sets: dropSets, workoutExercises: dropExercises }, async () => {
+      const planned = !editing && w.plannedSessionId ? [w.plannedSessionId] : [];
+      await undoRepo.run(editing ? 'Saved workout edits' : 'Finished workout', { workouts: [w.id], sets: dropSets, workoutExercises: dropExercises, plannedSessions: planned }, async () => {
         for (const id of dropSets) await workoutRepo.removeSet(id);
         for (const id of dropExercises) await workoutRepo.removeExercise(id);
         if (editing) await metaRepo.set(EDITING_KEY, null);
-        else await workoutRepo.finish(w.id);
+        else {
+          await workoutRepo.finish(w.id);
+          // Link the planned session to this workout (the plan is done; skipped is cleared).
+          for (const id of planned) await plannedSessionRepo.update(id, { completedWorkoutId: w.id, skipped: undefined });
+        }
       });
       set({ workout: undefined, rows: [], restEndsAt: undefined, restTotalSec: undefined });
       return true;

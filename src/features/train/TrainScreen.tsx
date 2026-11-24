@@ -14,6 +14,7 @@ import { ProgramView } from '../programs/ProgramView';
 import type { ProgramTree } from '../../domain/program';
 import { RoutineEditor } from '../routines/RoutineEditor';
 import { RoutineList } from '../routines/RoutineList';
+import { HistoryCalendar } from './HistoryCalendar';
 import { HistoryList } from './HistoryList';
 import { useWorkout } from './workoutStore';
 
@@ -30,6 +31,7 @@ type View =
 
 export function TrainScreen() {
   const [view, setView] = useState<View>({ kind: 'home' });
+  const [historyMode, setHistoryMode] = useState<'list' | 'calendar'>('list');
   const openBackup = useUi((s) => s.openBackup);
   useEffect(() => {
     if (openBackup) {
@@ -121,8 +123,17 @@ export function TrainScreen() {
       </label>
       <ProgramList onOpen={(programId) => setView({ kind: 'program', programId })} onNew={() => setView({ kind: 'programEdit' })} onStarted={() => setView({ kind: 'home' })} />
       <RoutineList onEdit={(routine) => setView({ kind: 'routine', ...(routine ? { routine } : {}) })} onStarted={() => setView({ kind: 'home' })} />
-      <h2 className="pb-2 text-2xl uppercase">History</h2>
-      <HistoryList />
+      <div className="flex items-baseline justify-between pb-2">
+        <h2 className="text-2xl uppercase">History</h2>
+        <div className="flex gap-1" role="group" aria-label="History view">
+          {(['list', 'calendar'] as const).map((m) => (
+            <button key={m} type="button" aria-pressed={historyMode === m} onClick={() => setHistoryMode(m)} className={`min-h-tap rounded-card border border-line px-3 text-sm capitalize ${historyMode === m ? 'bg-surface-2 text-fg' : 'text-muted'}`}>
+              {m}
+            </button>
+          ))}
+        </div>
+      </div>
+      {historyMode === 'list' ? <HistoryList /> : <HistoryCalendar />}
       {/* Primary action sits in the bottom third for one-handed use. */}
       <div className="sticky bottom-0 mt-auto bg-bg pt-4">
         <button

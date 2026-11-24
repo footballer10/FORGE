@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { programRepo } from '../../db/repositories';
+import { plannedSessionRepo, programRepo } from '../../db/repositories';
 import { nextSession, weekLabel, type ProgramTree } from '../../domain/program';
 import { describeTargets } from '../../domain/routine';
 import type { Program } from '../../domain/types';
+import { PlanVsActual } from './PlanVsActual';
 import { useWorkout } from '../train/workoutStore';
 
 interface Props {
@@ -21,6 +22,8 @@ export function ProgramView({ programId, onBack, onEdit, onStarted }: Props) {
   const [tree, setTree] = useState<ProgramTree | null>(null);
   const [history, setHistory] = useState<Program[]>([]);
   const [tick, setTick] = useState(0);
+  const [open, setOpen] = useState<string | null>(null);
+  const refresh = () => setTick((t) => t + 1);
 
   useEffect(() => {
     let live = true;
@@ -81,9 +84,20 @@ export function ProgramView({ programId, onBack, onEdit, onStarted }: Props) {
                   <ul className="text-sm text-muted">
                     {s.exercises.map((e, i) => <li key={i} className="num">{describeTargets(e.targets)}</li>)}
                   </ul>
-                  {s.exercises.length > 0 && !s.completedWorkoutId && (
+                  {s.completedWorkoutId && (
+                    <button type="button" onClick={() => setOpen(open === s.id ? null : s.id)} className={`mt-2 w-full ${btn}`}>
+                      {open === s.id ? 'Hide plan vs completed' : 'Plan vs completed'}
+                    </button>
+                  )}
+                  {open === s.id && <PlanVsActual session={s} />}
+                  {s.exercises.length > 0 && !s.completedWorkoutId && !s.skipped && (
                     <button type="button" disabled={busy} onClick={() => start(s.id)} className={`mt-2 w-full ${btn} ${isNext ? 'bg-accent font-semibold uppercase text-accent-fg' : ''}`}>
                       {busy ? 'Finish the current workout first' : 'Start'}
+                    </button>
+                  )}
+                  {!s.completedWorkoutId && (
+                    <button type="button" onClick={() => void plannedSessionRepo.update(s.id, { skipped: s.skipped ? undefined : true }).then(refresh)} className={`mt-2 w-full ${btn}`}>
+                      {s.skipped ? 'Unskip' : 'Skip'}
                     </button>
                   )}
                 </li>
