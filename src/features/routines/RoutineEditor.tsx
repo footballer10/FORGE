@@ -8,6 +8,19 @@ import { SET_TYPES } from '../../domain/logging';
 import { ExerciseBrowser } from '../exercises/ExerciseBrowser';
 import { ExerciseForm } from '../exercises/ExerciseForm';
 
+interface EditorProps {
+  heading: string;
+  nameLabel?: string;
+  namePlaceholder?: string;
+  saveLabel: string;
+  initialName: string;
+  initialNotes: string;
+  initialItems: RoutineExercise[];
+  /** Return an error message to stay on the screen, or nothing when saved. */
+  onSave: (value: { name: string; notes: string; exercises: RoutineExercise[] }) => Promise<string | void> | string | void;
+  onCancel: () => void;
+}
+
 interface Props {
   /** Omit to create a routine. */
   routine?: Routine;
@@ -24,11 +37,33 @@ const parse = (v: string): number | undefined => {
   return Number.isFinite(n) && n >= 0 ? n : undefined;
 };
 
-/** Create or edit a routine: exercises with per-set targets (reps or range, weight, RPE) and rest. */
+/** Create or edit a routine. */
 export function RoutineEditor({ routine, onDone }: Props) {
-  const [name, setName] = useState(routine?.name ?? '');
-  const [notes, setNotes] = useState(routine?.notes ?? '');
-  const [items, setItems] = useState<RoutineExercise[]>(() => [...(routine?.exercises ?? [])].sort((a, b) => a.order - b.order));
+  return (
+    <ExercisesEditor
+      heading={routine ? 'Edit routine' : 'New routine'}
+      saveLabel="Save routine"
+      namePlaceholder="Push A"
+      initialName={routine?.name ?? ''}
+      initialNotes={routine?.notes ?? ''}
+      initialItems={[...(routine?.exercises ?? [])].sort((a, b) => a.order - b.order)}
+      onCancel={onDone}
+      onSave={async ({ name, notes, exercises }) => {
+        if (exercises.length === 0) return 'Add at least one exercise.';
+        const fields = { name, exercises, ...(notes ? { notes } : {}) };
+        if (routine) await routineRepo.update(routine.id, { ...fields, notes: notes || undefined });
+        else await routineRepo.create(fields);
+        onDone();
+      }}
+    />
+  );
+}
+
+/** Name, notes and exercises with per-set targets (reps or range, weight, RPE) and rest. Shared by routines and planned sessions. */
+export function ExercisesEditor({ heading, nameLabel = 'Name', namePlaceholder, saveLabel, initialName, initialNotes, initialItems, onSave, onCancel }: EditorProps) {
+  const [name, setName] = useState(initialName);
+  const [notes, setNotes] = useState(initialNotes);
+  const [items, setItems] = useState<RoutineExercise[]>(initialItems);
   const [byId, setById] = useState<Map<ID, Exercise>>(new Map());
   const [sub, setSub] = useState<'none' | 'pick' | 'create'>('none');
   const [error, setError] = useState('');
@@ -61,12 +96,8 @@ export function RoutineEditor({ routine, onDone }: Props) {
   async function save() {
     const trimmed = name.trim();
     if (!trimmed) return setError('Name is required.');
-    if (items.length === 0) return setError('Add at least one exercise.');
-    const exercises = sanitizeExercises(items);
-    const fields = { name: trimmed, exercises, ...(notes.trim() ? { notes: notes.trim() } : {}) };
-    if (routine) await routineRepo.update(routine.id, { ...fields, notes: notes.trim() || undefined });
-    else await routineRepo.create(fields);
-    onDone();
+    const msg = await onSave({ name: trimmed, notes: notes.trim(), exercises: sanitizeExercises(items) });
+    if (msg) setError(msg);
   }
 
   if (sub === 'pick') {
@@ -89,12 +120,12 @@ export function RoutineEditor({ routine, onDone }: Props) {
   return (
     <div className="flex min-h-full flex-col pb-6">
       <div className="flex items-baseline justify-between pb-3 pt-6">
-        <h1 className="text-4xl uppercase">{routine ? 'Edit routine' : 'New routine'}</h1>
-        <button type="button" onClick={onDone} className="min-h-tap px-2 text-sm text-muted">Cancel</button>
+        <h1 className="text-4xl uppercase">{heading}</h1>
+        <button type="button" onClick={onCancel} className="min-h-tap px-2 text-sm text-muted">Cancel</button>
       </div>
       <label className="flex flex-col gap-1 pb-3 text-sm text-muted">
-        Name
-        <input className={input} value={name} onChange={(e) => setName(e.target.value)} placeholder="Push A" />
+        {nameLabel}
+        <input className={input} value={name} onChange={(e) => setName(e.target.value)} placeholder={namePlaceholder} />
       </label>
       <label className="flex flex-col gap-1 pb-4 text-sm text-muted">
         Notes
@@ -218,7 +249,7 @@ export function RoutineEditor({ routine, onDone }: Props) {
       {error && <p role="alert" className="pb-2 text-sm text-accent">{error}</p>}
       <div className="sticky bottom-0 mt-auto bg-bg pt-4">
         <button type="button" onClick={() => void save()} className="num min-h-[56px] w-full rounded-card bg-accent text-xl font-semibold uppercase tracking-wider text-accent-fg">
-          Save routine
+          {saveLabel}
         </button>
       </div>
     </div>

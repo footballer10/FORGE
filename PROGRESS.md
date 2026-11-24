@@ -3,8 +3,8 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
-- **Done last session:** Milestone 3a — routines: create/edit/delete (undoable), per-set targets (reps or range, weight, RPE, type), rest override, supersets, "save finished workout as routine", start a workout from a routine. 153 tests pass.
-- **Next session:** Milestone 3b (programs → weeks → planned sessions, versioning with change reason). Then 3c (planned vs completed, history calendar/heatmap), 3d (progression rules, pure + tests).
+- **Done last session:** Milestone 3b — programs: create/edit weeks and planned sessions (phase, deload, copy week), versioning with a required change reason, active/completed/archived status, start a workout from a planned session (sets `plannedSessionId`), version history. 165 tests pass.
+- **Next session:** Milestone 3c (planned vs completed: link a finished workout to its planned session, skip a session, compare plan and result; history calendar + training-day heatmap). Then 3d (progression rules, pure + tests).
 - **Known issues:** see bottom.
 
 ## Decisions (defaults chosen; change by asking)
@@ -43,6 +43,10 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Trash: workouts and exercises. Purge on launch after 30 days. Library exercises (have `sourceRef`) and exercises with logged sets are never purged (library would reseed them). Trashed workouts are excluded from last-session prefill; future analytics must exclude sets whose workout has `deletedAt`.
 - Routines: starting one creates sets from its targets (reps = low end of a range; weight = target weight, else the same-numbered set of the last session, matched separately for warm-ups and working sets; else empty). RPE targets are never prefilled. Targets and the rest override are copied onto the `WorkoutExercise` (`targets`, `restSec`) and shown as a "Target ..." line while logging; the rest override replaces the exercise default for non-warm-up sets. Exercises deleted since the routine was saved are skipped on start.
 - Routines: deleting is a soft delete with an undo entry (no Trash screen section yet, no purge). "Save as routine" from History captures completed sets only (type, weight, reps, time, distance), no RPE or rest.
+- Programs: every save of an existing program creates a NEW program row (version + 1, `previousVersionId`, required `changeReason`); the old row is archived and keeps its own weeks and sessions. New rows copy `completedWorkoutId` / `skipped` so history survives an edit. Lists show only the newest version of each chain; "Delete" soft-deletes every version (undoable). First save uses reason "Created".
+- Programs: only one program is active; activating one sets any other active program to draft. A new version keeps the old status (an archived program re-saved becomes a draft).
+- Programs: "next session" is the first session in plan order that is not done or skipped. Sessions with no exercises get no Start button. Week and day numbers always follow list order (reordering renumbers).
+- Planned sessions reuse the routine exercise editor (`ExercisesEditor`), so targets, rest overrides and supersets work the same; starting one copies targets and rest onto the workout like a routine.
 - Default rest 120 s for compound lifts, 90 s otherwise; default increment 5 lb barbell, 5 lb dumbbell (per implement), 2.5 lb fallback for small plates is a per-exercise edit.
 
 ## Milestone 0 — Foundation
@@ -101,7 +105,7 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 ### 3a — Routines
 - [x] Routine CRUD with target sets/reps/rest/RPE; start workout from routine
 ### 3b — Programs
-- [ ] Program → weeks → planned sessions; versioning with change reason
+- [x] Program → weeks → planned sessions; versioning with change reason
 ### 3c — Planned vs completed, history
 - [ ] Planned vs completed linking and view
 - [ ] History calendar + training-day heatmap
@@ -181,3 +185,6 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Routine editor uses up/down buttons, no drag and drop; the draft is lost if you leave the editor without saving (no unsaved-changes prompt).
 - Trashed routines can only be restored through the undo bar (20 s / Backup screen latest entry); no Trash screen entry.
 - Routine screens were verified in headless Chromium only (create, start); not on a device.
+- Starting a planned session sets `workout.plannedSessionId` but finishing does not yet write `completedWorkoutId` back; the session stays "next" until 3c. There is no skip button yet either.
+- Program editor keeps its draft in memory only (leaving loses it); no drag and drop; scheduled dates per session are stored but have no editor.
+- Program screens were verified in headless Chromium only (create, activate, version, start); not on a device.
