@@ -54,3 +54,17 @@ describe('analyticsRepo.trainingData', () => {
     expect(d.unit).toBe('lb');
   });
 });
+
+describe('analyticsRepo score setup and bodyweight', () => {
+  it('round-trips score lifts and standards on the profile', async () => {
+    const th = { beginner: 1, novice: 2, intermediate: 3, advanced: 4, elite: 5 };
+    await analyticsRepo.saveScoreSetup({ strengthScoreLifts: [{ exerciseId: 'x', weight: 2 }], strengthStandards: [{ exerciseId: 'x', thresholds: th }] });
+    const s = await analyticsRepo.scoreSetup();
+    expect(s.strengthScoreLifts).toEqual([{ exerciseId: 'x', weight: 2 }]);
+    expect(s.strengthStandards[0]?.thresholds).toEqual(th);
+  });
+  it('logs a bodyweight that trainingData returns', async () => {
+    await analyticsRepo.logBodyweight('2026-05-01', 180, 'lb');
+    expect((await analyticsRepo.trainingData()).metrics.map((m) => m.value)).toEqual([180]);
+  });
+});

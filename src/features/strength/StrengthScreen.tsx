@@ -6,6 +6,7 @@ import { detectPlateau } from '../../domain/volume';
 import { e1rmSeries, liftSets } from '../../domain/prs';
 import { localDateKey } from '../../domain/calendar';
 import type { E1rmFormula } from '../../domain/types';
+import { ScorePanel } from './ScorePanel';
 import { ExerciseStrength } from './ExerciseStrength';
 
 /** Strength tab: lifts you have trained; tap one for its e1RM chart and PRs. */
@@ -45,6 +46,7 @@ export function StrengthScreen() {
   return (
     <div className="pb-6">
       <ScreenHeader title="Strength" />
+      {data && <ScorePanel data={data.t} formula={data.formula} />}
       {lifts.length === 0 ? (
         <EmptyState title="No lifts yet" body="e1RM charts and PRs appear here once you have finished a workout with weighted sets." />
       ) : (
