@@ -1,0 +1,33 @@
+/* Design tokens. Colours are RGB triplets so Tailwind can apply alpha. */
+:root,
+:root[data-theme='dark'] {
+  --bg: 11 11 12;          /* #0b0b0c near-black */
+  --surface: 22 22 24;     /* cards */
+  --surface-2: 34 34 37;   /* raised / inputs */
+  --line: 48 48 52;        /* dividers */
+  --fg: 242 240 236;       /* off-white */
+  --muted: 150 148 144;
+  --accent: 215 38 30;     /* #d7261e: primary action, PRs, progress ONLY */
+  --accent-fg: 255 255 255;
+  color-scheme: dark;
+}
+
+:root[data-theme='light'] {
+  --bg: 246 245 243;
+  --surface: 255 255 255;
+  --surface-2: 236 235 232;
+  --line: 218 216 212;
+  --fg: 20 20 22;
+  --muted: 105 103 100;
+  --accent: 215 38 30;
+  --accent-fg: 255 255 255;
+  color-scheme: light;
+}
+
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --tabbar-h: 56px;
+}

@@ -1,0 +1,61 @@
+@import './tokens.css';
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-bg font-sans text-fg antialiased;
+    overscroll-behavior: none; /* no rubber-band */
+    overflow: hidden; /* the shell's main area scrolls instead */
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+  /* 16px minimum stops iOS zooming on focus */
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+    user-select: text;
+    -webkit-user-select: text;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-display font-semibold tracking-wide;
+  }
+}
+
+@layer utilities {
+  .num {
+    @apply font-display tabular-nums;
+    font-variant-numeric: tabular-nums;
+  }
+  .pt-safe {
+    padding-top: var(--safe-top);
+  }
+  .pb-safe {
+    padding-bottom: var(--safe-bottom);
+  }
+  .px-safe {
+    padding-left: max(16px, var(--safe-left));
+    padding-right: max(16px, var(--safe-right));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
