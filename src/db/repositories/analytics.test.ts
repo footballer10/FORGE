@@ -42,3 +42,15 @@ describe('analyticsRepo', () => {
     expect(await analyticsRepo.e1rmFormula()).toBe('brzycki');
   });
 });
+
+describe('analyticsRepo.trainingData', () => {
+  it('returns hard sets of finished workouts only, with their exercises', async () => {
+    const e = await exerciseRepo.create(ex);
+    await session(e.id, '2026-04-01', 135);
+    await session(e.id, '2026-04-08', 140, false);
+    const d = await analyticsRepo.trainingData();
+    expect(d.sets).toHaveLength(1);
+    expect(d.exercises.get(e.id)?.name).toBe('Bench');
+    expect(d.unit).toBe('lb');
+  });
+});
