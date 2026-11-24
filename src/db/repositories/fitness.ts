@@ -6,6 +6,7 @@ import { profileRepo } from './profile';
 
 const tests = createRepo(db.fitnessTests);
 const results = createRepo(db.testResults);
+let ensuring: Promise<void> | undefined;
 
 export const fitnessRepo = {
   /**
@@ -13,10 +14,16 @@ export const fitnessRepo = {
    * the soft-deleted row still occupies its id.
    */
   async ensureBuiltIns(): Promise<void> {
-    for (const t of BUILT_IN_TESTS) {
-      if (await db.fitnessTests.get(builtInId(t.key))) continue;
-      await tests.create({ id: builtInId(t.key), name: t.name, measure: t.measure, scoring: t.scoring, description: t.description, builtIn: true });
-    }
+    // Concurrent callers (two screens, React StrictMode) share one run, or both would add the same id.
+    ensuring ??= (async () => {
+      for (const t of BUILT_IN_TESTS) {
+        if (await db.fitnessTests.get(builtInId(t.key))) continue;
+        await tests.create({ id: builtInId(t.key), name: t.name, measure: t.measure, scoring: t.scoring, description: t.description, builtIn: true });
+      }
+    })().finally(() => {
+      ensuring = undefined;
+    });
+    await ensuring;
   },
   /** Tests (built-ins first in battery order, then custom by name) and all their results. */
   async load(): Promise<{ tests: FitnessTest[]; results: TestResult[]; lengthUnit: LengthUnit; weightUnit: WeightUnit }> {

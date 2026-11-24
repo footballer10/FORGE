@@ -35,3 +35,11 @@ describe('fitnessRepo', () => {
     expect(s.tests.some((x) => x.id === t.id)).toBe(false);
   });
 });
+
+describe('ensureBuiltIns concurrency', () => {
+  it('does not fail when called twice at once', async () => {
+    await db.fitnessTests.clear();
+    await Promise.all([fitnessRepo.ensureBuiltIns(), fitnessRepo.ensureBuiltIns()]);
+    expect(await db.fitnessTests.count()).toBe(6);
+  });
+});

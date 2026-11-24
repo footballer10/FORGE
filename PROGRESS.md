@@ -3,8 +3,8 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
-- **Done last session:** Milestone 5c-ii — progress photos on the Progress tab: take a photo (camera) or choose from the library (several at once), pose and date, grid, full-screen viewer, relabel pose, two-photo compare, delete. Milestone 5 is complete. 269 tests pass; checked in headless Chromium with generated images.
-- **Next session:** Milestone 6 (Claude coach): suggest splitting 6a (training profile editor + copy-for-Claude summary) and 6b (program schema doc + paste → validate → diff → approve).
+- **Done last session:** Milestone 6a — Coach tab: training profile editor (sport, position, phase, planned days, birth year, height, sex, goals, constraints, equipment profiles with bar/plates/dumbbell max) and a copy-for-Claude summary (window 4/8/12 weeks) built from the existing analytics, with a Copy button. Also fixed a race in `fitnessRepo.ensureBuiltIns` (two concurrent callers both created the built-in tests). 281 tests pass; checked in headless Chromium (summary renders, profile edit shows in the summary).
+- **Next session:** Milestone 6b (program schema doc + JSON schema, paste Claude's program → validate → diff vs the active program → approve → save as a new program version with an `AiDecision` logged).
 - **Known issues:** see bottom.
 
 ## Decisions (defaults chosen; change by asking)
@@ -56,6 +56,8 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Fitness tests (5b): built-ins are seeded lazily with fixed ids `builtin:<key>` (a deleted built-in stays deleted); custom tests are user-defined (name, measure, direction). Base units: reps, seconds, metres (broad jump), centimetres (vertical), weight in the result's own unit; shown in the profile length unit. Times are typed as m:ss or seconds. "Best" follows the test's direction, ties keep the earlier result. No standards, scores or pass marks are applied (none are invented); the battery presets field (`batteries`) is unused until later. Deleting a custom test soft-deletes its results; no undo entry.
 - Conditioning (5c-i): any completed non-warm-up set on a `timeDistance` exercise in a finished, non-trashed workout counts, whatever the workout `kind`. Pace is per mile when the profile length unit is inches, else per km (no separate setting); distances show as yards/miles or metres/km the same way. Average pace = total time ÷ total distance over sets that have both. Bests are the fastest time at the exact same distance (rounded to the metre); different distances are never compared and no pace "PR" is claimed across them. Conditioning sessions are not exposed to the PR/volume analytics (no load).
 - Photos (5c-ii): stored as JPEG blobs in `progressPhotos` (IndexedDB), device only, never in JSON backup/restore or CSV. Picked photos are shrunk to a 1600 px longest edge at JPEG 0.85 (EXIF rotation applied) before saving; if the browser cannot decode one, the original file is stored. "Take photo" uses a file input with `capture`, "Choose from library" a multi-select image input. Delete is permanent (second tap), with no trash or undo, so a blob does not linger. Saving asks the browser for persistent storage.
+- Coach summary (6a): plain text, sections in a fixed order (profile, training, weekly sets per muscle, balance, lifts, PRs, body, tests, current program, how to answer). Window is the last 28/56/84 days ending today (default 56). Each figure states its unit, window and rule; e1RM uses the profile formula, plateau uses the 6-week rule, balance the 4-week window. Lifts: loaded exercises with sets in the window, top 15 by set count. PRs: the app's own PR events inside the window. Muscle sets are the weighted weekly average. The profile's name and exact birth year are not included (age only). Conditioning sessions are only counted, not detailed. Active program is listed per session with targets and done/skipped state. The text ends with a short "how to answer" note (proposals with reasons; user approves in the app).
+- Profile editor (6a): saved with one button, not per field; equipment weights are stored in the profile weight unit; clearing an optional field removes it from the summary. A profile edit does not create an undo entry.
 - Default rest 120 s for compound lifts, 90 s otherwise; default increment 5 lb barbell, 5 lb dumbbell (per implement), 2.5 lb fallback for small plates is a per-exercise edit.
 
 - Analytics (4a): only finished, non-trashed workouts count. Effective load per `domain/load.ts`; bodyweight lifts use the nearest weigh-in on or before the set, else the workout snapshot, else the set is skipped. Analysis unit is the profile unit. e1RM uses sets of 1–12 reps, one point per workout (its best set); a single is its own max in every formula. Default formula Epley, changed in the chart screen and stored on the profile.
@@ -153,11 +155,11 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - [x] 5c-i: Conditioning sessions (time/distance sets)
 - [x] 5c-ii: Progress photos (IndexedDB blobs, device only)
 
-## Milestone 6 — Claude coach
-- [ ] Training profile editor
-- [ ] Copy-for-Claude summary (date range, PRs, volume, program, profile)
-- [ ] `docs/program-schema.md` + JSON schema
-- [ ] Paste Claude program → validate → diff preview → approve → save (AiDecision logged)
+## Milestone 6 — Claude coach (split 6a/6b)
+- [x] 6a: Training profile editor
+- [x] 6a: Copy-for-Claude summary (date range, PRs, volume, program, profile)
+- [ ] 6b: `docs/program-schema.md` + JSON schema
+- [ ] 6b: Paste Claude program → validate → diff preview → approve → save (AiDecision logged)
 
 ## Milestone 7 — Gamification
 - [ ] Achievement definitions + evaluator (pure + tests)
@@ -229,3 +231,4 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Fitness tests (5b): no undo for deleting results or tests; a custom test's measure cannot be changed after creation; built-in tests cannot be renamed; results are not linked to conditioning workouts yet (`workoutId` unused); the date input is the native picker (not tested on iPhone Safari).
 - Conditioning (5c-i): the Panel was unit- and store-tested but not seen with real data in a browser (it only renders once a session exists). The exercise picker in a conditioning session is the normal one (not filtered to time/distance exercises); library cardio entries are classed as time/distance by name heuristics. Fitness test results are not linked to conditioning sessions. Rounds/intervals have no structure beyond one set per effort; rest between efforts uses the exercise's default rest timer.
 - Photos (5c-ii): not tested on a real iPhone (camera capture, HEIC pickup, share/save). iOS Safari can evict site data for PWAs that are not installed to the Home Screen; photos are in no backup, so the panel tells the user to keep copies. `clearAllData` (used in restore-replace tests) wipes photos too, but app restore never calls it. Full-size blobs are decoded for thumbnails (no separate thumbnail), fine for dozens of photos. The viewer is a simple overlay: no swipe between photos, no pinch zoom beyond the browser default.
+- Coach (6a): the summary and the profile editor were checked in headless Chromium only (not on an iPhone). Copy uses `navigator.clipboard`; if blocked, the text is selected and the user is told to copy by hand. The summary has no conditioning detail, readiness or photo info, and no per-session workout log; it is a rolled-up view, so Claude cannot see individual sets. Profile editor has no unsaved-changes prompt. The weight and length units and the e1RM formula are still not editable in any Settings screen.
