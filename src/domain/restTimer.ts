@@ -6,8 +6,8 @@ import type { Exercise, SetType } from './types';
  */
 
 /** How long to rest after a completed set; 0 means no timer (warm-ups). */
-export function restSecondsFor(exercise: Pick<Exercise, 'defaultRestSec'>, setType: SetType): number {
-  return setType === 'warmup' ? 0 : Math.max(0, Math.round(exercise.defaultRestSec));
+export function restSecondsFor(exercise: Pick<Exercise, 'defaultRestSec'>, setType: SetType, override?: number): number {
+  return setType === 'warmup' ? 0 : Math.max(0, Math.round(override ?? exercise.defaultRestSec));
 }
 
 export function restEndsAt(nowMs: number, seconds: number): string {

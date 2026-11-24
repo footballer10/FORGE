@@ -3,15 +3,19 @@
  * Swapping Dexie for a synced backend later means changing this layer, not the UI.
  */
 import { db } from '../schema';
-import type { Exercise } from '../../domain/types';
+import { buildTree, draftToRows, latestVersions, versionChain, type DraftWeek, type ProgramTree } from '../../domain/program';
+import type { Exercise, Program } from '../../domain/types';
 import { createRepo, newId, nowIso, type NewEntity } from './base';
 
 export { workoutRepo, type FullWorkout } from './workouts';
 export { profileRepo, defaultProfile } from './profile';
 export { importer } from './importer';
 export { backupRepo } from './backup';
+import { undoRepo } from './undo';
 export { undoRepo, UNDO_EVENT, type RowRefs } from './undo';
 export { trashRepo } from './trash';
+export { bodyRepo } from './body';
+export { analyticsRepo, type LiftedExercise, type ExerciseAnalyticsInput, type TrainingData } from './analytics';
 export { newId, nowIso, type NewEntity, type Repository } from './base';
 
 export const exerciseRepo = {
@@ -45,10 +49,111 @@ export const exerciseRepo = {
   },
 };
 
-export const routineRepo = createRepo(db.routines);
-export const programRepo = createRepo(db.programs);
+const routineBase = createRepo(db.routines);
+export const routineRepo = {
+  ...routineBase,
+  /** Routines by name, A to Z. */
+  async listSorted() {
+    return (await db.routines.filter((r) => !r.deletedAt).toArray()).sort((a, b) => a.name.localeCompare(b.name));
+  },
+  /** Soft-delete with an undo entry (the undo bar offers it). */
+  async deleteUndoable(id: string): Promise<void> {
+    await undoRepo.run('Deleted routine', { routines: [id] }, () => routineBase.softDelete(id));
+  },
+};
 export const programWeekRepo = createRepo(db.programWeeks);
 export const plannedSessionRepo = createRepo(db.plannedSessions);
+
+export interface ProgramFields {
+  name: string;
+  description?: string;
+  daysPerWeek?: number;
+  startDate?: string;
+}
+
+export const programRepo = {
+  ...createRepo(db.programs),
+
+  /** Newest version of every program, newest first. */
+  async listLatest(): Promise<Program[]> {
+    const all = await db.programs.filter((p) => !p.deletedAt).toArray();
+    return latestVersions(all).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  },
+
+  async getTree(id: string): Promise<ProgramTree | undefined> {
+    const program = await db.programs.get(id);
+    if (!program) return undefined;
+    const [weeks, sessions] = await Promise.all([
+      db.programWeeks.where('programId').equals(id).filter((w) => !w.deletedAt).toArray(),
+      db.plannedSessions.where('programId').equals(id).filter((s) => !s.deletedAt).toArray(),
+    ]);
+    return buildTree(program, weeks, sessions);
+  },
+
+  /** The program and its earlier versions, newest first. */
+  async history(program: Program): Promise<Program[]> {
+    return versionChain(program, await db.programs.toArray());
+  },
+
+  /**
+   * Save a program as a new version. With `previousId` the old row is archived (its weeks and
+   * sessions stay as they were) and the new row is version + 1 with `reason`; without it this is
+   * version 1. Returns the new program.
+   */
+  async saveVersion(input: { previousId?: string; fields: ProgramFields; weeks: DraftWeek[]; reason: string; author?: Program['author'] }): Promise<Program> {
+    const t = nowIso();
+    return db.transaction('rw', [db.programs, db.programWeeks, db.plannedSessions], async () => {
+      const prev = input.previousId ? await db.programs.get(input.previousId) : undefined;
+      const { name, description, daysPerWeek, startDate } = input.fields;
+      const program: Program = {
+        id: newId(),
+        createdAt: t,
+        updatedAt: t,
+        name,
+        ...(description ? { description } : {}),
+        version: (prev?.version ?? 0) + 1,
+        changeReason: input.reason,
+        ...(prev ? { previousVersionId: prev.id } : {}),
+        status: prev ? (prev.status === 'archived' ? 'draft' : prev.status) : 'draft',
+        ...(startDate ? { startDate } : {}),
+        author: input.author ?? 'user',
+        ...(daysPerWeek ? { daysPerWeek } : {}),
+      };
+      const rows = draftToRows(input.weeks, { week: newId, session: newId }, program.id);
+      await db.programs.add(program);
+      await db.programWeeks.bulkAdd(rows.weeks.map((w) => ({ ...w, createdAt: t, updatedAt: t })));
+      await db.plannedSessions.bulkAdd(rows.sessions.map((s) => ({ ...s, createdAt: t, updatedAt: t })));
+      if (prev) await db.programs.update(prev.id, { status: 'archived', updatedAt: t });
+      return program;
+    });
+  },
+
+  /** Only one program is active: activating one moves any other active program back to draft. */
+  async setStatus(id: string, status: Program['status']): Promise<void> {
+    const t = nowIso();
+    await db.transaction('rw', db.programs, async () => {
+      if (status === 'active') {
+        const others = await db.programs.filter((p) => p.status === 'active' && p.id !== id && !p.deletedAt).toArray();
+        for (const o of others) await db.programs.update(o.id, { status: 'draft', updatedAt: t });
+      }
+      await db.programs.update(id, { status, updatedAt: t });
+    });
+  },
+
+  /** Soft-delete every version of the program (undoable). */
+  async deleteUndoable(program: Program): Promise<void> {
+    const chain = await programRepo.history(program);
+    const programs = chain.map((p) => p.id);
+    const [weeks, sessions] = await Promise.all([
+      db.programWeeks.where('programId').anyOf(programs).primaryKeys(),
+      db.plannedSessions.where('programId').anyOf(programs).primaryKeys(),
+    ]);
+    await undoRepo.run('Deleted program', { programs, programWeeks: weeks, plannedSessions: sessions }, async () => {
+      const t = nowIso();
+      await db.programs.bulkUpdate(programs.map((id) => ({ key: id, changes: { deletedAt: t, updatedAt: t } })));
+    });
+  },
+};
 export const bodyMetricRepo = createRepo(db.bodyMetrics);
 export const fitnessTestRepo = createRepo(db.fitnessTests);
 export const testResultRepo = createRepo(db.testResults);
