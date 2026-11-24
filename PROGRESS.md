@@ -4,7 +4,7 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
 - **Done last session:** Session 1 — docs, data model, repository layer, scaffold.
-- **Next session:** Milestone 1a (exercise library + logging core).
+- **Next session:** Milestone 1a-i (exercise library); then 1a-ii (logging core). 1a was split because it was too big for one session.
 - **Known issues:** see bottom.
 
 ## Decisions (defaults chosen; change by asking)
@@ -26,11 +26,13 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - [x] Units + load-model pure functions with tests
 - [x] Dexie schema v1 + repository layer with tests
 
-## Milestone 1a — Library + logging core
-- [ ] Vendor free-exercise-db JSON; mapper to Exercise (pattern, loadModel, increment, rest) with tests
-- [ ] Seed library on first run (idempotent, versioned)
-- [ ] Exercise picker: search name + aliases, filter by muscle/equipment, recent first
+## Milestone 1a-i — Exercise library
+- [ ] Vendor free-exercise-db JSON (slimmed); mapper to Exercise (pattern, loadModel, increment, rest, aliases) with tests
+- [ ] Seed library on first run (idempotent, versioned, never overwrites user edits)
+- [ ] Exercise picker: search name + aliases, filter by muscle/equipment, recent first (pure search fn + tests)
 - [ ] Custom exercise create/edit (load model, increment, rest, aliases)
+
+## Milestone 1a-ii — Logging core
 - [ ] Active workout store (Zustand) backed by repositories; resume on reopen
 - [ ] Start empty workout; add exercises
 - [ ] Set row: weight × reps prefilled from last session; one tap to complete
