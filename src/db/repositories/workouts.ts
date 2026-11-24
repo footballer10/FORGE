@@ -61,8 +61,32 @@ export const workoutRepo = {
   },
 
   async addExercise(workoutId: ID, exerciseId: ID, extra: Partial<WorkoutExercise> = {}): Promise<WorkoutExercise> {
-    const count = await db.workoutExercises.where('workoutId').equals(workoutId).filter((we) => !we.deletedAt).count();
-    return workoutExerciseBase.create({ workoutId, exerciseId, order: count, ...extra });
+    // max+1 rather than count: removing an exercise leaves a gap in `order`.
+    const live = await db.workoutExercises.where('workoutId').equals(workoutId).filter((we) => !we.deletedAt).toArray();
+    const order = live.reduce((m, we) => Math.max(m, we.order + 1), 0);
+    return workoutExerciseBase.create({ workoutId, exerciseId, order, ...extra });
+  },
+
+  /** Persist a new exercise order: `orderedIds` are WorkoutExercise IDs, first = position 0. */
+  async reorderExercises(orderedIds: ID[]): Promise<void> {
+    await db.transaction('rw', db.workoutExercises, async () => {
+      for (const [order, id] of orderedIds.entries()) {
+        const we = await db.workoutExercises.get(id);
+        if (we && we.order !== order) await workoutExerciseBase.update(id, { order });
+      }
+    });
+  },
+
+  /**
+   * Swap the exercise of a workout exercise. Existing sets are soft-deleted (the caller refuses
+   * the swap once sets are completed), so no logged data is lost or attributed to the wrong lift.
+   */
+  async replaceExercise(workoutExerciseId: ID, exerciseId: ID): Promise<WorkoutExercise> {
+    await db.transaction('rw', db.workoutExercises, db.sets, async () => {
+      const sets = await db.sets.where('workoutExerciseId').equals(workoutExerciseId).filter((s) => !s.deletedAt).toArray();
+      for (const s of sets) await setBase.softDelete(s.id);
+    });
+    return workoutExerciseBase.update(workoutExerciseId, { exerciseId });
   },
 
   updateExercise: workoutExerciseBase.update,
