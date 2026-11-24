@@ -309,3 +309,40 @@ describe('workout store', () => {
     });
   });
 });
+
+describe('start from routine', () => {
+  it('builds sets from targets, fills weight from history, applies rest override', async () => {
+    const { routineRepo } = await import('../../db/repositories');
+    const bench = await exerciseRepo.create({ ...base, name: 'Bench' });
+    // history: one finished session at 135 x 5
+    await useWorkout.getState().start();
+    await useWorkout.getState().addExercise(bench.id);
+    const sid = sets()[0]!.id;
+    await useWorkout.getState().updateSet(sid, { weight: 135, reps: 5 });
+    await useWorkout.getState().toggleComplete(sid);
+    await useWorkout.getState().finish();
+
+    const gone = await exerciseRepo.create({ ...base, name: 'Gone' });
+    await exerciseRepo.softDelete(gone.id);
+    const r = await routineRepo.create({
+      name: 'Push A',
+      exercises: [
+        { exerciseId: gone.id, order: 0, targets: [{ type: 'working', reps: 5 }] },
+        { exerciseId: bench.id, order: 1, restSec: 60, targets: [{ type: 'working', reps: 6, repsMax: 8, rpe: 8 }, { type: 'working', reps: 6, weight: 150, unit: 'lb' }] },
+      ],
+    });
+    expect(await useWorkout.getState().startFromRoutine(r.id)).toBe(true);
+    const st = useWorkout.getState();
+    expect(st.workout).toMatchObject({ name: 'Push A', routineId: r.id });
+    expect(st.rows).toHaveLength(1);
+    expect(st.rows[0]!.we).toMatchObject({ restSec: 60 });
+    expect(st.rows[0]!.we.targets).toHaveLength(2);
+    expect(sets().map((s) => [s.weight, s.reps])).toEqual([[135, 6], [150, 6]]);
+    expect(await useWorkout.getState().startFromRoutine(r.id)).toBe(false); // already active
+
+    await useWorkout.getState().toggleComplete(sets()[0]!.id);
+    const secs = Math.round((Date.parse(useWorkout.getState().restEndsAt!) - Date.now()) / 1000);
+    expect(secs).toBeGreaterThan(55);
+    expect(secs).toBeLessThanOrEqual(60);
+  });
+});

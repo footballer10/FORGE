@@ -1,4 +1,5 @@
-import type { ID, SetEntry, Workout, WorkoutExercise } from '../../domain/types';
+import { draftsFromTargets } from '../../domain/routine';
+import type { ID, Routine, SetEntry, Workout, WorkoutExercise, WeightUnit } from '../../domain/types';
 import { db } from '../schema';
 import { createRepo, nowIso, type NewEntity } from './base';
 import { undoRepo } from './undo';
@@ -32,6 +33,29 @@ export const workoutRepo = {
 
   start(input: Partial<NewEntity<Workout>> = {}): Promise<Workout> {
     return workoutBase.create({ name: 'Workout', kind: 'strength', startedAt: nowIso(), ...input });
+  },
+
+  /**
+   * New in-progress workout from a routine. Exercises deleted since are skipped. Each exercise gets
+   * sets built from its targets (weights from the last session where the target has none) and keeps
+   * the targets and rest override for display while logging.
+   */
+  async startFromRoutine(routine: Routine, fallbackUnit: WeightUnit): Promise<Workout> {
+    const w = await workoutBase.create({ name: routine.name, kind: 'strength', startedAt: nowIso(), routineId: routine.id });
+    const ordered = [...routine.exercises].sort((a, b) => a.order - b.order);
+    for (const re of ordered) {
+      const ex = await db.exercises.get(re.exerciseId);
+      if (!ex || ex.deletedAt) continue;
+      const last = await workoutRepo.lastSetsFor(re.exerciseId, w.id);
+      const we = await workoutRepo.addExercise(w.id, re.exerciseId, {
+        ...(re.supersetGroup ? { supersetGroup: re.supersetGroup } : {}),
+        ...(re.notes ? { notes: re.notes } : {}),
+        ...(re.restSec !== undefined ? { restSec: re.restSec } : {}),
+        ...(re.targets.length > 0 ? { targets: re.targets } : {}),
+      });
+      for (const draft of draftsFromTargets(re.targets, last, fallbackUnit)) await workoutRepo.addSet(we.id, draft);
+    }
+    return w;
   },
 
   finish(id: ID): Promise<Workout> {

@@ -45,7 +45,13 @@ export const exerciseRepo = {
   },
 };
 
-export const routineRepo = createRepo(db.routines);
+export const routineRepo = {
+  ...createRepo(db.routines),
+  /** Routines by name, A to Z. */
+  async listSorted() {
+    return (await db.routines.filter((r) => !r.deletedAt).toArray()).sort((a, b) => a.name.localeCompare(b.name));
+  },
+};
 export const programRepo = createRepo(db.programs);
 export const programWeekRepo = createRepo(db.programWeeks);
 export const plannedSessionRepo = createRepo(db.plannedSessions);
