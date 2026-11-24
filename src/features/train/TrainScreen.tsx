@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react';
 import { useUi } from '../../app/uiStore';
 import { BackupReminder } from '../data/BackupReminder';
 import { ScreenHeader } from '../../components/ScreenHeader';
-import type { Exercise, ID } from '../../domain/types';
+import type { Exercise, ID, Routine } from '../../domain/types';
 import { ExerciseBrowser } from '../exercises/ExerciseBrowser';
 import { ExerciseForm } from '../exercises/ExerciseForm';
 import { ActiveWorkout } from './ActiveWorkout';
 import { DataScreen } from '../data/DataScreen';
 import { ImportScreen } from '../import/ImportScreen';
+import { RoutineEditor } from '../routines/RoutineEditor';
+import { RoutineList } from '../routines/RoutineList';
 import { HistoryList } from './HistoryList';
 import { useWorkout } from './workoutStore';
 
@@ -16,6 +18,7 @@ type View =
   | { kind: 'library' }
   | { kind: 'import' }
   | { kind: 'data' }
+  | { kind: 'routine'; routine?: Routine }
   | { kind: 'form'; exercise?: Exercise; returnTo: 'library' | 'pick'; swapWeId?: ID }
   | { kind: 'pick'; swapWeId?: ID };
 
@@ -49,6 +52,7 @@ export function TrainScreen() {
       />
     );
   }
+  if (view.kind === 'routine') return <RoutineEditor key={view.routine?.id ?? 'new'} routine={view.routine} onDone={() => setView({ kind: 'home' })} />;
   if (view.kind === 'data') return <DataScreen onBack={() => setView({ kind: 'home' })} />;
   if (view.kind === 'import') return <ImportScreen onBack={() => setView({ kind: 'home' })} />;
   if (view.kind === 'library') {
@@ -97,6 +101,7 @@ export function TrainScreen() {
         <span>Show dumbbell pair total</span>
         <input type="checkbox" className="h-6 w-6" checked={showPairTotal} onChange={(e) => void setShowPairTotal(e.target.checked)} />
       </label>
+      <RoutineList onEdit={(routine) => setView({ kind: 'routine', ...(routine ? { routine } : {}) })} onStarted={() => setView({ kind: 'home' })} />
       <h2 className="pb-2 text-2xl uppercase">History</h2>
       <HistoryList />
       {/* Primary action sits in the bottom third for one-handed use. */}

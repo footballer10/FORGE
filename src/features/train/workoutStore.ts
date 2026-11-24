@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { exerciseRepo, metaRepo, nowIso, profileRepo, undoRepo, workoutRepo } from '../../db/repositories';
+import { exerciseRepo, metaRepo, nowIso, profileRepo, routineRepo, undoRepo, workoutRepo } from '../../db/repositories';
 import { canComplete, prefillDrafts } from '../../domain/logging';
 import { moveItem } from '../../domain/order';
 import { restAfterExercise, toggleSupersetLink } from '../../domain/superset';
@@ -29,6 +29,8 @@ interface State {
   /** Resume an unfinished workout (crash / reopen) or find none. */
   load: () => Promise<void>;
   start: () => Promise<void>;
+  /** Start a workout from a routine. Returns false if one is already active or the routine is gone. */
+  startFromRoutine: (routineId: ID) => Promise<boolean>;
   addExercise: (exerciseId: ID) => Promise<void>;
   removeExercise: (workoutExerciseId: ID) => Promise<void>;
   addSet: (workoutExerciseId: ID) => Promise<void>;
@@ -135,6 +137,16 @@ export const useWorkout = create<State>((set, get) => {
       await refresh(w.id);
     },
 
+    async startFromRoutine(routineId) {
+      if (get().workout) return false;
+      const routine = await routineRepo.get(routineId);
+      if (!routine || routine.deletedAt) return false;
+      const w = await workoutRepo.startFromRoutine(routine, get().unit);
+      set({ rows: [] });
+      await refresh(w.id);
+      return true;
+    },
+
     async addExercise(exerciseId) {
       const w = get().workout;
       if (!w) return;
@@ -190,7 +202,7 @@ export const useWorkout = create<State>((set, get) => {
       }
       if (!canComplete(found.set, found.row.exercise.loadModel)) return false;
       await get().updateSet(setId, { completedAt: nowIso() });
-      const sec = restSecondsFor(found.row.exercise, found.set.type);
+      const sec = restSecondsFor(found.row.exercise, found.set.type, found.row.we.restSec);
       const items = get().rows.map((r) => ({ id: r.we.id, supersetGroup: r.we.supersetGroup }));
       const due = restAfterExercise(items, found.row.we.id);
       if (sec > 0 && due && !isEditingPast(get().workout)) await get().startRest(sec);

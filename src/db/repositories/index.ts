@@ -10,6 +10,7 @@ export { workoutRepo, type FullWorkout } from './workouts';
 export { profileRepo, defaultProfile } from './profile';
 export { importer } from './importer';
 export { backupRepo } from './backup';
+import { undoRepo } from './undo';
 export { undoRepo, UNDO_EVENT, type RowRefs } from './undo';
 export { trashRepo } from './trash';
 export { newId, nowIso, type NewEntity, type Repository } from './base';
@@ -45,7 +46,18 @@ export const exerciseRepo = {
   },
 };
 
-export const routineRepo = createRepo(db.routines);
+const routineBase = createRepo(db.routines);
+export const routineRepo = {
+  ...routineBase,
+  /** Routines by name, A to Z. */
+  async listSorted() {
+    return (await db.routines.filter((r) => !r.deletedAt).toArray()).sort((a, b) => a.name.localeCompare(b.name));
+  },
+  /** Soft-delete with an undo entry (the undo bar offers it). */
+  async deleteUndoable(id: string): Promise<void> {
+    await undoRepo.run('Deleted routine', { routines: [id] }, () => routineBase.softDelete(id));
+  },
+};
 export const programRepo = createRepo(db.programs);
 export const programWeekRepo = createRepo(db.programWeeks);
 export const plannedSessionRepo = createRepo(db.plannedSessions);

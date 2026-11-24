@@ -3,8 +3,8 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
-- **Done last session:** Milestone 2c — weekly backup reminder, persistent undo stack with a snackbar, trash screen with 30-day purge on launch. Milestone 2 is complete. 145 tests pass.
-- **Next session:** Milestone 3 (routines & programs). It is large: split it in PROGRESS.md first (suggest 3a: routine CRUD + start from routine; 3b: programs/weeks/planned sessions + versioning; 3c: planned-vs-completed, history calendar/heatmap; 3d: progression rules, pure + tests).
+- **Done last session:** Milestone 3a — routines: create/edit/delete (undoable), per-set targets (reps or range, weight, RPE, type), rest override, supersets, "save finished workout as routine", start a workout from a routine. 153 tests pass.
+- **Next session:** Milestone 3b (programs → weeks → planned sessions, versioning with change reason). Then 3c (planned vs completed, history calendar/heatmap), 3d (progression rules, pure + tests).
 - **Known issues:** see bottom.
 
 ## Decisions (defaults chosen; change by asking)
@@ -41,6 +41,8 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Undo stack: persisted in the `undo` table, newest 10, entry = previous rows + created IDs. Recorded for finish (incl. dropped sets), discard, delete workout and Strong import. The snackbar shows for 20 s; Backup screen can undo the latest entry any time. Not recorded: restore, per-set edits, exercise edits.
 - Backup reminder: due when the last JSON export is 7+ days old (or never, once any workout exists); "Later" snoozes 1 day. Shown on Home and Train.
 - Trash: workouts and exercises. Purge on launch after 30 days. Library exercises (have `sourceRef`) and exercises with logged sets are never purged (library would reseed them). Trashed workouts are excluded from last-session prefill; future analytics must exclude sets whose workout has `deletedAt`.
+- Routines: starting one creates sets from its targets (reps = low end of a range; weight = target weight, else the same-numbered set of the last session, matched separately for warm-ups and working sets; else empty). RPE targets are never prefilled. Targets and the rest override are copied onto the `WorkoutExercise` (`targets`, `restSec`) and shown as a "Target ..." line while logging; the rest override replaces the exercise default for non-warm-up sets. Exercises deleted since the routine was saved are skipped on start.
+- Routines: deleting is a soft delete with an undo entry (no Trash screen section yet, no purge). "Save as routine" from History captures completed sets only (type, weight, reps, time, distance), no RPE or rest.
 - Default rest 120 s for compound lifts, 90 s otherwise; default increment 5 lb barbell, 5 lb dumbbell (per implement), 2.5 lb fallback for small plates is a per-exercise edit.
 
 ## Milestone 0 — Foundation
@@ -95,11 +97,15 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - [x] Undo last action
 - [x] Trash: soft-deleted workouts, 30-day purge, restore
 
-## Milestone 3 — Routines & programs
-- [ ] Routine CRUD with target sets/reps/rest/RPE; start workout from routine
+## Milestone 3 — Routines & programs (split 3a–3d)
+### 3a — Routines
+- [x] Routine CRUD with target sets/reps/rest/RPE; start workout from routine
+### 3b — Programs
 - [ ] Program → weeks → planned sessions; versioning with change reason
+### 3c — Planned vs completed, history
 - [ ] Planned vs completed linking and view
 - [ ] History calendar + training-day heatmap
+### 3d — Progression
 - [ ] Progression rules: double progression, % e1RM, RPE target → suggested weight (pure + tests)
 
 ## Milestone 4 — Strength analytics (likely split 4a/4b)
@@ -171,3 +177,7 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Replace-restore has no undo and no automatic pre-restore snapshot; take a backup first.
 - Trash and undo screens live under Train → Backup & restore; there is no top-level Settings screen yet.
 - Reminder snackbar/undo bar and trash were verified in headless Chromium only; not on a device.
+- Routine editor: weight targets are a plain number in the exercise's increment unit (lb shown for all); percent-of-e1RM targets exist in the type but have no editor until 3d. Progression rule on a routine exercise is not editable yet (3d).
+- Routine editor uses up/down buttons, no drag and drop; the draft is lost if you leave the editor without saving (no unsaved-changes prompt).
+- Trashed routines can only be restored through the undo bar (20 s / Backup screen latest entry); no Trash screen entry.
+- Routine screens were verified in headless Chromium only (create, start); not on a device.
