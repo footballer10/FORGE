@@ -138,6 +138,13 @@ export function TrainScreen() {
       <div className="sticky bottom-0 mt-auto bg-bg pt-4">
         <button
           type="button"
+          onClick={() => void start('conditioning').then(() => setView({ kind: 'pick' }))}
+          className="mb-2 min-h-tap w-full rounded-card border border-line text-sm"
+        >
+          Start conditioning session (runs, sprints, intervals)
+        </button>
+        <button
+          type="button"
           onClick={() => void start().then(() => setView({ kind: 'pick' }))}
           className="num min-h-[56px] w-full rounded-card bg-accent text-xl font-semibold uppercase tracking-wider text-accent-fg"
         >

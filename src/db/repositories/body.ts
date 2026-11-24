@@ -1,4 +1,4 @@
-import type { BodyMetric, WeightUnit } from '../../domain/types';
+import type { BodyMetric, LengthUnit, WeightUnit } from '../../domain/types';
 import { db } from '../schema';
 import { createRepo } from './base';
 import { profileRepo } from './profile';
@@ -22,6 +22,9 @@ export const bodyRepo = {
   },
   async restore(id: string): Promise<void> {
     await metrics.restore(id);
+  },
+  async lengthUnit(): Promise<LengthUnit> {
+    return (await profileRepo.get()).lengthUnit;
   },
   async unit(): Promise<WeightUnit> {
     return (await profileRepo.get()).weightUnit;

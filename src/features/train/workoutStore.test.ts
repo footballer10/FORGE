@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { clearAllData, exerciseRepo, workoutRepo } from '../../db/repositories';
+import { analyticsRepo, clearAllData, exerciseRepo, workoutRepo } from '../../db/repositories';
+import { bestByDistance, conditioningRows } from '../../domain/conditioning';
 import { useWorkout } from './workoutStore';
 
 const base = {
@@ -38,6 +39,25 @@ describe('workout store', () => {
     expect(hist).toHaveLength(1);
     const full = await workoutRepo.getFull(hist[0]!.id);
     expect(full?.exercises[0]?.sets).toHaveLength(1); // unticked set dropped
+  });
+
+  it('starts a conditioning session with that kind', async () => {
+    await useWorkout.getState().start('conditioning');
+    expect(useWorkout.getState().workout).toMatchObject({ kind: 'conditioning', name: 'Conditioning' });
+  });
+
+  it('a finished conditioning session shows up in the conditioning data', async () => {
+    const run = await exerciseRepo.create({ ...base, name: 'Run', loadModel: 'timeDistance', equipment: 'bodyweight' });
+    await useWorkout.getState().start('conditioning');
+    await useWorkout.getState().addExercise(run.id);
+    const id = sets()[0]!.id;
+    await useWorkout.getState().updateSet(id, { durationSec: 70, distanceM: 400 });
+    expect(await useWorkout.getState().toggleComplete(id)).toBe(true);
+    expect(await useWorkout.getState().finish()).toBe(true);
+    const d = await analyticsRepo.trainingData();
+    const rows = conditioningRows(d.sets, d.exercises, d.workouts);
+    expect(rows).toHaveLength(1);
+    expect(bestByDistance(rows, run.id)[0]).toMatchObject({ distanceM: 400, bestTimeSec: 70 });
   });
 
   it('persists immediately: a reload resumes the workout with edits', async () => {

@@ -3,8 +3,8 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
-- **Done last session:** Milestone 5b — fitness tests on the Progress tab: six built-ins (pull-up max, push-up max, 1.5 mile run, 40 yard dash, standing broad jump, vertical jump) plus custom tests; log, edit and delete results; chart, best and last-vs-previous. Pure maths in `domain/fitness.ts`, storage in `fitnessRepo`. Checked in headless Chromium.
-- **Next session:** Milestone 5c (conditioning sessions with time/distance sets; progress photos stored in IndexedDB). Photos may deserve their own session (5c-ii).
+- **Done last session:** Milestone 5c-i — conditioning: "Start conditioning session" button on Train (workout `kind: 'conditioning'`), and a Conditioning panel on Progress (per-session totals and paces, fastest time at each repeated distance). Pure maths in `domain/conditioning.ts`. Logging time/distance sets already existed. 261 tests pass.
+- **Next session:** Milestone 5c-ii (progress photos: IndexedDB blobs, device only, excluded from backup). Needs a decision on how photos are picked (file input / camera) and shown; keep it small. Milestone 5 completes with it.
 - **Known issues:** see bottom.
 
 ## Decisions (defaults chosen; change by asking)
@@ -54,6 +54,7 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Progression is shown, not silent: the suggested weight/reps prefill working sets whose target has no fixed weight (a fixed target weight wins), and the formula plus inputs appear as a "Suggested ..." line on the exercise while logging. Everything stays editable. Without usable history (or no RPE for the RPE rule) nothing is suggested.
 - Bodyweight (5a): one value per day (several weigh-ins on a day are averaged); trend = EWMA with α = 0.1 per day, gap of g days uses 1 − 0.9^g; the first weigh-in seeds it. Shown with formula text under the chart. Entries keep the unit they were logged in and are converted to the profile unit for the trend. Delete is a soft delete with no undo bar entry. Panel sits at the top of Progress; the strength score's quick "Log today" box stays and writes the same rows.
 - Fitness tests (5b): built-ins are seeded lazily with fixed ids `builtin:<key>` (a deleted built-in stays deleted); custom tests are user-defined (name, measure, direction). Base units: reps, seconds, metres (broad jump), centimetres (vertical), weight in the result's own unit; shown in the profile length unit. Times are typed as m:ss or seconds. "Best" follows the test's direction, ties keep the earlier result. No standards, scores or pass marks are applied (none are invented); the battery presets field (`batteries`) is unused until later. Deleting a custom test soft-deletes its results; no undo entry.
+- Conditioning (5c-i): any completed non-warm-up set on a `timeDistance` exercise in a finished, non-trashed workout counts, whatever the workout `kind`. Pace is per mile when the profile length unit is inches, else per km (no separate setting); distances show as yards/miles or metres/km the same way. Average pace = total time ÷ total distance over sets that have both. Bests are the fastest time at the exact same distance (rounded to the metre); different distances are never compared and no pace "PR" is claimed across them. Conditioning sessions are not exposed to the PR/volume analytics (no load).
 - Default rest 120 s for compound lifts, 90 s otherwise; default increment 5 lb barbell, 5 lb dumbbell (per implement), 2.5 lb fallback for small plates is a per-exercise edit.
 
 - Analytics (4a): only finished, non-trashed workouts count. Effective load per `domain/load.ts`; bodyweight lifts use the nearest weigh-in on or before the set, else the workout snapshot, else the set is skipped. Analysis unit is the profile unit. e1RM uses sets of 1–12 reps, one point per workout (its best set); a single is its own max in every formula. Default formula Epley, changed in the chart screen and stored on the profile.
@@ -148,8 +149,8 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 ## Milestone 5 — Body & athletic (split 5a/5b/5c)
 - [x] 5a: Bodyweight log + smoothed trend (EWMA, shown)
 - [x] 5b: Fitness tests + results history (pull-up max, push-ups, 1.5 mi, 40 yd, broad, vertical, custom)
-- [ ] 5c: Conditioning sessions (time/distance sets)
-- [ ] 5c: Progress photos (IndexedDB blobs, device only)
+- [x] 5c-i: Conditioning sessions (time/distance sets)
+- [ ] 5c-ii: Progress photos (IndexedDB blobs, device only)
 
 ## Milestone 6 — Claude coach
 - [ ] Training profile editor
@@ -225,3 +226,4 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Body map regions are tap-sized shapes with hover/long-press titles only; tapping a region does nothing yet.
 - Bodyweight panel (5a): weight-only (no body fat or measurements yet, though `BodyMetricKind` has them); range pills are 30 d / 90 d / 1 yr / All; the date field is the browser's native picker (not tested on iPhone Safari). Deleting a weigh-in has no undo.
 - Fitness tests (5b): no undo for deleting results or tests; a custom test's measure cannot be changed after creation; built-in tests cannot be renamed; results are not linked to conditioning workouts yet (`workoutId` unused); the date input is the native picker (not tested on iPhone Safari).
+- Conditioning (5c-i): the Panel was unit- and store-tested but not seen with real data in a browser (it only renders once a session exists). The exercise picker in a conditioning session is the normal one (not filtered to time/distance exercises); library cardio entries are classed as time/distance by name heuristics. Fitness test results are not linked to conditioning sessions. Rounds/intervals have no structure beyond one set per effort; rest between efforts uses the exercise's default rest timer.
