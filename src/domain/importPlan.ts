@@ -3,7 +3,7 @@
  * exercise is modelled, apply the dumbbell pair-total convention, detect duplicate workouts,
  * and build the entities to store. No Dexie or React imports.
  */
-import type { ParsedWorkout, StrongRow } from './strongParser';
+import { readStrongRecord, resolveColumns, type ParsedWorkout, type StrongRow } from './strongParser';
 import type {
   Equipment,
   Exercise,
@@ -426,4 +426,22 @@ export function buildImport(input: BuildInput): BuiltImport {
     batch,
     skippedDuplicates: workouts.filter((w) => duplicates.has(w.key)),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Re-applying conventions from a stored raw row
+// ---------------------------------------------------------------------------
+
+/** Re-derive a stored set's weight and unit from its untouched Strong row under another convention. */
+export function weightFromRawRow(
+  data: Record<string, string>,
+  convention: DumbbellConvention | undefined,
+  defaultUnit: WeightUnit,
+): { weight?: number; unit: WeightUnit; exerciseName: string } | undefined {
+  const cols = resolveColumns(Object.keys(data));
+  if ('error' in cols) return undefined;
+  const r = readStrongRecord(data, cols, 0);
+  if (!('row' in r)) return undefined;
+  const weight = applyConvention(r.row.weight, convention);
+  return { ...(weight !== undefined ? { weight } : {}), unit: r.row.weightUnit ?? defaultUnit, exerciseName: r.row.exerciseName };
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyConvention, buildImport, draftExercise, findDuplicates, matchExercises, splitTag, summarizeExercises } from './importPlan';
+import { applyConvention, weightFromRawRow, buildImport, draftExercise, findDuplicates, matchExercises, splitTag, summarizeExercises } from './importPlan';
 import { groupStrongWorkouts, parseStrongCsv } from './strongParser';
 import type { ImportChoices } from './importPlan';
 import type { Exercise } from './types';
@@ -202,5 +202,15 @@ describe('buildImport', () => {
     expect(out.newExercises).toHaveLength(0);
     expect(out.batch.duplicateCount).toBe(1);
     expect(out.skippedDuplicates).toHaveLength(1);
+  });
+});
+
+describe('weightFromRawRow', () => {
+  it('recomputes a set weight from the untouched row', () => {
+    const p = parse();
+    const row = p.r.rows.find((x) => x.exerciseName === 'Bicep Curl (Dumbbell)')!;
+    expect(weightFromRawRow(row.raw, 'pairTotal', 'lb')).toMatchObject({ weight: 30, unit: 'lb', exerciseName: 'Bicep Curl (Dumbbell)' });
+    expect(weightFromRawRow(row.raw, 'perImplement', 'lb')).toMatchObject({ weight: 60 });
+    expect(weightFromRawRow(row.raw, 'perImplement', 'kg')!.unit).toBe('kg');
   });
 });
