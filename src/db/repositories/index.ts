@@ -3,7 +3,8 @@
  * Swapping Dexie for a synced backend later means changing this layer, not the UI.
  */
 import { db } from '../schema';
-import { createRepo } from './base';
+import type { Exercise } from '../../domain/types';
+import { createRepo, newId, nowIso, type NewEntity } from './base';
 
 export { workoutRepo, type FullWorkout } from './workouts';
 export { profileRepo, defaultProfile } from './profile';
@@ -17,6 +18,26 @@ export const exerciseRepo = {
     return db.exercises
       .filter((e) => !e.deletedAt && (e.name.toLowerCase() === q || e.aliases.some((a) => a.toLowerCase() === q)))
       .first();
+  },
+  /** Exercise IDs ordered by most recent completed set, newest first. */
+  async recentIds(limit = 40): Promise<string[]> {
+    const seen = new Set<string>();
+    await db.sets
+      .orderBy('completedAt')
+      .reverse()
+      .until(() => seen.size >= limit)
+      .each((s) => {
+        if (s.completedAt) seen.add(s.exerciseId);
+      });
+    return [...seen];
+  },
+  /** Library seeding: sourceRefs already stored (including soft-deleted, so deleted exercises stay deleted). */
+  async sourceRefs(): Promise<Set<string>> {
+    return new Set((await db.exercises.toArray()).flatMap((e) => (e.sourceRef ? [e.sourceRef] : [])));
+  },
+  bulkCreate: async (rows: NewEntity<Exercise>[]) => {
+    const t = nowIso();
+    await db.exercises.bulkAdd(rows.map((r) => ({ ...r, id: r.id ?? newId(), createdAt: t, updatedAt: t }) as Exercise));
   },
 };
 
