@@ -3,8 +3,8 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
-- **Done last session:** Milestone 1a-i — exercise library: vendored free-exercise-db (876), mapper, versioned seeding, search/filter/recent picker, custom exercise create/edit/delete. Reachable from Train → Exercise library. 33 tests pass.
-- **Next session:** Milestone 1a-ii (logging core). `ExerciseBrowser` is reusable as the add-exercise picker (`onSelect`).
+- **Done last session:** Milestone 1a-ii — logging core: write-through workout store with resume, custom keypad (± = exercise increment), set rows prefilled from last session, set types + RPE/RIR sheet, finish/discard, history list. 49 tests pass.
+- **Next session:** Milestone 1b (logging extras: rest timer, wake lock, supersets, notes, reorder/swap, edit past workouts, plate calculator).
 - **Known issues:** see bottom.
 
 ## Decisions (defaults chosen; change by asking)
@@ -16,6 +16,7 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Tailwind v3. `fake-indexeddb` added as a dev-only dependency for repository tests.
 - Library seeding never resurrects or overwrites: tracked by `sourceRef` (including soft-deleted rows) and `meta.librarySeedVersion`.
 - Auto-generated aliases per library exercise: bare name and "Name (Equipment)" Strong-style, for import matching in M2.
+- Finish requires at least one ticked set; the keypad replaces the prefilled value on first digit (backspace edits it).
 - Profile is a singleton row with id `'me'`.
 - Default rest 120 s for compound lifts, 90 s otherwise; default increment 5 lb barbell, 5 lb dumbbell (per implement), 2.5 lb fallback for small plates is a per-exercise edit.
 
@@ -35,12 +36,12 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - [x] Custom exercise create/edit (load model, increment, rest, aliases)
 
 ## Milestone 1a-ii — Logging core
-- [ ] Active workout store (Zustand) backed by repositories; resume on reopen
-- [ ] Start empty workout; add exercises
-- [ ] Set row: weight × reps prefilled from last session; one tap to complete
-- [ ] Custom numeric keypad with ± steps = exercise increment
-- [ ] Set types (warm-up, working, drop, failure, AMRAP) + optional RPE/RIR
-- [ ] Finish / discard workout; basic workout history list
+- [x] Active workout store (Zustand) backed by repositories; resume on reopen
+- [x] Start empty workout; add exercises
+- [x] Set row: weight × reps prefilled from last session; one tap to complete
+- [x] Custom numeric keypad with ± steps = exercise increment
+- [x] Set types (warm-up, working, drop, failure, AMRAP) + optional RPE/RIR
+- [x] Finish / discard workout; basic workout history list
 
 ## Milestone 1b — Logging extras
 - [ ] Timestamp-based rest timer (per-exercise default, survives lock), vibration on end
@@ -107,6 +108,11 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - [ ] Cloudflare Pages deploy
 
 ## Known issues
+- Finish drops unticked sets and exercises with no completed sets (documented behaviour); there is no undo until M2.
+- Discard soft-deletes the workout (goes to trash once the trash screen exists in M2).
+- Remove-exercise / discard use `window.confirm`; replace with in-app dialogs in M8 polish.
+- History list is read-only and loads the latest 30 workouts without virtualization.
+- Keypad ± for weight converts the exercise increment into the set's unit; weights are shown in the set's stored unit, not the profile unit, if they differ.
 - Library pattern/loadModel/rest values are name-based heuristics (`exerciseMapper.ts`); some library entries will be mis-classified. Fix per exercise in the editor; bump `LIBRARY_VERSION` only to add missing exercises (existing ones are never overwritten).
 - Exercise library JSON (~790 KB, 150 KB gzip) is a lazy chunk, precached by the service worker; Vite warns about chunk size. Fine for now, revisit in M8.
 - Increment unit is lb-only in the exercise form; kg increments come with the units setting.

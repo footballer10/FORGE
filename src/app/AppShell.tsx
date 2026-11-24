@@ -6,6 +6,7 @@ import { TrainScreen } from '../features/train/TrainScreen';
 import { StrengthScreen } from '../features/strength/StrengthScreen';
 import { ProgressScreen } from '../features/progress/ProgressScreen';
 import { CoachScreen } from '../features/coach/CoachScreen';
+import { useWorkout } from '../features/train/workoutStore';
 
 const SCREENS = {
   home: HomeScreen,
@@ -23,6 +24,16 @@ export function AppShell() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
+
+  // Resume: if a workout was left unfinished (app closed, phone locked), open straight into it.
+  useEffect(() => {
+    void useWorkout
+      .getState()
+      .load()
+      .then(() => {
+        if (useWorkout.getState().workout) useUi.getState().setTab('train');
+      });
+  }, []);
 
   return (
     <div className="flex h-full flex-col">
