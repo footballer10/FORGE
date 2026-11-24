@@ -4,7 +4,7 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
 - **Done last session:** Milestone 1a-ii — logging core: write-through workout store with resume, custom keypad (± = exercise increment), set rows prefilled from last session, set types + RPE/RIR sheet, finish/discard, history list. 49 tests pass.
-- **Next session:** Milestone 1b (logging extras: rest timer, wake lock, supersets, notes, reorder/swap, edit past workouts, plate calculator).
+- **Next session:** Milestone 1b-i (rest timer, wake lock, notes, reorder/swap). Milestone 1b was split in two (1b-ii: supersets, edit/duplicate past workouts, plate calculator, pair total).
 - **Known issues:** see bottom.
 
 ## Decisions (defaults chosen; change by asking)
@@ -43,12 +43,14 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - [x] Set types (warm-up, working, drop, failure, AMRAP) + optional RPE/RIR
 - [x] Finish / discard workout; basic workout history list
 
-## Milestone 1b — Logging extras
+## Milestone 1b-i — Logging extras, part 1
 - [ ] Timestamp-based rest timer (per-exercise default, survives lock), vibration on end
 - [ ] Screen Wake Lock while a workout is active (re-acquire on visibility change)
-- [ ] Supersets/circuits: group, timer after last exercise of the round
 - [ ] Sticky exercise notes + session notes
 - [ ] Reorder / swap / remove exercises mid-workout
+
+## Milestone 1b-ii — Logging extras, part 2
+- [ ] Supersets/circuits: group, timer after last exercise of the round
 - [ ] Edit and duplicate past workouts
 - [ ] Plate calculator (bar weight, available plates, per side)
 - [ ] Display setting: show dumbbell pair total
