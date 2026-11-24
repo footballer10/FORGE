@@ -168,6 +168,10 @@ export interface WorkoutExercise extends BaseEntity {
   /** Exercises sharing a group label form a superset/circuit; rest runs after the last in the round. */
   supersetGroup?: string;
   notes?: string;
+  /** Rest override (seconds) copied from the routine; absent = the exercise's default. */
+  restSec?: number;
+  /** Targets copied from the routine, shown as a hint while logging. */
+  targets?: TargetSet[];
 }
 
 export interface SetEntry extends BaseEntity {
