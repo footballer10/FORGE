@@ -3,8 +3,8 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
-- **Done last session:** Milestone 3c — finishing a planned workout links it to its session (`completedWorkoutId`), skip/unskip, plan-vs-completed view per session, Train history List/Calendar toggle with a month calendar and a 26-week training-day heatmap. 176 tests pass.
-- **Next session:** Milestone 3d (progression rules: double progression, % e1RM, RPE target → suggested weight; pure + tests). It needs e1RM formulas, which are in Milestone 4; 3d should include a minimal Epley helper and note it, or do the e1RM formulas first (ask the user).
+- **Done last session:** Milestone 3d — progression rules (double progression, % e1RM, RPE target) as pure functions with tests, a rule picker in the routine/session editor, and suggestions applied when a workout starts from a routine or planned session. Milestone 3 is complete. 189 tests pass.
+- **Next session:** Milestone 4 (strength analytics) is large: split it first (suggest 4a: all six e1RM formulas + per-exercise chart with formula picker + PR detection; 4b: weekly hard sets per muscle, period comparisons, strength score/tiers, body map, plateau and balance checks).
 - **Known issues:** see bottom.
 
 ## Decisions (defaults chosen; change by asking)
@@ -50,6 +50,8 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Plan vs completed: sets are matched to targets by position within the exercise, warm-ups and working sets separately; only completed sets count. Reps are "on target" inside [reps, repsMax]; weight is compared in the target's unit with a 1% tolerance. Adherence = planned sets with a completed set / planned sets (extra sets and unplanned exercises are listed, not counted).
 - Linking: finishing a workout started from a planned session sets `completedWorkoutId` and clears `skipped`; deleting that workout unlinks it (undo restores the link). Editing a past workout never relinks.
 - Calendar and heatmap: local days, Monday weeks. Shade = completed non-warm-up sets that day relative to the busiest day among the last 26 weeks (four steps at >0, >25%, >50%, >75%); the formula is printed under the heatmap. Tapping a calendar day lists its workouts with Open (edit).
+- Progression: only `src/domain/e1rm.ts` has Epley so far (weight × (1 + reps/30), a single is its own max); M4 adds the other formulas there. Suggestions use the LAST session of the exercise only (not a best-ever e1RM). Working sets = working, AMRAP, failure with weight and reps; warm-ups and drop sets are ignored. Result is rounded to the exercise increment (rule increment for double progression, converted to the set's unit).
+- Progression is shown, not silent: the suggested weight/reps prefill working sets whose target has no fixed weight (a fixed target weight wins), and the formula plus inputs appear as a "Suggested ..." line on the exercise while logging. Everything stays editable. Without usable history (or no RPE for the RPE rule) nothing is suggested.
 - Default rest 120 s for compound lifts, 90 s otherwise; default increment 5 lb barbell, 5 lb dumbbell (per implement), 2.5 lb fallback for small plates is a per-exercise edit.
 
 ## Milestone 0 — Foundation
@@ -113,7 +115,7 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - [x] Planned vs completed linking and view
 - [x] History calendar + training-day heatmap
 ### 3d — Progression
-- [ ] Progression rules: double progression, % e1RM, RPE target → suggested weight (pure + tests)
+- [x] Progression rules: double progression, % e1RM, RPE target → suggested weight (pure + tests)
 
 ## Milestone 4 — Strength analytics (likely split 4a/4b)
 - [ ] e1RM formulas (Epley, Brzycki, Lombardi, Mayhew, O'Conner, Wathan) + tests
@@ -193,3 +195,5 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Calendar loads every finished workout into memory (fine for years of personal data); heatmap and calendar were checked in headless Chromium only.
 - Program editor keeps its draft in memory only (leaving loses it); no drag and drop; scheduled dates per session are stored but have no editor.
 - Program screens were verified in headless Chromium only (create, activate, version, start); not on a device.
+- Progression uses only the last session, so one bad day lowers or holds the next suggestion; a best-recent e1RM option can come with M4. `TargetSet.percentE1rm` (per-set percent) exists in the type but has no editor and is not applied; use the exercise-level % e1RM rule instead.
+- The RPE rule treats RPE as reps in reserve = 10 − RPE and Epley beyond ~12 reps is unreliable; suggestions are estimates.

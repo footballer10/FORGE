@@ -304,7 +304,9 @@ function ProgressionField({ rule, onChange }: { rule: ProgressionRule | undefine
       </label>
       {rule?.kind === 'doubleProgression' && (
         <div className="flex gap-2 pb-1">
+          <span className="flex min-h-tap items-center text-xs text-muted">Min</span>
           <input aria-label="Min reps" className={small} inputMode="numeric" value={rule.repsMin} onChange={(e) => onChange({ ...rule, repsMin: numberOr(e.target.value, rule.repsMin) })} />
+          <span className="flex min-h-tap items-center text-xs text-muted">Max</span>
           <input aria-label="Max reps" className={small} inputMode="numeric" value={rule.repsMax} onChange={(e) => onChange({ ...rule, repsMax: numberOr(e.target.value, rule.repsMax) })} />
         </div>
       )}
