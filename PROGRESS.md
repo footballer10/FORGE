@@ -3,8 +3,8 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
-- **Done last session:** Milestone 2a — Strong CSV import: tokenizer + parser, exercise matching, dumbbell convention, duplicate detection, atomic commit with ImportBatch + RawImportRow, re-apply conventions, preview UI (Train → Import from Strong). Milestone 2 was split into 2a/2b/2c. 118 tests pass.
-- **Next session:** Milestone 2b (full JSON export + `docs/export-format.md`, Strong-format CSV export, JSON restore with preview). Then 2c (backup reminder, undo, trash).
+- **Done last session:** Milestone 2b — full JSON backup + `docs/export-format.md`, Strong-format CSV export, JSON restore (merge or replace) with preview, all under Train → Backup & restore. 131 tests pass.
+- **Next session:** Milestone 2c (weekly backup reminder, undo last action, trash with 30-day purge and restore). `meta.lastBackupAt` is already written on every JSON export for the reminder.
 - **Known issues:** see bottom.
 
 ## Decisions (defaults chosen; change by asking)
@@ -35,6 +35,9 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Strong import new exercises: modelled from the name tag and the data (Dumbbell → perImplement, Assisted → assisted, Weighted/pull-ups → bodyweightPlusAdded, no reps with time/distance → timeDistance, else total), `source: 'import'`, no muscles (editable in the library).
 - Strong import raw rows: only rows that produced a set are stored in `RawImportRow` (rest-timer rows are counted, not stored). Set completion times are spread across the workout duration; workouts with no Duration end at their start time.
 - Set-level notes from Strong are joined into the workout exercise's notes (sets have no note field).
+- Backup JSON excludes progress photos, undo stack and meta; includes soft-deleted rows. Merge restore matches by id, later `updatedAt` wins, ties keep local. Replace needs a second tap (no `window.confirm`).
+- Strong CSV export: finished workouts and completed sets only, one weight unit chosen at export, dumbbells written as pair totals (doubled) so it round-trips with the importer default.
+- Export is delivered through the share sheet when the browser can share files (iPhone), else a download.
 - Default rest 120 s for compound lifts, 90 s otherwise; default increment 5 lb barbell, 5 lb dumbbell (per implement), 2.5 lb fallback for small plates is a per-exercise edit.
 
 ## Milestone 0 — Foundation
@@ -80,9 +83,9 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - [x] Import preview UI: file pick, per-exercise map/create, dumbbell toggle, duplicate count, confirm
 
 ## Milestone 2b — Export & restore
-- [ ] Full JSON export + `docs/export-format.md`
-- [ ] Strong-format CSV export
-- [ ] JSON restore (replace or merge) with preview
+- [x] Full JSON export + `docs/export-format.md`
+- [x] Strong-format CSV export
+- [x] JSON restore (replace or merge) with preview
 
 ## Milestone 2c — Safety net
 - [ ] Weekly backup reminder (Files/iCloud via share sheet / download)
@@ -156,3 +159,7 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Imported exercises have no muscles/pattern beyond name inference, so they do not count toward muscle volume until edited in the library.
 - Strong import holds the whole file in memory and builds all entities in one transaction; fine for a few years of data, not tested on tens of thousands of sets.
 - Preview lists every distinct exercise name with native selects; a long list (hundreds) has no search or bulk-apply.
+- Backup and restore were tested with fake-indexeddb and headless Chromium (download path); the iPhone share-sheet path is untested on a device.
+- Whole backup is built in memory as one JSON string; fine for years of personal data. Restore does not validate field shapes beyond `id` per row.
+- Replace restore does not touch progress photos, undo or meta; after replace the library seed re-runs idempotently by `sourceRef`.
+- Strong CSV export drops per-set notes (Forge has none) and writes the exercise note on every row.
