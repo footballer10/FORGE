@@ -85,7 +85,7 @@ export function Onboarding() {
           Goals (one per line)
           <textarea className={`${field} py-2`} rows={4} value={goals} onChange={(e) => setGoals(e.target.value)} />
         </label>
-        {error && <p role="alert" className="text-sm text-accent">{error}</p>}
+        {error && <p role="alert" className="text-sm text-accent-text">{error}</p>}
         <button type="button" onClick={() => void finish(true)} className="min-h-tap rounded-card bg-accent px-4 font-semibold text-white">Get started</button>
         <button type="button" onClick={() => void finish(false)} className="min-h-tap text-sm text-muted">Skip for now</button>
       </div>

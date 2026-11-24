@@ -3,8 +3,8 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
-- **Done last session:** Milestone 8a: in-app `ConfirmDialog` replaces both `window.confirm` calls (discard workout, remove exercise); Settings screen (opened from the Home header: weight and length units, e1RM formula with its formula text, planned days per week, dumbbell pair total, theme); first-run onboarding (units, bodyweight, training days, goals; shown once, never to someone who already has workouts). Tests (311) and build pass; onboarding and Settings checked in headless Chromium.
-- **Next session:** Milestone 8b (accessibility pass, performance and Recharts bundle split, install-to-home-screen help, offline check, real app icons, Cloudflare Pages deploy).
+- **Done last session:** Milestone 8b (milestone 8 code complete): tab screens lazy-loaded and Recharts split into its own chunk (entry bundle 923 kB to 277 kB, no size warning); real F icons (rounded, maskable, Apple touch); install-to-Home-Screen help in Settings; offline check passed in headless Chromium (reload offline, lazy tabs load); accessibility pass (lighter `accent-text` token so red text reaches 5:1 on dark, focus-visible ring, Escape closes the confirm dialog; muted text already 5.2:1 or better); Cloudflare Pages config (`public/_headers`) and `docs/deploy.md`. Tests (311) and build pass.
+- **Next session:** the Cloudflare Pages deploy is a user step (needs the user's Cloudflare account): follow `docs/deploy.md`. After that, the first real-device pass (iPhone): Strong import with the real file, offline, backup share sheet, photos. No further milestone is planned.
 - **Known issues:** see bottom.
 
 ## Decisions (defaults chosen; change by asking)
@@ -173,10 +173,10 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Milestone 8 — Polish & install
 - [x] 8a: Empty states (audited, already present), onboarding (units, bodyweight, goals), Settings screen, in-app confirm dialogs
-- [ ] 8b: Accessibility pass (labels, contrast, reduced motion)
-- [ ] 8b: Performance (list virtualization if needed, bundle split for Recharts)
-- [ ] 8b: Install-to-home-screen help; offline check; real app icons
-- [ ] 8b: Cloudflare Pages deploy
+- [x] 8b: Accessibility pass (labels, contrast, reduced motion, focus)
+- [x] 8b: Performance (bundle split done; virtualization not needed at 30 rows)
+- [x] 8b: Install-to-home-screen help; offline check; real app icons
+- [~] 8b: Cloudflare Pages deploy (config + `docs/deploy.md` ready; connecting the repo is a user step)
 
 ## Known issues
 - Settings (8a) has no plate or bar editor; those stay in Coach → Training profile (Settings points there). The pair-total toggle also remains on the Train home.
@@ -190,10 +190,10 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - History list is read-only and loads the latest 30 workouts without virtualization.
 - Keypad ± for weight converts the exercise increment into the set's unit; weights are shown in the set's stored unit, not the profile unit, if they differ.
 - Library pattern/loadModel/rest values are name-based heuristics (`exerciseMapper.ts`); some library entries will be mis-classified. Fix per exercise in the editor; bump `LIBRARY_VERSION` only to add missing exercises (existing ones are never overwritten).
-- Exercise library JSON (~790 KB, 150 KB gzip) is a lazy chunk, precached by the service worker; Vite warns about chunk size. Fine for now, revisit in M8.
+- Exercise library JSON (~790 KB, 150 KB gzip) is a lazy chunk, precached by the service worker; The size warning limit is raised to 800 kB for it and the Recharts chunk.
 - Increment unit is lb-only in the exercise form; kg increments come with the units setting.
 - Library exercises (not just custom) can be deleted from the editor; deleted ones are not re-seeded.
-- App icons are placeholder SVG/PNG; real icons in 8b.
+- App icons are a simple red F on near-black (generated from `public/icon.svg`); swap for a designed mark whenever wanted.
 - Google Fonts load from the network on first visit and are runtime-cached; if first load is offline the system fallback fonts are used.
 - Strong import has only been exercised with synthetic CSVs (tests + a browser run); the real Strong export's column names, distance units and date format are unverified. Try the user's real file first and report anything that looks off.
 - Strong import: a whole import can be undone only while it is the latest undo entry; "Past imports" only changes dumbbell conventions, and re-applying overwrites any manual edits to those sets.
@@ -239,3 +239,4 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Achievements (7a): no UI yet. `sync()` re-reads all training data each call (fine for personal data). A lift milestone needs the lift on the strength-score list; imported history is credited on first sync, all unseen.
 - Gamification (7b): Home and the summary were checked in headless Chromium with an empty database only (cards with data are covered by repository tests, not seen visually). Home shows the 6 newest achievements with no full list screen. Live PR check re-reads the exercise's history on each tick (fine for personal data). The summary sheet is lost if the app is closed before tapping Done (achievements still appear on Home as New).
 - Settings/onboarding (8a): checked in headless Chromium only. Changing the weight unit does not convert existing sets or bodyweight entries (they keep their unit; analytics convert). The theme choice is stored both in localStorage and on the profile. Onboarding pre-fills the user's default goals; the confirm dialog has no focus trap. Increment unit in the exercise form is still lb-only.
+- Polish (8b): offline was tested in headless Chromium only; not on an iPhone. Not yet deployed to Cloudflare. A keyboard focus trap in dialogs and a full screen-reader pass (VoiceOver) were not done; contrast was computed for the tokens, not measured on every screen. History still loads 30 rows with no virtualization.

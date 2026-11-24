@@ -71,7 +71,7 @@ export function HomeScreen() {
           <ul className="mt-1 flex flex-col gap-1">
             {data.prs.map((p, i) => (
               <li key={i} className="text-sm">
-                <span className="font-semibold text-accent">PR</span> {p.exerciseName}: {prLabel(p)}{' '}
+                <span className="font-semibold text-accent-text">PR</span> {p.exerciseName}: {prLabel(p)}{' '}
                 <span className="text-muted">{new Date(p.date).toLocaleDateString()}</span>
               </li>
             ))}
@@ -85,7 +85,7 @@ export function HomeScreen() {
             {data.achievements.slice(0, 6).map((a) => (
               <li key={a.id} className="text-sm">
                 <span className="font-semibold">{a.title}</span>
-                {data.unseen.has(a.id) && <span className="ml-2 text-xs text-accent">New</span>}
+                {data.unseen.has(a.id) && <span className="ml-2 text-xs text-accent-text">New</span>}
                 <span className="block text-muted">
                   {a.description} {new Date(a.achievedAt).toLocaleDateString()}
                 </span>

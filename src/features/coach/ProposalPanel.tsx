@@ -65,7 +65,7 @@ export function ProposalPanel() {
 
       {preview && preview.errors.length > 0 && (
         <div role="alert" className="mt-3 text-sm">
-          <p className="text-accent">Cannot use this yet:</p>
+          <p className="text-accent-text">Cannot use this yet:</p>
           <ul className="mt-1 list-disc pl-5 text-muted">{preview.errors.slice(0, 12).map((e) => <li key={e}>{e}</li>)}</ul>
           {preview.errors.length > 12 && <p className="text-muted">…and {preview.errors.length - 12} more.</p>}
           <p className="mt-1 text-muted">Ask Claude to fix these and paste the corrected JSON.</p>
@@ -79,7 +79,7 @@ export function ProposalPanel() {
           <p className="mt-1 text-muted">{preview.proposal.weeks.length} week(s), {preview.proposal.weeks.reduce((n, w) => n + w.sessions.length, 0)} session(s).</p>
           {preview.missing.length > 0 && (
             <div role="alert" className="mt-2">
-              <p className="text-accent">These exercises are not in your library, so the program cannot be saved:</p>
+              <p className="text-accent-text">These exercises are not in your library, so the program cannot be saved:</p>
               <ul className="list-disc pl-5 text-muted">{preview.missing.map((m) => <li key={m}>{m}</li>)}</ul>
               <p className="text-muted">Add them in the exercise library (or add the name as an alias), then check again.</p>
             </div>
@@ -93,7 +93,7 @@ export function ProposalPanel() {
             <ul className="mt-2 divide-y divide-line">
               {preview.diff.map((d, i) => (
                 <li key={i} className="flex gap-2 py-1">
-                  <span className={`w-4 shrink-0 text-center font-display ${d.kind === 'added' ? 'text-accent' : 'text-muted'}`} aria-label={d.kind}>{mark[d.kind]}</span>
+                  <span className={`w-4 shrink-0 text-center font-display ${d.kind === 'added' ? 'text-accent-text' : 'text-muted'}`} aria-label={d.kind}>{mark[d.kind]}</span>
                   <span>{d.text}</span>
                 </li>
               ))}

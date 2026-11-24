@@ -107,7 +107,7 @@ export function SettingsScreen() {
             }}
           />
         </label>
-        {error && <p role="alert" className="pb-2 text-sm text-accent">{error}</p>}
+        {error && <p role="alert" className="pb-2 text-sm text-accent-text">{error}</p>}
         <label className={`${row} border-t border-line`}>
           <span>Show dumbbell pair total</span>
           <input type="checkbox" className="h-6 w-6" checked={p.showDumbbellPairTotal} onChange={(e) => void save({ showDumbbellPairTotal: e.target.checked })} />

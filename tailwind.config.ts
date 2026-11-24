@@ -15,6 +15,7 @@ export default {
         muted: v('muted'),
         accent: v('accent'),
         'accent-fg': v('accent-fg'),
+        'accent-text': v('accent-text'),
       },
       fontFamily: {
         display: ['"Barlow Condensed"', 'system-ui', 'sans-serif'],

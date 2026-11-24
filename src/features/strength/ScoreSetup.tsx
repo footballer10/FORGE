@@ -105,7 +105,7 @@ export function ScoreSetup({ onDone }: { onDone: () => void; unit: string }) {
                 {STANDARD_TEMPLATES.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
               </select>
             </label>
-            {errors[i] && <p className="mt-1 text-xs text-accent">Weight and thresholds must be positive, and thresholds must not decrease.</p>}
+            {errors[i] && <p className="mt-1 text-xs text-accent-text">Weight and thresholds must be positive, and thresholds must not decrease.</p>}
           </li>
         ))}
       </ul>

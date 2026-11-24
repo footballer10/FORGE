@@ -101,7 +101,7 @@ export function PhotosPanel() {
         <input ref={library} type="file" accept="image/*" multiple hidden aria-label="Library photo input" onChange={(e) => void addFiles(e.target.files)} />
       </div>
       {busy && <p className="mt-1 text-sm text-muted">Saving…</p>}
-      {error && <p role="alert" className="mt-1 text-sm text-accent">{error}</p>}
+      {error && <p role="alert" className="mt-1 text-sm text-accent-text">{error}</p>}
 
       {photos.length === 0 ? (
         <p className="mt-3 text-sm text-muted">No photos yet. Use the same pose, light and distance each time for useful comparisons.</p>

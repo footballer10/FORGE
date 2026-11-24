@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+
 interface Props {
   title: string;
   body?: string;
@@ -11,6 +13,12 @@ interface Props {
 
 /** In-app replacement for window.confirm. Cancel is the first button and the safe default. */
 export function ConfirmDialog({ title, body, confirmLabel, cancelLabel = 'Cancel', destructive, onConfirm, onCancel }: Props) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onCancel();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onCancel]);
+
   return (
     <div role="alertdialog" aria-modal="true" aria-label={title} className="fixed inset-0 z-50 flex items-end bg-black/60 pb-safe" onClick={onCancel}>
       <div className="mx-auto w-full max-w-md rounded-t-card border border-line bg-surface p-4" onClick={(e) => e.stopPropagation()}>

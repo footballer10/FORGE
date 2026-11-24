@@ -123,7 +123,7 @@ export function ExerciseStrength({ exerciseId, onBack }: { exerciseId: string; o
               {prs.map((p, i) => (
                 <li key={`${p.kind}-${p.reps ?? ''}-${p.date}-${i}`} className="flex items-center justify-between gap-3 rounded-card border border-line bg-surface px-4 py-3">
                   <span className="text-sm">{prText(p, unit)}</span>
-                  <span className="shrink-0 text-xs tabular-nums text-accent">{day(p.date)}</span>
+                  <span className="shrink-0 text-xs tabular-nums text-accent-text">{day(p.date)}</span>
                 </li>
               ))}
             </ul>

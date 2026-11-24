@@ -34,8 +34,8 @@ export function SetRow({ set, index, fields, loadModel, previous, editing, onEdi
         aria-label={`Set ${index + 1} details${set.rpe ? `, RPE ${set.rpe}` : ''}${set.rir !== undefined ? `, ${set.rir} reps in reserve` : ''}`}
         className="num min-h-tap min-w-tap rounded-card text-xl text-muted"
       >
-        {pr ? <span className="text-sm font-bold text-accent">PR</span> : badge}
-        {(set.rpe !== undefined || set.rir !== undefined) && <span className="text-xs text-accent">•</span>}
+        {pr ? <span className="text-sm font-bold text-accent-text">PR</span> : badge}
+        {(set.rpe !== undefined || set.rir !== undefined) && <span className="text-xs text-accent-text">•</span>}
       </button>
       <span className="num w-20 shrink-0 truncate text-sm text-muted" aria-label="Previous session">
         {previous ? formatSet(previous, loadModel, previous.unit) : '—'}
