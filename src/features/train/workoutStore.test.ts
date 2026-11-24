@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { clearAllData, exerciseRepo, workoutRepo } from '../../db/repositories';
+import { analyticsRepo, clearAllData, exerciseRepo, workoutRepo } from '../../db/repositories';
+import { bestByDistance, conditioningRows } from '../../domain/conditioning';
 import { useWorkout } from './workoutStore';
 
 const base = {
@@ -38,6 +39,25 @@ describe('workout store', () => {
     expect(hist).toHaveLength(1);
     const full = await workoutRepo.getFull(hist[0]!.id);
     expect(full?.exercises[0]?.sets).toHaveLength(1); // unticked set dropped
+  });
+
+  it('starts a conditioning session with that kind', async () => {
+    await useWorkout.getState().start('conditioning');
+    expect(useWorkout.getState().workout).toMatchObject({ kind: 'conditioning', name: 'Conditioning' });
+  });
+
+  it('a finished conditioning session shows up in the conditioning data', async () => {
+    const run = await exerciseRepo.create({ ...base, name: 'Run', loadModel: 'timeDistance', equipment: 'bodyweight' });
+    await useWorkout.getState().start('conditioning');
+    await useWorkout.getState().addExercise(run.id);
+    const id = sets()[0]!.id;
+    await useWorkout.getState().updateSet(id, { durationSec: 70, distanceM: 400 });
+    expect(await useWorkout.getState().toggleComplete(id)).toBe(true);
+    expect(await useWorkout.getState().finish()).toBe(true);
+    const d = await analyticsRepo.trainingData();
+    const rows = conditioningRows(d.sets, d.exercises, d.workouts);
+    expect(rows).toHaveLength(1);
+    expect(bestByDistance(rows, run.id)[0]).toMatchObject({ distanceM: 400, bestTimeSec: 70 });
   });
 
   it('persists immediately: a reload resumes the workout with edits', async () => {
@@ -307,5 +327,104 @@ describe('workout store', () => {
       expect(await useWorkout.getState().duplicate(done.id)).toBe(false); // one active workout at a time
       expect((await workoutRepo.listHistory()).map((x) => x.id)).toEqual([done.id]); // original untouched
     });
+  });
+});
+
+describe('start from routine', () => {
+  it('builds sets from targets, fills weight from history, applies rest override', async () => {
+    const { routineRepo } = await import('../../db/repositories');
+    const bench = await exerciseRepo.create({ ...base, name: 'Bench' });
+    // history: one finished session at 135 x 5
+    await useWorkout.getState().start();
+    await useWorkout.getState().addExercise(bench.id);
+    const sid = sets()[0]!.id;
+    await useWorkout.getState().updateSet(sid, { weight: 135, reps: 5 });
+    await useWorkout.getState().toggleComplete(sid);
+    await useWorkout.getState().finish();
+
+    const gone = await exerciseRepo.create({ ...base, name: 'Gone' });
+    await exerciseRepo.softDelete(gone.id);
+    const r = await routineRepo.create({
+      name: 'Push A',
+      exercises: [
+        { exerciseId: gone.id, order: 0, targets: [{ type: 'working', reps: 5 }] },
+        { exerciseId: bench.id, order: 1, restSec: 60, targets: [{ type: 'working', reps: 6, repsMax: 8, rpe: 8 }, { type: 'working', reps: 6, weight: 150, unit: 'lb' }] },
+      ],
+    });
+    expect(await useWorkout.getState().startFromRoutine(r.id)).toBe(true);
+    const st = useWorkout.getState();
+    expect(st.workout).toMatchObject({ name: 'Push A', routineId: r.id });
+    expect(st.rows).toHaveLength(1);
+    expect(st.rows[0]!.we).toMatchObject({ restSec: 60 });
+    expect(st.rows[0]!.we.targets).toHaveLength(2);
+    expect(sets().map((s) => [s.weight, s.reps])).toEqual([[135, 6], [150, 6]]);
+    expect(await useWorkout.getState().startFromRoutine(r.id)).toBe(false); // already active
+
+    await useWorkout.getState().toggleComplete(sets()[0]!.id);
+    const secs = Math.round((Date.parse(useWorkout.getState().restEndsAt!) - Date.now()) / 1000);
+    expect(secs).toBeGreaterThan(55);
+    expect(secs).toBeLessThanOrEqual(60);
+  });
+});
+
+describe('planned session link', () => {
+  it('links on finish, unlinks when the workout is deleted, undo relinks', async () => {
+    const { plannedSessionRepo, programRepo, undoRepo } = await import('../../db/repositories');
+    const bench = await exerciseRepo.create({ ...base, name: 'Bench' });
+    const p = await programRepo.saveVersion({
+      fields: { name: 'P' }, reason: 'x',
+      weeks: [{ key: 'w', sessions: [{ key: 's', name: 'Push', exercises: [{ exerciseId: bench.id, order: 0, targets: [{ type: 'working', reps: 5 }] }] }] }],
+    });
+    const ps = (await plannedSessionRepo.list()).find((s) => s.programId === p.id)!;
+    expect(await useWorkout.getState().startFromPlanned(ps.id)).toBe(true);
+    await useWorkout.getState().toggleComplete(sets()[0]!.id);
+    await useWorkout.getState().finish();
+    const wid = (await workoutRepo.listHistory())[0]!.id;
+    expect((await plannedSessionRepo.get(ps.id))?.completedWorkoutId).toBe(wid);
+
+    await workoutRepo.deleteUndoable(wid);
+    expect((await plannedSessionRepo.get(ps.id))?.completedWorkoutId).toBeUndefined();
+    await undoRepo.undoLatest();
+    expect((await plannedSessionRepo.get(ps.id))?.completedWorkoutId).toBe(wid);
+
+    // undoing the finish unlinks again
+    await undoRepo.undoLatest(); // the earlier "Finished workout" entry
+    expect((await plannedSessionRepo.get(ps.id))?.completedWorkoutId).toBeUndefined();
+  });
+
+  it('dayStatsInput counts completed non-warm-up sets of finished workouts', async () => {
+    const bench = await exerciseRepo.create({ ...base, name: 'Bench' });
+    await useWorkout.getState().start();
+    await useWorkout.getState().addExercise(bench.id);
+    const we = useWorkout.getState().rows[0]!.we.id;
+    await useWorkout.getState().updateSet(sets()[0]!.id, { reps: 5, type: 'warmup' });
+    await useWorkout.getState().toggleComplete(sets()[0]!.id);
+    await useWorkout.getState().addSet(we);
+    await useWorkout.getState().updateSet(sets()[1]!.id, { reps: 5, type: 'working' });
+    await useWorkout.getState().toggleComplete(sets()[1]!.id);
+    await useWorkout.getState().finish();
+    const stats = await workoutRepo.dayStatsInput();
+    expect(stats).toHaveLength(1);
+    expect(stats[0]!.hardSets).toBe(1);
+  });
+});
+
+describe('progression on start', () => {
+  it('prefills the suggested weight and reps and records the formula', async () => {
+    const { routineRepo } = await import('../../db/repositories');
+    const bench = await exerciseRepo.create({ ...base, name: 'Bench' });
+    await useWorkout.getState().start();
+    await useWorkout.getState().addExercise(bench.id);
+    await useWorkout.getState().updateSet(sets()[0]!.id, { weight: 135, reps: 12 });
+    await useWorkout.getState().toggleComplete(sets()[0]!.id);
+    await useWorkout.getState().finish();
+
+    const r = await routineRepo.create({
+      name: 'Push',
+      exercises: [{ exerciseId: bench.id, order: 0, progression: { kind: 'doubleProgression', repsMin: 8, repsMax: 12 }, targets: [{ type: 'working', reps: 8, repsMax: 12 }, { type: 'working', reps: 8, repsMax: 12, weight: 100, unit: 'lb' }] }],
+    });
+    await useWorkout.getState().startFromRoutine(r.id);
+    expect(sets().map((s) => [s.weight, s.reps])).toEqual([[140, 8], [100, 8]]); // fixed target weight wins
+    expect(useWorkout.getState().rows[0]!.we.progressionNote).toMatch(/Suggested 140 lb × 8\. All 1 set/);
   });
 });

@@ -96,3 +96,14 @@ describe('trashRepo', () => {
     expect(await workoutRepo.lastSetsFor(e.id)).toHaveLength(0);
   });
 });
+
+describe('routine delete', () => {
+  it('soft-deletes with an undo entry that restores it', async () => {
+    const { routineRepo, undoRepo } = await import('./index');
+    const r = await routineRepo.create({ name: 'Pull', exercises: [] });
+    await routineRepo.deleteUndoable(r.id);
+    expect(await routineRepo.listSorted()).toHaveLength(0);
+    expect(await undoRepo.undoLatest()).toBe('Deleted routine');
+    expect((await routineRepo.listSorted()).map((x) => x.name)).toEqual(['Pull']);
+  });
+});

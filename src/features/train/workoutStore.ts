@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { exerciseRepo, metaRepo, nowIso, profileRepo, undoRepo, workoutRepo } from '../../db/repositories';
+import { exerciseRepo, metaRepo, nowIso, plannedSessionRepo, profileRepo, routineRepo, undoRepo, workoutRepo } from '../../db/repositories';
 import { canComplete, prefillDrafts } from '../../domain/logging';
 import { moveItem } from '../../domain/order';
 import { restAfterExercise, toggleSupersetLink } from '../../domain/superset';
@@ -28,7 +28,12 @@ interface State {
   restTotalSec?: number;
   /** Resume an unfinished workout (crash / reopen) or find none. */
   load: () => Promise<void>;
-  start: () => Promise<void>;
+  /** Start an empty workout; `conditioning` marks it as a time/distance session. */
+  start: (kind?: 'conditioning') => Promise<void>;
+  /** Start a workout from a routine. Returns false if one is already active or the routine is gone. */
+  startFromRoutine: (routineId: ID) => Promise<boolean>;
+  /** Start a workout from a planned program session (linked via plannedSessionId). */
+  startFromPlanned: (plannedSessionId: ID) => Promise<boolean>;
   addExercise: (exerciseId: ID) => Promise<void>;
   removeExercise: (workoutExerciseId: ID) => Promise<void>;
   addSet: (workoutExerciseId: ID) => Promise<void>;
@@ -128,11 +133,31 @@ export const useWorkout = create<State>((set, get) => {
       set({ loaded: true });
     },
 
-    async start() {
+    async start(kind) {
       if (get().workout) return;
-      const w = await workoutRepo.start();
+      const w = await workoutRepo.start(kind ? { kind, name: 'Conditioning' } : {});
       set({ rows: [] });
       await refresh(w.id);
+    },
+
+    async startFromRoutine(routineId) {
+      if (get().workout) return false;
+      const routine = await routineRepo.get(routineId);
+      if (!routine || routine.deletedAt) return false;
+      const w = await workoutRepo.startFromRoutine(routine, get().unit);
+      set({ rows: [] });
+      await refresh(w.id);
+      return true;
+    },
+
+    async startFromPlanned(plannedSessionId) {
+      if (get().workout) return false;
+      const ps = await plannedSessionRepo.get(plannedSessionId);
+      if (!ps || ps.deletedAt) return false;
+      const w = await workoutRepo.startFromPlan({ name: ps.name, exercises: ps.exercises, plannedSessionId: ps.id }, get().unit);
+      set({ rows: [] });
+      await refresh(w.id);
+      return true;
     },
 
     async addExercise(exerciseId) {
@@ -190,7 +215,7 @@ export const useWorkout = create<State>((set, get) => {
       }
       if (!canComplete(found.set, found.row.exercise.loadModel)) return false;
       await get().updateSet(setId, { completedAt: nowIso() });
-      const sec = restSecondsFor(found.row.exercise, found.set.type);
+      const sec = restSecondsFor(found.row.exercise, found.set.type, found.row.we.restSec);
       const items = get().rows.map((r) => ({ id: r.we.id, supersetGroup: r.we.supersetGroup }));
       const due = restAfterExercise(items, found.row.we.id);
       if (sec > 0 && due && !isEditingPast(get().workout)) await get().startRest(sec);
@@ -212,11 +237,16 @@ export const useWorkout = create<State>((set, get) => {
       const editing = isEditingPast(w);
       const dropSets = rows.flatMap((r) => r.sets.filter((s) => !s.completedAt).map((s) => s.id));
       const dropExercises = rows.filter((r) => !r.sets.some((s) => s.completedAt)).map((r) => r.we.id);
-      await undoRepo.run(editing ? 'Saved workout edits' : 'Finished workout', { workouts: [w.id], sets: dropSets, workoutExercises: dropExercises }, async () => {
+      const planned = !editing && w.plannedSessionId ? [w.plannedSessionId] : [];
+      await undoRepo.run(editing ? 'Saved workout edits' : 'Finished workout', { workouts: [w.id], sets: dropSets, workoutExercises: dropExercises, plannedSessions: planned }, async () => {
         for (const id of dropSets) await workoutRepo.removeSet(id);
         for (const id of dropExercises) await workoutRepo.removeExercise(id);
         if (editing) await metaRepo.set(EDITING_KEY, null);
-        else await workoutRepo.finish(w.id);
+        else {
+          await workoutRepo.finish(w.id);
+          // Link the planned session to this workout (the plan is done; skipped is cleared).
+          for (const id of planned) await plannedSessionRepo.update(id, { completedWorkoutId: w.id, skipped: undefined });
+        }
       });
       set({ workout: undefined, rows: [], restEndsAt: undefined, restTotalSec: undefined });
       return true;
