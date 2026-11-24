@@ -18,3 +18,13 @@ export async function seedLibrary(records?: LibraryRecord[]): Promise<{ added: n
   await metaRepo.set(META_KEY, LIBRARY_VERSION);
   return { added: fresh.length };
 }
+
+let pending: Promise<{ added: number }> | undefined;
+/** Shared, memoized seed run: the app starts it at boot and screens await it before listing exercises. */
+export function ensureLibrary(): Promise<{ added: number }> {
+  pending ??= seedLibrary().catch((err) => {
+    pending = undefined;
+    throw err;
+  });
+  return pending;
+}

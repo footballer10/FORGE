@@ -3,8 +3,8 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
-- **Done last session:** Session 1 — docs, data model, repository layer, scaffold.
-- **Next session:** Milestone 1a-i (exercise library); then 1a-ii (logging core). 1a was split because it was too big for one session.
+- **Done last session:** Milestone 1a-i — exercise library: vendored free-exercise-db (876), mapper, versioned seeding, search/filter/recent picker, custom exercise create/edit/delete. Reachable from Train → Exercise library. 33 tests pass.
+- **Next session:** Milestone 1a-ii (logging core). `ExerciseBrowser` is reusable as the add-exercise picker (`onSelect`).
 - **Known issues:** see bottom.
 
 ## Decisions (defaults chosen; change by asking)
@@ -14,6 +14,8 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - No Fullback Strength import.
 - No router dependency: tab state lives in a Zustand store. Sub-screens use in-app stack state.
 - Tailwind v3. `fake-indexeddb` added as a dev-only dependency for repository tests.
+- Library seeding never resurrects or overwrites: tracked by `sourceRef` (including soft-deleted rows) and `meta.librarySeedVersion`.
+- Auto-generated aliases per library exercise: bare name and "Name (Equipment)" Strong-style, for import matching in M2.
 - Profile is a singleton row with id `'me'`.
 - Default rest 120 s for compound lifts, 90 s otherwise; default increment 5 lb barbell, 5 lb dumbbell (per implement), 2.5 lb fallback for small plates is a per-exercise edit.
 
@@ -27,10 +29,10 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - [x] Dexie schema v1 + repository layer with tests
 
 ## Milestone 1a-i — Exercise library
-- [ ] Vendor free-exercise-db JSON (slimmed); mapper to Exercise (pattern, loadModel, increment, rest, aliases) with tests
-- [ ] Seed library on first run (idempotent, versioned, never overwrites user edits)
-- [ ] Exercise picker: search name + aliases, filter by muscle/equipment, recent first (pure search fn + tests)
-- [ ] Custom exercise create/edit (load model, increment, rest, aliases)
+- [x] Vendor free-exercise-db JSON (slimmed); mapper to Exercise (pattern, loadModel, increment, rest, aliases) with tests
+- [x] Seed library on first run (idempotent, versioned, never overwrites user edits)
+- [x] Exercise picker: search name + aliases, filter by muscle/equipment, recent first (pure search fn + tests)
+- [x] Custom exercise create/edit (load model, increment, rest, aliases)
 
 ## Milestone 1a-ii — Logging core
 - [ ] Active workout store (Zustand) backed by repositories; resume on reopen
@@ -105,5 +107,9 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - [ ] Cloudflare Pages deploy
 
 ## Known issues
+- Library pattern/loadModel/rest values are name-based heuristics (`exerciseMapper.ts`); some library entries will be mis-classified. Fix per exercise in the editor; bump `LIBRARY_VERSION` only to add missing exercises (existing ones are never overwritten).
+- Exercise library JSON (~790 KB, 150 KB gzip) is a lazy chunk, precached by the service worker; Vite warns about chunk size. Fine for now, revisit in M8.
+- Increment unit is lb-only in the exercise form; kg increments come with the units setting.
+- Library exercises (not just custom) can be deleted from the editor; deleted ones are not re-seeded.
 - App icons are placeholder SVG/PNG; real icons in M8.
 - Google Fonts load from the network on first visit and are runtime-cached; if first load is offline the system fallback fonts are used.
