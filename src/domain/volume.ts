@@ -1,6 +1,6 @@
 import { addDays, localDateKey, weekStart } from './calendar';
 import { bodyweightOn, effectiveLoad, isAnalyticSet } from './load';
-import type { BodyMetric, Exercise, ID, Muscle, SetEntry, WeightUnit, Workout } from './types';
+import type { BodyMetric, Exercise, ID, MovementPattern, Muscle, SetEntry, WeightUnit, Workout } from './types';
 
 /** Credit a primary muscle gets per hard set, and a secondary muscle. Shown in the UI. */
 export const PRIMARY_WEIGHT = 1;
@@ -12,6 +12,7 @@ export interface VolumeSet {
   day: string;
   primary: readonly Muscle[];
   secondary: readonly Muscle[];
+  pattern?: MovementPattern;
   /** Load × reps in the analysis unit; 0 when unknown. */
   volume: number;
 }
@@ -22,7 +23,7 @@ export interface VolumeSet {
  */
 export function volumeSets(
   sets: readonly SetEntry[],
-  exercises: ReadonlyMap<ID, Pick<Exercise, 'primaryMuscles' | 'secondaryMuscles' | 'loadModel'>>,
+  exercises: ReadonlyMap<ID, Pick<Exercise, 'primaryMuscles' | 'secondaryMuscles' | 'loadModel' | 'pattern'>>,
   workouts: ReadonlyMap<ID, Pick<Workout, 'endedAt' | 'deletedAt' | 'bodyweight'>>,
   metrics: readonly BodyMetric[],
   unit: WeightUnit,
@@ -37,7 +38,7 @@ export function volumeSets(
     const day = localDateKey(completed);
     const bw = bodyweightOn(day, metrics as BodyMetric[]) ?? w.bodyweight;
     const load = s.reps ? effectiveLoad(s, ex, bw, unit) : null;
-    out.push({ day, primary: ex.primaryMuscles, secondary: ex.secondaryMuscles, volume: load && s.reps ? load * s.reps : 0 });
+    out.push({ day, primary: ex.primaryMuscles, secondary: ex.secondaryMuscles, pattern: ex.pattern, volume: load && s.reps ? load * s.reps : 0 });
   }
   return out;
 }
@@ -187,4 +188,58 @@ export function detectPlateau(
     }
   }
   return { plateau: bestBefore > 0 && sessions >= minSessions && bestRecent <= bestBefore, bestBefore, bestRecent, sessionsInWindow: sessions, since };
+}
+
+export interface BalanceCheck {
+  id: 'pushPull' | 'squatHinge';
+  label: string;
+  /** Names of the two sides and what they include, shown in the UI. */
+  a: { name: string; sets: number; includes: string };
+  b: { name: string; sets: number; includes: string };
+  /** a ÷ b; undefined when b is 0. */
+  ratio?: number;
+  status: 'balanced' | 'aHeavy' | 'bHeavy' | 'noData';
+  /** Plain-language rule, including the thresholds. */
+  rule: string;
+}
+
+/** A side counts as heavy when it has more than this many times the sets of the other. */
+export const BALANCE_LIMIT = 1.5;
+
+const PUSH: MovementPattern[] = ['horizontalPush', 'verticalPush'];
+const PULL: MovementPattern[] = ['horizontalPull', 'verticalPull'];
+const SQUAT: MovementPattern[] = ['squat', 'lunge'];
+const HINGE: MovementPattern[] = ['hinge'];
+
+function status(a: number, b: number): BalanceCheck['status'] {
+  if (a + b === 0) return 'noData';
+  if (b === 0 || a / b > BALANCE_LIMIT) return 'aHeavy';
+  if (a === 0 || b / a > BALANCE_LIMIT) return 'bHeavy';
+  return 'balanced';
+}
+
+/**
+ * Push:pull and squat:hinge from hard-set counts by movement pattern for days in `[from, to)`.
+ * Each set counts once for its exercise's pattern (muscle credit is not used). Exercises with pattern
+ * other / isolation / core are ignored.
+ */
+export function balanceChecks(sets: readonly VolumeSet[], from: string, to: string): BalanceCheck[] {
+  const count = (pats: MovementPattern[]) =>
+    sets.filter((s) => s.day >= from && s.day < to && s.pattern && pats.includes(s.pattern)).length;
+  const push = count(PUSH), pull = count(PULL), squat = count(SQUAT), hinge = count(HINGE);
+  const rule = `Flagged when one side has more than ${BALANCE_LIMIT}× the sets of the other.`;
+  return [
+    {
+      id: 'pushPull', label: 'Push : pull',
+      a: { name: 'Push', sets: push, includes: 'horizontal and vertical pushing (bench, press, dips)' },
+      b: { name: 'Pull', sets: pull, includes: 'horizontal and vertical pulling (rows, pull-ups)' },
+      ratio: pull > 0 ? push / pull : undefined, status: status(push, pull), rule,
+    },
+    {
+      id: 'squatHinge', label: 'Squat : hinge',
+      a: { name: 'Squat', sets: squat, includes: 'squat and lunge patterns' },
+      b: { name: 'Hinge', sets: hinge, includes: 'deadlift and hip-hinge patterns' },
+      ratio: hinge > 0 ? squat / hinge : undefined, status: status(squat, hinge), rule,
+    },
+  ];
 }
