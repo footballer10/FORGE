@@ -9,6 +9,7 @@ import { createRepo, newId, nowIso, type NewEntity } from './base';
 export { workoutRepo, type FullWorkout } from './workouts';
 export { profileRepo, defaultProfile } from './profile';
 export { importer } from './importer';
+export { backupRepo } from './backup';
 export { newId, nowIso, type NewEntity, type Repository } from './base';
 
 export const exerciseRepo = {
