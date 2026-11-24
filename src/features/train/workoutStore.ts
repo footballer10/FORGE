@@ -28,7 +28,8 @@ interface State {
   restTotalSec?: number;
   /** Resume an unfinished workout (crash / reopen) or find none. */
   load: () => Promise<void>;
-  start: () => Promise<void>;
+  /** Start an empty workout; `conditioning` marks it as a time/distance session. */
+  start: (kind?: 'conditioning') => Promise<void>;
   /** Start a workout from a routine. Returns false if one is already active or the routine is gone. */
   startFromRoutine: (routineId: ID) => Promise<boolean>;
   /** Start a workout from a planned program session (linked via plannedSessionId). */
@@ -132,9 +133,9 @@ export const useWorkout = create<State>((set, get) => {
       set({ loaded: true });
     },
 
-    async start() {
+    async start(kind) {
       if (get().workout) return;
-      const w = await workoutRepo.start();
+      const w = await workoutRepo.start(kind ? { kind, name: 'Conditioning' } : {});
       set({ rows: [] });
       await refresh(w.id);
     },

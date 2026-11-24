@@ -1,5 +1,6 @@
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { BodyweightPanel } from './BodyweightPanel';
+import { ConditioningPanel } from './ConditioningPanel';
 import { FitnessPanel } from './FitnessPanel';
 import { VolumePanel } from './VolumePanel';
 
@@ -9,6 +10,7 @@ export function ProgressScreen() {
       <ScreenHeader title="Progress" />
       <BodyweightPanel />
       <VolumePanel />
+      <ConditioningPanel />
       <FitnessPanel />
     </div>
   );
