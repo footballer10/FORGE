@@ -172,7 +172,7 @@ export function ProfileEditor({ onDone }: { onDone: () => void }) {
         onClick={() => setEq((l) => [...l, { id: crypto.randomUUID(), name: 'New place', equipment: ['bodyweight'], maxDumbbell: '', bar: '', plates: '', notes: '' }])}
       >Add equipment profile</button>
 
-      {error && <p role="alert" className="text-sm text-accent">{error}</p>}
+      {error && <p role="alert" className="text-sm text-accent-text">{error}</p>}
       <button type="button" onClick={() => void save()} className="min-h-tap rounded-card bg-accent px-4 font-display text-xl uppercase text-white">Save profile</button>
     </div>
   );

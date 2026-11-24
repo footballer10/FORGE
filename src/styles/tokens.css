@@ -9,6 +9,7 @@
   --muted: 150 148 144;
   --accent: 215 38 30;     /* #d7261e: primary action, PRs, progress ONLY */
   --accent-fg: 255 255 255;
+  --accent-text: 244 96 88; /* accent used as text: 5+:1 on dark surfaces */
   color-scheme: dark;
 }
 
@@ -21,6 +22,7 @@
   --muted: 105 103 100;
   --accent: 215 38 30;
   --accent-fg: 255 255 255;
+  --accent-text: 215 38 30;
   color-scheme: light;
 }
 

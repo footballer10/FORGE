@@ -129,7 +129,7 @@ export function ExerciseForm({ exercise, onDone }: Props) {
       <label className={label}>Sticky note (shown whenever logged)
         <input className={field} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Seat 4, wide grip" />
       </label>
-      {error && <p role="alert" className="text-sm text-accent">{error}</p>}
+      {error && <p role="alert" className="text-sm text-accent-text">{error}</p>}
       <div className="mt-auto flex flex-col gap-2 pt-6">
         <button
           type="button"

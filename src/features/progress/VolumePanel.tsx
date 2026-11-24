@@ -137,7 +137,7 @@ export function VolumePanel() {
               <li key={b.id} className="rounded-card border border-line bg-surface p-3 text-sm">
                 <div className="flex items-baseline justify-between">
                   <span className="font-medium">{b.label}</span>
-                  <span className={`tabular-nums ${b.status === 'aHeavy' || b.status === 'bHeavy' ? 'text-accent' : 'text-muted'}`}>
+                  <span className={`tabular-nums ${b.status === 'aHeavy' || b.status === 'bHeavy' ? 'text-accent-text' : 'text-muted'}`}>
                     {b.a.sets} : {b.b.sets}{b.ratio !== undefined ? ` (${b.ratio.toFixed(2)})` : ''}
                   </span>
                 </div>

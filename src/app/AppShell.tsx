@@ -1,13 +1,9 @@
-import { useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { TabBar } from './TabBar';
 import { useUi } from './uiStore';
 import { HomeScreen } from '../features/home/HomeScreen';
 import { TrainScreen } from '../features/train/TrainScreen';
-import { StrengthScreen } from '../features/strength/StrengthScreen';
-import { ProgressScreen } from '../features/progress/ProgressScreen';
-import { SettingsScreen } from '../features/settings/SettingsScreen';
 import { Onboarding } from '../features/settings/Onboarding';
-import { CoachScreen } from '../features/coach/CoachScreen';
 import { WorkoutSummarySheet } from '../features/home/WorkoutSummarySheet';
 import { UndoBar } from './UndoBar';
 import { trashRepo } from '../db/repositories';
@@ -15,6 +11,10 @@ import { RestTimer } from '../features/train/RestTimer';
 import { useWakeLock } from '../features/train/useWakeLock';
 import { useWorkout } from '../features/train/workoutStore';
 
+const StrengthScreen = lazy(() => import('../features/strength/StrengthScreen').then((m) => ({ default: m.StrengthScreen })));
+const ProgressScreen = lazy(() => import('../features/progress/ProgressScreen').then((m) => ({ default: m.ProgressScreen })));
+const CoachScreen = lazy(() => import('../features/coach/CoachScreen').then((m) => ({ default: m.CoachScreen })));
+const SettingsScreen = lazy(() => import('../features/settings/SettingsScreen').then((m) => ({ default: m.SettingsScreen })));
 const SCREENS = {
   home: HomeScreen,
   train: TrainScreen,
@@ -55,7 +55,9 @@ export function AppShell() {
   return (
     <div className="flex h-full flex-col">
       <main className="pt-safe px-safe flex-1 overflow-y-auto overscroll-contain">
-        {settingsOpen ? <SettingsScreen /> : <Screen />}
+        <Suspense fallback={<p className="py-6 text-sm text-muted" role="status">Loading…</p>}>
+          {settingsOpen ? <SettingsScreen /> : <Screen />}
+        </Suspense>
       </main>
       <WorkoutSummarySheet />
       <Onboarding />

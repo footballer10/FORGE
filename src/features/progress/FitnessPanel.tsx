@@ -86,7 +86,7 @@ function TestDetail({ test, results, data, onChange }: { test: FitnessTest; resu
           <button type="button" onClick={reset} className="min-h-tap rounded-card border border-line px-4 text-sm">Cancel</button>
         )}
       </div>
-      {error && <p role="alert" className="mt-1 text-sm text-accent">{error}</p>}
+      {error && <p role="alert" className="mt-1 text-sm text-accent-text">{error}</p>}
 
       {sum.history.length > 0 && (
         <ul className="mt-2 divide-y divide-line text-sm" aria-label={`${test.name} history`}>
@@ -95,7 +95,7 @@ function TestDetail({ test, results, data, onChange }: { test: FitnessTest; resu
               <span className="w-24 text-muted">{dayLabel(r.date)}</span>
               <span className="flex-1">
                 {fmt(r)}
-                {sum.best?.id === r.id && sum.history.length > 1 && <span className="ml-2 text-xs text-accent">best</span>}
+                {sum.best?.id === r.id && sum.history.length > 1 && <span className="ml-2 text-xs text-accent-text">best</span>}
               </span>
               <button
                 type="button"
@@ -148,7 +148,7 @@ function NewTest({ onDone }: { onDone: () => void }) {
           <option value="lowerIsBetter">Lower is better</option>
         </select>
       </div>
-      {error && <p role="alert" className="text-sm text-accent">{error}</p>}
+      {error && <p role="alert" className="text-sm text-accent-text">{error}</p>}
       <div className="flex gap-2">
         <button type="button" onClick={() => void add()} className="min-h-tap rounded-card bg-accent px-4 text-sm font-medium text-white">Add test</button>
         <button type="button" onClick={onDone} className="min-h-tap rounded-card border border-line px-4 text-sm">Cancel</button>
@@ -198,7 +198,7 @@ export function FitnessPanel() {
                     {s.best && s.history.length > 1 && s.best.id !== s.latest?.id && ` · best ${formatValue(t.measure, s.best.value, data.lengthUnit, s.best.unit ?? data.weightUnit)}`}
                   </span>
                 </span>
-                {s.latestIsBest && <span className="text-xs text-accent">New best</span>}
+                {s.latestIsBest && <span className="text-xs text-accent-text">New best</span>}
                 {imp !== undefined && !s.latestIsBest && <span className="text-xs text-muted">{imp ? 'better' : 'worse'} than last</span>}
                 <span aria-hidden className="text-muted">{isOpen ? '▾' : '▸'}</span>
               </button>

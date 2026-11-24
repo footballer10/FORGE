@@ -260,7 +260,7 @@ export function ExercisesEditor({ heading, nameLabel = 'Name', namePlaceholder, 
       <button type="button" onClick={() => setSub('pick')} className="mb-4 min-h-tap rounded-card border border-line bg-surface px-4 text-left text-base text-fg">
         Add exercise
       </button>
-      {error && <p role="alert" className="pb-2 text-sm text-accent">{error}</p>}
+      {error && <p role="alert" className="pb-2 text-sm text-accent-text">{error}</p>}
       <div className="sticky bottom-0 mt-auto bg-bg pt-4">
         <button type="button" onClick={() => void save()} className="num min-h-[56px] w-full rounded-card bg-accent text-xl font-semibold uppercase tracking-wider text-accent-fg">
           {saveLabel}

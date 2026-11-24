@@ -177,7 +177,7 @@ export function BodyweightPanel() {
           </button>
         )}
       </div>
-      {error && <p role="alert" className="mt-1 text-sm text-accent">{error}</p>}
+      {error && <p role="alert" className="mt-1 text-sm text-accent-text">{error}</p>}
 
       {rows.length > 0 && (
         <ul className="mt-3 divide-y divide-line text-sm" aria-label="Weigh-ins">

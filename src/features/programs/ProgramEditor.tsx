@@ -158,7 +158,7 @@ export function ProgramEditor({ tree, onDone }: Props) {
           <textarea className={`${input} py-2`} rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
         </label>
       )}
-      {error && <p role="alert" className="pb-2 text-sm text-accent">{error}</p>}
+      {error && <p role="alert" className="pb-2 text-sm text-accent-text">{error}</p>}
       <div className="sticky bottom-0 mt-auto bg-bg pt-4">
         <button type="button" onClick={() => void save()} className="num min-h-[56px] w-full rounded-card bg-accent text-xl font-semibold uppercase tracking-wider text-accent-fg">
           {tree ? `Save as v${tree.program.version + 1}` : 'Save program'}
