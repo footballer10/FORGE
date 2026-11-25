@@ -14,9 +14,28 @@ async function copyText(t: string): Promise<boolean> {
   }
 }
 
+const DRAFT_KEY = 'forge.proposalDraft';
+/** The pasted text survives leaving the tab or closing the app (per device; cleared on approve, reject or empty). */
+function readDraft(): string {
+  try {
+    return localStorage.getItem(DRAFT_KEY) ?? '';
+  } catch {
+    return '';
+  }
+}
+function writeDraft(t: string) {
+  try {
+    if (t) localStorage.setItem(DRAFT_KEY, t);
+    else localStorage.removeItem(DRAFT_KEY);
+  } catch {
+    /* storage unavailable: the draft just is not kept */
+  }
+}
+
 /** Paste Claude's program → validate → diff → approve or reject. Nothing is saved before approval. */
 export function ProposalPanel() {
-  const [text, setText] = useState('');
+  const [text, setText] = useState(readDraft);
+  useEffect(() => writeDraft(text), [text]);
   const [preview, setPreview] = useState<ProposalPreview | null>(null);
   const [mode, setMode] = useState<'update' | 'new'>('update');
   const [status, setStatus] = useState('');

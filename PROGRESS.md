@@ -3,6 +3,8 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
+- **Done this session (14, item 3):** unsaved-draft protection. Shared hook `components/useLeaveGuard.tsx`: the draft counts as changed once its JSON differs from its first value; Cancel then asks "Discard changes?" (Keep editing is the default) and a reload or close shows the browser warning. Used in the routine and planned-session editor (`ExercisesEditor`) and the program editor. The Claude proposal paste box keeps its text in localStorage (`forge.proposalDraft`) so it survives leaving the Coach tab or closing the app; approve, reject or clearing the box removes it. Tests (410) and build pass; the hook has no unit test (React only, tests run in node) and was not clicked through in a browser.
+- **Next session:** milestone 14, next items: kg increments in the exercise form plus unit changes converting displayed set weights (check the design with the user first; it touches stored data), then the Settings plate/bar editor and dialog focus trap. Drag-to-reorder still needs your OK for a dependency.
 - **Done this session (14, item 2):** editing a past workout now has "Edit name and times" at the top of the logging screen (`features/train/DetailsEditor.tsx`): name plus start and end pickers, saved with one button after validation (`domain/workoutDetails.ts`: name required, end after start, end not in the future; times are local wall-clock). Writes through `workoutRepo.update` at once. Tests (410) and build pass. Not opened on an iPhone (native datetime-local picker).
 - **Next session:** milestone 14, next unticked item (drag to reorder: needs a dependency, ask first, or keep buttons; so start with unsaved-draft protection in the routine, program and proposal editors).
 - **Done this session (14a + 14b, first item of milestone 14):** imported exercises get muscles and movement pattern. Pure `domain/exerciseInference.ts` `inferTraits`: copies the closest library exercise (name similarity ≥ 0.75 with equipment words and the "(Tag)" ignored), else keyword rules on the name (squat, hinge, presses, rows, pulls, curls, core, carries; first match wins), else nothing. New imports now fill muscles, pattern and unilateral at creation (a file-based pattern such as time/distance wins). For exercises already imported: Settings → "Review exercise muscles" lists every exercise with no primary muscle, each with its suggestion and the reason, ticked by default; "Apply to N exercises" writes them (`exerciseRepo.traitSuggestions` / `applyTraits`). No suggestion = listed with a note to set it in the library. Tests (407) and build pass. Not opened in a browser or on an iPhone.
@@ -251,7 +253,7 @@ Architecture (to confirm at the start of 10a):
 - [x] Imported exercises get muscles and movement pattern: infer from the matched library exercise or the name, with a bulk review screen (so they count in weekly sets and balance). (done as 14a inference + 14b review screen)
 - [x] Edit a past workout's name and start/end time.
 - [ ] Drag to reorder exercises (needs a dependency: ask first) or keep buttons.
-- [ ] Unsaved-draft protection in the routine, program and proposal editors.
+- [x] Unsaved-draft protection in the routine, program and proposal editors.
 - [ ] kg increments in the exercise form; units changes convert displayed set weights.
 - [ ] Settings: plate and bar editor; keyboard focus trap in dialogs.
 - [ ] Library classification review (e.g. Olympic lifts classed as conditioning): fix the mapper heuristics and add tests for the most common lifts.
@@ -295,13 +297,13 @@ Auto warm-up ramp from the working weight; weekly volume landmarks per muscle; p
 - Trash and undo screens live under Train → Backup & restore; there is no top-level Settings screen yet.
 - Reminder snackbar/undo bar and trash were verified in headless Chromium only; not on a device.
 - Routine editor: weight targets are a plain number in the exercise's increment unit (lb shown for all); percent-of-e1RM targets exist in the type but have no editor until 3d. Progression rule on a routine exercise is not editable yet (3d).
-- Routine editor uses up/down buttons, no drag and drop; the draft is lost if you leave the editor without saving (no unsaved-changes prompt).
+- Routine editor uses up/down buttons, no drag and drop. Leaving via Cancel asks first, but switching tabs with the bottom bar still drops the draft (the editor unmounts).
 - Trashed routines can only be restored through the undo bar (20 s / Backup screen latest entry); no Trash screen entry.
 - Routine screens were verified in headless Chromium only (create, start); not on a device.
 - Restoring a deleted workout from the Trash screen does not relink its planned session (undo does).
 - Planned sessions are linked only when the workout was started from the session; a workout logged freehand is never matched to a plan automatically.
 - Calendar loads every finished workout into memory (fine for years of personal data); heatmap and calendar were checked in headless Chromium only.
-- Program editor keeps its draft in memory only (leaving loses it); no drag and drop; scheduled dates per session are stored but have no editor.
+- Program editor keeps its draft in memory only (Cancel asks first; switching tabs loses it); no drag and drop; scheduled dates per session are stored but have no editor.
 - Program screens were verified in headless Chromium only (create, activate, version, start); not on a device.
 - Progression uses only the last session, so one bad day lowers or holds the next suggestion; a best-recent e1RM option can come with M4. `TargetSet.percentE1rm` (per-set percent) exists in the type but has no editor and is not applied; use the exercise-level % e1RM rule instead.
 - The RPE rule treats RPE as reps in reserve = 10 − RPE and Epley beyond ~12 reps is unreliable; suggestions are estimates.
