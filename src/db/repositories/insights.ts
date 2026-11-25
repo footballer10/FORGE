@@ -21,8 +21,8 @@ function readDismissed(): Set<string> {
 }
 
 export const insightsRepo = {
-  /** Up to three plain-language notes for Home. */
-  async current(): Promise<Insight[]> {
+  /** Up to three plain-language notes for Home; `all` returns every note, dismissed or not (weekly review). */
+  async current(all = false): Promise<Insight[]> {
     const data = await analyticsRepo.trainingData();
     if (!data.workouts.size) return [];
     const profile = await profileRepo.get();
@@ -42,15 +42,18 @@ export const insightsRepo = {
     }
     const target = await weeklyTarget();
     const weeks = weeklyResults([...data.workouts.values()].map((w) => ({ id: w.id, startedAt: w.startedAt })), target, today);
-    return buildInsights({
+    return buildInsights(
+      {
       today,
       unit: data.unit,
       lifts,
       sets: volumeSets(data.sets, data.exercises, data.workouts, data.metrics, data.unit),
       weeks,
       target,
-      dismissed: readDismissed(),
-    });
+      dismissed: all ? undefined : readDismissed(),
+      },
+      all ? Infinity : undefined,
+    );
   },
 
   dismiss(id: string): void {

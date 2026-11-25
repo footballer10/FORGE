@@ -103,7 +103,7 @@ function missedNotes(i: InsightInput): Insight[] {
 }
 
 /** At most `MAX_NOTES` notes, not dismissed, most useful first: missed sessions, imbalance, then the longest plateaus. */
-export function buildInsights(i: InsightInput): Insight[] {
+export function buildInsights(i: InsightInput, max = MAX_NOTES): Insight[] {
   const all = [...missedNotes(i), ...balanceNotes(i), ...plateauNotes(i)];
-  return all.filter((n) => !i.dismissed?.has(n.id)).slice(0, MAX_NOTES);
+  return all.filter((n) => !i.dismissed?.has(n.id)).slice(0, max);
 }

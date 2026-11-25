@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { ScreenHeader } from '../../components/ScreenHeader';
-import { coachRepo } from '../../db/repositories';
+import { coachRepo, insightsRepo } from '../../db/repositories';
 import { SUMMARY_RANGES } from '../../domain/coachSummary';
+import { buildWeeklyReview, REVIEW_DAYS } from '../../domain/weeklyReview';
 import { ProfileEditor } from './ProfileEditor';
 import { ProposalPanel } from './ProposalPanel';
 
@@ -23,10 +24,10 @@ export function CoachScreen() {
 
   if (editing) return <ProfileEditor onDone={() => setEditing(false)} />;
 
-  async function copy() {
+  async function copy(content = text, done = 'Copied. Paste it into a Claude chat.') {
     try {
-      await navigator.clipboard.writeText(text);
-      setStatus('Copied. Paste it into a Claude chat.');
+      await navigator.clipboard.writeText(content);
+      setStatus(done);
     } catch {
       // Clipboard API can be blocked; select the text so the user can copy by hand.
       box.current?.focus();
@@ -35,9 +36,19 @@ export function CoachScreen() {
     }
   }
 
+  async function copyReview() {
+    const [summary, notes] = await Promise.all([coachRepo.summaryText(REVIEW_DAYS), insightsRepo.current(true)]);
+    await copy(buildWeeklyReview(summary, notes), 'Weekly review copied. Paste it into a Claude chat.');
+  }
+
   return (
     <div className="pb-6">
       <ScreenHeader title="Coach" />
+      <section className="mb-4 rounded-card border border-line bg-surface p-4" aria-label="Weekly review">
+        <h2 className="font-display text-xl">Weekly review</h2>
+        <p className="mt-1 text-sm text-muted">Last 7 days plus the app's notes, with a short ask for Claude. Claude only proposes; you approve changes here.</p>
+        <button type="button" onClick={() => void copyReview()} className="mt-3 min-h-tap w-full rounded-card bg-accent px-4 font-display text-xl uppercase text-white">Copy weekly review</button>
+      </section>
       <section className="rounded-card border border-line bg-surface p-4" aria-label="Summary for Claude">
         <h2 className="font-display text-xl">Copy for Claude</h2>
         <p className="mt-1 text-sm text-muted">Paste it into a Claude chat. Claude only proposes; you approve changes here.</p>

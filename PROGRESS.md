@@ -3,6 +3,8 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
+- **Done this session (12a + 12b, milestone 12 complete):** `domain/insights.ts` turns existing analytics into one-sentence notes with the numbers: missed week (last week's days vs planned), imbalance (push:pull, squat:hinge over 4 weeks, reusing `balanceChecks`; 'Pulling volume is low' for push-heavy), plateau (no e1RM gain in 6 weeks, reusing `detectPlateau`). Home shows at most 3 under the status line (`InsightNotes`): tap a note for the rule and inputs, × dismisses it. Dismissals are ids kept in localStorage on the device; ids include the lift's last-gain date or the week, so a note can return when the situation changes. 12b: Coach has a 'Copy weekly review' button: a short ask for Claude, all current notes with their rules, then the 7-day summary (`domain/weeklyReview.ts`). Tests (392) and build pass. Not opened in a browser or on an iPhone.
+- **Next session:** milestone 13 (fitness-test countdown), then 14. Still open: deploy the Worker, sync once, add the connector (docs/connector.md) and report what happens.
 - **Done this session (11c, milestone 11 complete):** "+ Warm-ups" button on barbell exercises that have a working weight and no warm-ups yet. Pure `domain/warmup.ts` `buildWarmups`: empty bar × 10, then 50% × 5, 70% × 3, 85% × 1 of the first working weight, each rounded down to what the plates can load (plate calculator logic), duplicates and steps at or above the work weight dropped. Warm-ups are inserted before the working sets (`workoutRepo.insertWarmups`); bar and plates come from the exercise, the equipment profile, else 45 lb and a standard plate set. Tests (383) and build pass.
 - **Next session:** milestone 12 (plain-language insights), then 13, 14. Still open: deploy the Worker, sync once, add the connector (docs/connector.md) and report what happens.
 - **Done this session (11b):** logging screen shows a "Suggested 140 lb × 8 · tap to fill" chip on exercises started from a routine or program that has a progression rule; one tap fills the next open working set (weight, unit, reps when the rule sets them), and the one-line reason (formula and inputs) sits under it. Chip disappears when no working set is open. New `WorkoutExercise.suggested` (numbers); `progressionNote` now holds only the reason. `suggestionTarget` in `domain/logging.ts`, `fillSuggested` in the workout store, tests added. Tests (378) and build pass.
@@ -23,6 +25,7 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - **Known issues:** see bottom.
 
 ## Decisions (defaults chosen; change by asking)
+- Insights (12a): max 3 notes on Home, order missed week, imbalance, plateaus (longest first). Dismissed note ids live in localStorage, not the database (display preference; no sync or schema change). 'Missed' ignores long breaks (nothing the week before). Weekly review (12b) copies from Coach; the connector path is separate and unchanged.
 - Hosting: Cloudflare Pages, Vite `base: '/'`.
 - Week starts Monday.
 - Strong dumbbells logged as pair totals → import halves by default.
@@ -228,8 +231,8 @@ Architecture (to confirm at the start of 10a):
 - Model: Sonnet, medium.
 
 ## Milestone 12 — Plain-language insights (tell the user what to do)
-- [ ] 12a: Rules that turn the existing analytics into one-sentence notes with the numbers behind them (plateau, low pulling volume, imbalance, missed sessions). Pure + tests; shown as at most 3 notes on Home under the status line, dismissible.
-- [ ] 12b: Weekly review text the user can send to Claude (or Claude pulls via the connector once M10 exists).
+- [x] 12a (done): Rules that turn the existing analytics into one-sentence notes with the numbers behind them (plateau, low pulling volume, imbalance, missed sessions). Pure + tests; shown as at most 3 notes on Home under the status line, dismissible.
+- [x] 12b (done, milestone 12 complete): Weekly review text the user can send to Claude (or Claude pulls via the connector once M10 exists).
 - Model: Opus for the rules, medium effort.
 
 ## Milestone 13 — Fitness-test countdown (service academy and rugby)
