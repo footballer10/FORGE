@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useLeaveGuard } from '../../components/useLeaveGuard';
 import { exerciseRepo, routineRepo } from '../../db/repositories';
 import { moveItem } from '../../domain/order';
 import { defaultTarget, describeTargets, sanitizeExercises } from '../../domain/routine';
@@ -67,6 +68,7 @@ export function ExercisesEditor({ heading, nameLabel = 'Name', namePlaceholder, 
   const [byId, setById] = useState<Map<ID, Exercise>>(new Map());
   const [sub, setSub] = useState<'none' | 'pick' | 'create'>('none');
   const [error, setError] = useState('');
+  const guard = useLeaveGuard({ name, notes, items }, onCancel);
 
   useEffect(() => {
     void exerciseRepo.list().then((list) => setById(new Map(list.map((e) => [e.id, e]))));
@@ -119,9 +121,10 @@ export function ExercisesEditor({ heading, nameLabel = 'Name', namePlaceholder, 
 
   return (
     <div className="flex min-h-full flex-col pb-6">
+      {guard.dialog}
       <div className="flex items-baseline justify-between pb-3 pt-6">
         <h1 className="text-4xl uppercase">{heading}</h1>
-        <button type="button" onClick={onCancel} className="min-h-tap px-2 text-sm text-muted">Cancel</button>
+        <button type="button" onClick={guard.requestLeave} className="min-h-tap px-2 text-sm text-muted">Cancel</button>
       </div>
       <label className="flex flex-col gap-1 pb-3 text-sm text-muted">
         {nameLabel}

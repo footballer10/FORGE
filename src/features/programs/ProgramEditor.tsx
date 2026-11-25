@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLeaveGuard } from '../../components/useLeaveGuard';
 import { programRepo } from '../../db/repositories';
 import { moveItem } from '../../domain/order';
 import { duplicateWeek, emptySession, emptyWeek, treeToDraft, weekLabel, type DraftSession, type DraftWeek, type ProgramTree } from '../../domain/program';
@@ -28,6 +29,7 @@ export function ProgramEditor({ tree, onDone }: Props) {
   const [reason, setReason] = useState('');
   const [error, setError] = useState('');
   const [editing, setEditing] = useState<{ week: number; session: number } | null>(null);
+  const guard = useLeaveGuard({ name, description, days, start, weeks, reason }, () => onDone());
 
   const patchWeek = (wi: number, patch: Partial<DraftWeek>) => setWeeks((cur) => cur.map((w, i) => (i === wi ? { ...w, ...patch } : w)));
   const patchSession = (wi: number, si: number, patch: Partial<DraftSession>) =>
@@ -78,9 +80,10 @@ export function ProgramEditor({ tree, onDone }: Props) {
 
   return (
     <div className="flex min-h-full flex-col pb-6">
+      {guard.dialog}
       <div className="flex items-baseline justify-between pb-3 pt-6">
         <h1 className="text-4xl uppercase">{tree ? `Edit v${tree.program.version}` : 'New program'}</h1>
-        <button type="button" onClick={() => onDone()} className="min-h-tap px-2 text-sm text-muted">Cancel</button>
+        <button type="button" onClick={guard.requestLeave} className="min-h-tap px-2 text-sm text-muted">Cancel</button>
       </div>
       <label className="flex flex-col gap-1 pb-3 text-sm text-muted">
         Name
