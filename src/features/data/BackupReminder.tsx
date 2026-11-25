@@ -25,21 +25,19 @@ export function BackupReminder({ onOpen }: { onOpen: () => void }) {
 
   if (days === undefined) return null;
   return (
-    <div className="mb-4 flex flex-col gap-2 rounded-card border border-line bg-surface p-4">
-      <p className="text-base text-fg">{days === null ? 'No backup yet.' : `Last backup ${days} days ago.`} Save one so a lost phone does not lose your training.</p>
-      <div className="flex gap-2">
-        <button type="button" onClick={onOpen} className="num min-h-tap flex-1 rounded-card bg-accent text-base font-semibold uppercase tracking-wider text-accent-fg">Back up</button>
-        <button
-          type="button"
-          onClick={() => {
-            void metaRepo.set('backupSnoozedUntil', new Date(Date.now() + 86_400_000).toISOString());
-            setDays(undefined);
-          }}
-          className="min-h-tap flex-1 rounded-card border border-line text-base text-fg"
-        >
-          Later
-        </button>
-      </div>
+    <div className="mb-3 flex items-center gap-2 rounded-card border border-line bg-surface px-3 py-2">
+      <p className="flex-1 text-sm text-fg">{days === null ? 'No backup yet' : `Last backup ${days} days ago`}</p>
+      <button type="button" onClick={onOpen} className="num min-h-tap rounded-card bg-accent px-4 text-sm font-semibold uppercase tracking-wider text-accent-fg">Back up</button>
+      <button
+        type="button"
+        onClick={() => {
+          void metaRepo.set('backupSnoozedUntil', new Date(Date.now() + 86_400_000).toISOString());
+          setDays(undefined);
+        }}
+        className="min-h-tap px-2 text-sm text-muted"
+      >
+        Later
+      </button>
     </div>
   );
 }
