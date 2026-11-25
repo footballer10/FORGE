@@ -379,6 +379,31 @@ export interface EquipmentProfile {
 
 export type E1rmFormula = 'epley' | 'brzycki' | 'lombardi' | 'mayhew' | 'oconner' | 'wathan';
 
+/** One logged food or meal. Totals for a day are the sum of its entries. */
+export interface NutritionEntry extends BaseEntity {
+  date: ISODate;
+  name?: string;
+  calories: number;
+  proteinG?: number;
+  carbsG?: number;
+  fatG?: number;
+}
+
+/** A food the user eats often, one tap to add. */
+export interface SavedFood extends BaseEntity {
+  name: string;
+  calories: number;
+  proteinG?: number;
+  carbsG?: number;
+  fatG?: number;
+}
+
+/** Daily targets the user typed; the app never invents them. */
+export interface NutritionTargets {
+  calories?: number;
+  proteinG?: number;
+}
+
 export interface Profile extends BaseEntity {
   /** Singleton: always 'me'. */
   id: 'me';
@@ -409,6 +434,7 @@ export interface Profile extends BaseEntity {
   /** Editable bodyweight-relative tier standards per exercise. */
   strengthStandards: StrengthStandard[];
   lastBackupAt?: ISODateTime;
+  nutritionTargets?: NutritionTargets;
 }
 
 export type StrengthTier = 'beginner' | 'novice' | 'intermediate' | 'advanced' | 'elite';

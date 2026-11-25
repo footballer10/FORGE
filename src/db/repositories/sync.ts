@@ -14,7 +14,7 @@ import { db } from '../schema';
 export const SYNC_TABLES = [
   'exercises', 'workouts', 'workoutExercises', 'sets', 'routines', 'programs', 'programWeeks',
   'plannedSessions', 'bodyMetrics', 'fitnessTests', 'testResults', 'readiness', 'profile',
-  'importBatches', 'achievements', 'aiDecisions',
+  'importBatches', 'achievements', 'aiDecisions', 'nutritionEntries', 'savedFoods',
 ] as const;
 
 export const PUSH_BATCH = 200;

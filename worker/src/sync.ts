@@ -42,6 +42,8 @@ export const SYNCED_TABLES = [
   'importBatches',
   'achievements',
   'aiDecisions',
+  'nutritionEntries',
+  'savedFoods',
 ] as const;
 export type SyncedTable = (typeof SYNCED_TABLES)[number];
 
