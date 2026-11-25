@@ -13,15 +13,17 @@ All `/api/sync/*` calls need `Authorization: Bearer <SYNC_TOKEN>`. `GET /api/hea
 - `GET /api/sync/pull?since=<cursor>&limit=<n>` returns `{ rows: [{ table, row, seq }], cursor, more }` in change order, max 500 per page. Keep pulling while `more` is true, then store `cursor`.
 - Deletes are soft deletes (`deletedAt`), synced like any row.
 
-## Deploy (one time, from a computer with Node)
-1. `npx wrangler login`
-2. `npx wrangler d1 create forge` and paste the `database_id` into `worker/wrangler.toml`.
-3. `npx wrangler d1 execute forge --remote --file=worker/schema.sql`
-4. `cd worker && npx wrangler secret put SYNC_TOKEN` (a long random string, at least 16 characters; the Worker refuses shorter ones). Generate one with `openssl rand -base64 32`.
-5. `cd worker && npx wrangler deploy` and note the `*.workers.dev` URL.
-6. Check: `curl https://<worker-url>/api/health` returns `{"ok":true}`.
+## Deploy (one time, from a computer with Node 20+)
+Run everything from the `worker` folder of the repo (after `npm install` in the repo root).
+1. `cd worker`
+2. `npx wrangler login` (opens a browser; sign in to Cloudflare)
+3. `npx wrangler d1 create forge`, then paste the `database_id` it prints into `wrangler.toml`.
+4. `npx wrangler d1 execute forge --remote --file=schema.sql`
+5. `npx wrangler secret put SYNC_TOKEN` and paste a long random string (at least 16 characters; the Worker refuses shorter ones). Make one with `openssl rand -base64 32`.
+6. `npx wrangler deploy` and note the `*.workers.dev` URL.
+7. Check: open `https://<worker-url>/api/health` in a browser. It should show `{"ok":true}`.
 
-Keep the token private. If it leaks, run step 4 again with a new value.
+Keep the token private. If it leaks, run step 5 again with a new value.
 
 ## Connect Claude (10c)
 After deploying and syncing from the app at least once:
