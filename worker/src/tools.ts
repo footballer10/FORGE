@@ -6,8 +6,9 @@
 import { estimate1rm, formulaInfo } from '../../src/domain/e1rm';
 import { effectiveLoad, isAnalyticSet } from '../../src/domain/load';
 import { volumeSets, weeklyTotals } from '../../src/domain/volume';
+import { extractJson, proposalExerciseNames, validateProposal } from '../../src/domain/programProposal';
 import type {
-  BodyMetric, Exercise, PlannedSession, Profile, Program, ProgramWeek, SetEntry, Workout, WorkoutExercise,
+  AiDecision, BodyMetric, Exercise, PlannedSession, Profile, Program, ProgramWeek, SetEntry, Workout, WorkoutExercise,
 } from '../../src/domain/types';
 
 export interface Data {
@@ -20,6 +21,7 @@ export interface Data {
   programWeeks: ProgramWeek[];
   plannedSessions: PlannedSession[];
   bodyMetrics: BodyMetric[];
+  aiDecisions: AiDecision[];
 }
 
 const day = (iso: string) => iso.slice(0, 10); // UTC day: the Worker has no time zone
@@ -165,4 +167,42 @@ export function getBodyweight(d: Data, limit = 30) {
       .slice(0, Math.min(Math.max(limit, 1), 200))
       .map((m) => ({ date: m.date, value: m.value, unit: m.unit })),
   };
+}
+
+export const MAX_PENDING_PROPOSALS = 5;
+export const MAX_PROPOSAL_CHARS = 100_000;
+
+/**
+ * Turn a proposal from Claude into an `aiDecisions` row with status `proposed`. This is the ONLY
+ * thing the connector can write: it never touches programs, workouts or any training data.
+ * The app shows the row in Coach and applies nothing until the user approves it there.
+ */
+export function buildProposalRow(
+  d: Data, raw: unknown, now: string, id: string,
+): { error: string } | { row: AiDecision & { id: string } } {
+  const payload = typeof raw === 'string' ? raw : JSON.stringify(raw);
+  if (!payload || payload.length > MAX_PROPOSAL_CHARS) return { error: `Proposal is empty or longer than ${MAX_PROPOSAL_CHARS} characters.` };
+  const json = typeof raw === 'string' ? extractJson(raw) : { value: raw };
+  if (json.error) return { error: json.error };
+  const { proposal, errors } = validateProposal(json.value);
+  if (!proposal) return { error: `The proposal is not valid:\n- ${errors.slice(0, 12).join('\n- ')}` };
+  const known = new Set(d.exercises.filter((e) => !e.deletedAt).flatMap((e) => [e.name, ...e.aliases].map((n) => n.trim().toLowerCase())));
+  const missing = proposalExerciseNames(proposal).filter((n) => !known.has(n.trim().toLowerCase()));
+  if (missing.length) return { error: `These exercises are not in the user's library: ${[...new Set(missing)].join(', ')}. Use list_exercises and pick existing names.` };
+  const pending = d.aiDecisions.filter((x) => !x.deletedAt && x.status === 'proposed').length;
+  if (pending >= MAX_PENDING_PROPOSALS) return { error: `${pending} proposals are already waiting for the user's decision. Ask them to review those first.` };
+  return {
+    row: {
+      id, createdAt: now, updatedAt: now, date: now, status: 'proposed',
+      summary: `${proposal.name}: proposed by Claude`, reason: proposal.reason, payload: JSON.stringify(json.value),
+    },
+  };
+}
+
+export function listProposals(d: Data, limit = 10) {
+  return d.aiDecisions
+    .filter((x) => !x.deletedAt)
+    .sort((a, b) => (a.date < b.date ? 1 : -1))
+    .slice(0, Math.min(Math.max(limit, 1), 30))
+    .map((x) => ({ date: day(x.date), status: x.status, summary: x.summary, reason: x.reason }));
 }

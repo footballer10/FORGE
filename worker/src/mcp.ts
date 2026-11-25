@@ -7,7 +7,8 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { z } from 'zod';
 import type { D1Like, Env } from './sync';
-import { safeEqual } from './sync';
+import { safeEqual, upsertRows } from './sync';
+import { PROGRAM_FORMAT_PROMPT } from '../../src/domain/programProposal';
 import * as T from './tools';
 import type { Data } from './tools';
 
@@ -17,14 +18,14 @@ async function readTable<R>(db: D1Like, table: string): Promise<R[]> {
 }
 
 export async function loadData(db: D1Like): Promise<Data> {
-  const [profiles, exercises, workouts, workoutExercises, sets, programs, programWeeks, plannedSessions, bodyMetrics] = await Promise.all([
+  const [profiles, exercises, workouts, workoutExercises, sets, programs, programWeeks, plannedSessions, bodyMetrics, aiDecisions] = await Promise.all([
     readTable<Data['profile'] & object>(db, 'profile'), readTable<Data['exercises'][number]>(db, 'exercises'),
     readTable<Data['workouts'][number]>(db, 'workouts'), readTable<Data['workoutExercises'][number]>(db, 'workoutExercises'),
     readTable<Data['sets'][number]>(db, 'sets'), readTable<Data['programs'][number]>(db, 'programs'),
     readTable<Data['programWeeks'][number]>(db, 'programWeeks'), readTable<Data['plannedSessions'][number]>(db, 'plannedSessions'),
-    readTable<Data['bodyMetrics'][number]>(db, 'bodyMetrics'),
+    readTable<Data['bodyMetrics'][number]>(db, 'bodyMetrics'), readTable<Data['aiDecisions'][number]>(db, 'aiDecisions'),
   ]);
-  return { profile: profiles[0], exercises, workouts, workoutExercises, sets, programs, programWeeks, plannedSessions, bodyMetrics };
+  return { profile: profiles[0], exercises, workouts, workoutExercises, sets, programs, programWeeks, plannedSessions, bodyMetrics, aiDecisions };
 }
 
 const text = (value: unknown) => ({ content: [{ type: 'text' as const, text: JSON.stringify(value, null, 1) }] });
@@ -44,6 +45,23 @@ export function buildServer(db: D1Like): McpServer {
   tool('get_weekly_sets', 'Weekly hard sets per muscle (primary 1 credit, secondary 0.5), oldest week first.', { weeks: z.number().int().min(1).max(26).optional() }, (d, a) => T.getWeeklySets(d, a.weeks));
   tool('get_active_program', 'The active training program: weeks, sessions and exercise targets.', {}, (d) => T.getActiveProgram(d));
   tool('get_bodyweight', 'Bodyweight entries, newest first.', { limit: z.number().int().min(1).max(200).optional() }, (d, a) => T.getBodyweight(d, a.limit));
+  tool('get_proposals', 'Your past program proposals and what the user decided (proposed, approved, rejected).', { limit: z.number().int().min(1).max(30).optional() }, (d, a) => T.listProposals(d, a.limit));
+
+  // The only write: a proposal the user must approve in the Forge app. Nothing about their training changes here.
+  server.registerTool(
+    'propose_program',
+    {
+      description: `Propose a training program (or a revised version of the active one) to the user. This does NOT change their training: it adds a proposal to the Coach tab in the Forge app, where the user reviews a diff and approves or rejects it. Use only exercise names from list_exercises. ${PROGRAM_FORMAT_PROMPT}`,
+      inputSchema: { proposal: z.union([z.string(), z.record(z.string(), z.unknown())]).describe('The program JSON object (or a JSON string).') },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+    },
+    (async (args: { proposal: unknown }) => {
+      const result = T.buildProposalRow(await loadData(db), args.proposal, new Date().toISOString(), crypto.randomUUID());
+      if ('error' in result) return { isError: true, content: [{ type: 'text' as const, text: result.error }] };
+      await upsertRows(db, [{ table: 'aiDecisions', row: { ...result.row } }]);
+      return text({ status: 'proposed', message: 'Saved. The user will see it in the Coach tab in Forge after their next sync and must approve it there. Nothing has changed in their training.' });
+    }) as never,
+  );
   return server;
 }
 

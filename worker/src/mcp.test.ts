@@ -48,16 +48,16 @@ describe('MCP endpoint', () => {
   it('accepts the token as a Bearer header and lists the read tools', async () => {
     const res = await rpc('/mcp', { jsonrpc: '2.0', id: 1, method: 'tools/list' }, { authorization: `Bearer ${TOKEN}` });
     const names = (await res!.json()).result.tools.map((t: { name: string; annotations: { readOnlyHint: boolean } }) => {
-      expect(t.annotations.readOnlyHint).toBe(true);
+      if (t.name !== 'propose_program') expect(t.annotations.readOnlyHint).toBe(true);
       return t.name;
     });
-    expect(names).toEqual(['get_profile', 'list_exercises', 'list_workouts', 'get_exercise_history', 'get_weekly_sets', 'get_active_program', 'get_bodyweight']);
+    expect(names.filter((n: string) => n !== 'propose_program')).toEqual(['get_profile', 'list_exercises', 'list_workouts', 'get_exercise_history', 'get_weekly_sets', 'get_active_program', 'get_bodyweight', 'get_proposals']);
   });
 
-  it('has no write tools', async () => {
+  it('the only write tool is propose_program', async () => {
     const res = await rpc(`/mcp/${TOKEN}`, { jsonrpc: '2.0', id: 1, method: 'tools/list' });
-    const names: string[] = (await res!.json()).result.tools.map((t: { name: string }) => t.name);
-    expect(names.filter((n) => /propose|create|update|delete|write|set_/.test(n))).toEqual([]);
+    const tools: { name: string; annotations: { readOnlyHint: boolean } }[] = (await res!.json()).result.tools;
+    expect(tools.filter((t) => !t.annotations.readOnlyHint).map((t) => t.name)).toEqual(['propose_program']);
   });
 });
 
@@ -92,5 +92,62 @@ describe('tools over MCP', () => {
   it('list_exercises searches by name', async () => {
     const out = await callTool('list_exercises', { query: 'bench' });
     expect(out.map((e: { name: string }) => e.name)).toEqual(['Bench Press']);
+  });
+});
+
+const proposal = (exercise = 'Squat', extra = {}) => ({
+  schemaVersion: 1, name: 'Strength block', reason: 'Squat e1RM stalled at 270 lb for 6 weeks', daysPerWeek: 3,
+  weeks: [{ sessions: [{ name: 'Lower A', exercises: [{ exercise, sets: [{ count: 4, reps: 5, weight: 225 }] }] }] }], ...extra,
+});
+const rawCall = async (name: string, args: object) => {
+  const res = await rpc(`/mcp/${TOKEN}`, { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } });
+  return (await res!.json()).result as { isError?: boolean; content: { text: string }[] };
+};
+const rowCount = async (table: string) =>
+  (await env.DB.prepare('SELECT COUNT(*) AS n FROM rows WHERE table_name = ?').bind(table).all<{ n: number }>()).results![0]!.n;
+
+describe('propose_program', () => {
+  it('stores a proposed decision and changes nothing else', async () => {
+    const before = { programs: await rowCount('programs'), workouts: await rowCount('workouts'), sets: await rowCount('sets') };
+    const res = await rawCall('propose_program', { proposal: proposal() });
+    expect(res.isError).toBeFalsy();
+    expect(JSON.parse(res.content[0]!.text).status).toBe('proposed');
+    const pulled = await (await handleRequest(new Request('https://f.test/api/sync/pull?since=0', { headers: { authorization: `Bearer ${TOKEN}` } }), env)).json();
+    const rows = pulled.rows.filter((r: { table: string }) => r.table === 'aiDecisions');
+    expect(rows).toHaveLength(1);
+    expect(rows[0].row).toMatchObject({ status: 'proposed', reason: 'Squat e1RM stalled at 270 lb for 6 weeks' });
+    expect(JSON.parse(rows[0].row.payload).name).toBe('Strength block');
+    expect({ programs: await rowCount('programs'), workouts: await rowCount('workouts'), sets: await rowCount('sets') }).toEqual(before);
+    expect((await callTool('get_proposals'))[0]).toMatchObject({ status: 'proposed' });
+  });
+
+  it('accepts the proposal as a JSON string', async () => {
+    expect((await rawCall('propose_program', { proposal: '```json\n' + JSON.stringify(proposal()) + '\n```' })).isError).toBeFalsy();
+  });
+
+  it('rejects invalid proposals with a useful message and stores nothing', async () => {
+    const bad = await rawCall('propose_program', { proposal: { name: 'x' } });
+    expect(bad.isError).toBe(true);
+    expect(bad.content[0]!.text).toMatch(/not valid/);
+    expect(await rowCount('aiDecisions')).toBe(0);
+  });
+
+  it('rejects exercises that are not in the library', async () => {
+    const res = await rawCall('propose_program', { proposal: proposal('Zercher Squat') });
+    expect(res.isError).toBe(true);
+    expect(res.content[0]!.text).toMatch(/Zercher Squat/);
+    expect(await rowCount('aiDecisions')).toBe(0);
+  });
+
+  it('limits how many proposals can wait at once', async () => {
+    for (let i = 0; i < 5; i++) expect((await rawCall('propose_program', { proposal: proposal() })).isError).toBeFalsy();
+    const sixth = await rawCall('propose_program', { proposal: proposal() });
+    expect(sixth.isError).toBe(true);
+    expect(sixth.content[0]!.text).toMatch(/already waiting/);
+  });
+
+  it('needs the token', async () => {
+    const res = await rpc('/mcp/wrong-token-wrong-token', { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'propose_program', arguments: { proposal: proposal() } } });
+    expect(res!.status).toBe(401);
   });
 });

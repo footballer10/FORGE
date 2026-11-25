@@ -98,4 +98,26 @@ describe('coachRepo proposals', () => {
     expect(b.status).toBe('draft');
     expect((await programRepo.listLatest()).length).toBe(2);
   });
+
+  it('inbox proposals from Claude: pending list, approve updates the same decision, nothing is applied before approval', async () => {
+    await exerciseRepo.create(ex);
+    const { aiDecisionRepo } = await import('./index');
+    const mk = (payload: string) => aiDecisionRepo.create({ date: new Date().toISOString(), summary: 'Block: proposed by Claude', reason: 'why', status: 'proposed', payload });
+    const a = await mk(prop(5));
+    const b = await mk(prop(3));
+    await aiDecisionRepo.create({ date: new Date().toISOString(), summary: 'old', reason: 'r', status: 'approved', payload: prop(5) });
+    expect((await coachRepo.pendingProposals()).map((d) => d.id).sort()).toEqual([a.id, b.id].sort());
+    expect(await db.programs.count()).toBe(0); // proposed means nothing applied
+
+    const preview = await coachRepo.prepareProposal(a.payload!);
+    const program = await coachRepo.approveProposal(preview, 'new', a.payload!, a.id);
+    const row = await aiDecisionRepo.get(a.id);
+    expect(row).toMatchObject({ status: 'approved', programId: program.id, programVersion: 1 });
+    expect(await db.aiDecisions.count()).toBe(3); // no duplicate decision logged
+
+    await coachRepo.dismissProposal(b.id);
+    expect((await aiDecisionRepo.get(b.id))!.status).toBe('rejected');
+    expect(await coachRepo.pendingProposals()).toEqual([]);
+    expect(await db.programs.count()).toBe(1);
+  });
 });

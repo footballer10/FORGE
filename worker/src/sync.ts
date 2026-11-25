@@ -118,6 +118,20 @@ async function currentCursor(db: D1Like): Promise<number> {
   return res.results?.[0]?.seq ?? 0;
 }
 
+/** Write rows with the last-writer-wins rule; returns how many were stored. */
+export async function upsertRows(db: D1Like, rows: { table: string; row: SyncRow }[]): Promise<number> {
+  if (!rows.length) return 0;
+  const upsert = `INSERT INTO rows (table_name, id, updated_at, deleted_at, data, seq)
+    VALUES (?, ?, ?, ?, ?, (SELECT COALESCE(MAX(seq), 0) + 1 FROM rows))
+    ON CONFLICT (table_name, id) DO UPDATE SET
+      updated_at = excluded.updated_at, deleted_at = excluded.deleted_at, data = excluded.data, seq = excluded.seq
+    WHERE excluded.updated_at > rows.updated_at`;
+  const results = await db.batch(
+    rows.map(({ table, row }) => db.prepare(upsert).bind(table, row.id, row.updatedAt, row.deletedAt ?? null, JSON.stringify(row))),
+  );
+  return results.reduce((n, r) => n + ((r.meta?.changes ?? 0) > 0 ? 1 : 0), 0);
+}
+
 export async function handlePush(db: D1Like, body: unknown): Promise<Response> {
   const rows = (body as PushBody | null)?.rows;
   if (!Array.isArray(rows)) return fail(400, 'Body must be { rows: [...] }');
@@ -126,16 +140,7 @@ export async function handlePush(db: D1Like, body: unknown): Promise<Response> {
     const problem = validateRow(item?.table, item?.row);
     if (problem) return fail(400, problem);
   }
-  const upsert = `INSERT INTO rows (table_name, id, updated_at, deleted_at, data, seq)
-    VALUES (?, ?, ?, ?, ?, (SELECT COALESCE(MAX(seq), 0) + 1 FROM rows))
-    ON CONFLICT (table_name, id) DO UPDATE SET
-      updated_at = excluded.updated_at, deleted_at = excluded.deleted_at, data = excluded.data, seq = excluded.seq
-    WHERE excluded.updated_at > rows.updated_at`;
-  const statements = rows.map(({ table, row }) =>
-    db.prepare(upsert).bind(table, row.id, row.updatedAt, row.deletedAt ?? null, JSON.stringify(row)),
-  );
-  const results = statements.length ? await db.batch(statements) : [];
-  const accepted = results.reduce((n, r) => n + ((r.meta?.changes ?? 0) > 0 ? 1 : 0), 0);
+  const accepted = await upsertRows(db, rows);
   const out: PushResponse = { accepted, skipped: rows.length - accepted, cursor: await currentCursor(db) };
   return json(out);
 }
