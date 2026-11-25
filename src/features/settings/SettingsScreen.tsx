@@ -53,6 +53,7 @@ export function SettingsScreen() {
       <section className="flex flex-col gap-2" aria-label="Library and data">
         {([
           ['library', 'Exercise library', 'Browse, edit or add exercises'],
+          ['review', 'Review exercise muscles', 'Fill in muscles for imported exercises'],
           ['import', 'Import from Strong', 'Bring in your workout history'],
           ['data', 'Backup and restore', 'Export, restore, trash and undo'],
         ] as const).map(([kind, title, detail]) => (
