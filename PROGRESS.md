@@ -3,10 +3,11 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
-- **Done this session (information diet, 9a):** Home, Train, Strength, Progress and Coach simplified (see Decisions). Train went from about 7,400 px of scrolling to one screen with sample data. Tests (326) and build pass.
+- **Done this session (9b, milestone 9 complete):** per-exercise page rebuilt: header with best e1RM and PR badges (PRs from the last 30 days, max 3), ONE chart with range pills (1M/3M/6M/1Y/All, default 6M) and the formula named under it (compact formula select kept), segments History (working sets per workout, warm-ups counted not listed, 10 then Show more), Records (best load at exactly 1/3/5/8/10 reps with dates) and Volume (per workout). Helpers in `domain/exerciseHistory.ts` with tests. The old PR timeline list is gone (badges + Records replace it). Tests (330) and build pass. Not yet seen on a phone or with real data in a browser.
+- **Done earlier (information diet, 9a):** Home, Train, Strength, Progress and Coach simplified (see Decisions). Train went from about 7,400 px of scrolling to one screen with sample data. Tests (326) and build pass.
 - **Done earlier (post-M8 tweaks):** rest timer after every set incl. warm-ups; rest alarm as locked-screen-safe audio with a Settings option and test button; logging screen declutter (collapsed exercise cards, folded warm-ups). Tests and build pass. Open requests: rework of the Strength tab (user dislikes it; waiting for specifics) and a built-in Claude (decision pending, see chat).
 - **Previous session:** Milestone 8b (milestone 8 code complete): tab screens lazy-loaded and Recharts split into its own chunk (entry bundle 923 kB to 277 kB, no size warning); real F icons (rounded, maskable, Apple touch); install-to-Home-Screen help in Settings; offline check passed in headless Chromium (reload offline, lazy tabs load); accessibility pass (lighter `accent-text` token so red text reaches 5:1 on dark, focus-visible ring, Escape closes the confirm dialog; muted text already 5.2:1 or better); Cloudflare Pages config (`public/_headers`) and `docs/deploy.md`. Tests (311) and build pass.
-- **Next session:** Milestone 9b (per-exercise page), then 11 (Today), then 10 (connector + sync, needs the Cloudflare deploy first), then 12, 13, 14. Before that: the Cloudflare Pages deploy is a user step (needs the user's Cloudflare account): follow `docs/deploy.md`. After that, the first real-device pass (iPhone): Strong import with the real file, offline, backup share sheet, photos.
+- **Next session:** Milestone 11a (Today: next-up session), then 11b, 11c, then 10 (connector + sync, needs the Cloudflare deploy first), then 12, 13, 14. Before that: the Cloudflare Pages deploy is a user step (needs the user's Cloudflare account): follow `docs/deploy.md`. After that, the first real-device pass (iPhone): Strong import with the real file, offline, backup share sheet, photos.
 - **Known issues:** see bottom.
 
 ## Decisions (defaults chosen; change by asking)
@@ -190,7 +191,7 @@ Design (agreed in chat 2026-11-25):
 - Score, tiers, body map, weekly sets per muscle, balance and plateau move off the main screen into an opt-in "Insights" screen (button in the header). Nothing is deleted. Score and tiers are hidden until the user sets them up. Note for the session: the tier thresholds are the app's own rough multiples, not from a dataset; say so on the screen and ask the user what felt off before changing the formulas.
 - Tasks:
   - [x] 9a (done 2026-11-25): information-diet pass modelled on Strong/Hevy. Home = status line + History (short rows, tap to open). Train = Start workout + Program + Routines only. Strength = plain list of lifts (e1RM, 4-week change) with Insights behind a button. Progress = 4-row menu, each on its own screen. Coach = one Copy button, preview hidden. Library, Import and Backup moved to Settings.
-  - [ ] 9b: per-exercise page: header with current e1RM and PR badges; ONE chart; segments History (workout by workout, working sets only), Records (best weight at 1, 3, 5, 8, 10 reps with dates), Volume (per workout). Trim `ExerciseStrength.tsx` to match.
+  - [x] 9b (done 2026-11-25): per-exercise page: header with current e1RM and PR badges; ONE chart; segments History (workout by workout, working sets only), Records (best weight at 1, 3, 5, 8, 10 reps with dates), Volume (per workout). Trim `ExerciseStrength.tsx` to match.
 - Suggested model: Sonnet, medium effort. Verify on the phone: chart readability at iPhone width.
 
 ## Milestone 10 — Claude connector + cloud sync (user chose this over an in-app chat; free, uses the Claude Pro plan)
@@ -239,6 +240,7 @@ Architecture (to confirm at the start of 10a):
 Auto warm-up ramp from the working weight; weekly volume landmarks per muscle; program library (5/3/1, linear progression) as importable JSON; muscle recovery view; Claude "what should I train today" proposals (after M10); beep-test and interval timers; light nutrition (daily calories and protein plus bodyweight trend to estimate maintenance); detailed set-by-set export for Claude (superseded by M10).
 
 ## Known issues
+- Exercise page (9b): typechecked, unit-tested and built, not opened in a browser or on an iPhone; check chart readability and the three segments at phone width. Records use exact rep counts only (a heavier 5 does not fill the 3-rep row). Badges show PRs from the last 30 days (constant). The Insights tier thresholds remain the app's own rough multiples: ask the user what felt off before changing them.
 - Settings (8a) has no plate or bar editor; those stay in Coach → Training profile (Settings points there). The pair-total toggle also remains on the Train home.
 - Editing a past workout changes its sets but not its start/end times or name (no editor for those yet).
 - Superset rounds are not enforced or visually sequenced; supersets only affect when the rest timer starts.
