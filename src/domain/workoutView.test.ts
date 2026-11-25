@@ -31,6 +31,7 @@ describe('setProgress and summary', () => {
   it('summarises for a collapsed card', () => {
     expect(collapsedSummary(sets, 'total', 'lb')).toBe('2/3 sets · 225 lb × 3');
     expect(collapsedSummary([s({})], 'total', 'lb')).toBe('0/1 sets');
+    expect(collapsedSummary([s({ type: 'warmup', completedAt: done }), s({ type: 'warmup' })], 'total', 'lb')).toBe('1/2 warm-up');
   });
 });
 

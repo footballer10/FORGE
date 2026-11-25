@@ -5,6 +5,7 @@ import { convertWeight } from '../../domain/units';
 import { displayWeight } from '../../domain/load';
 import { fieldsFor, type SetField } from '../../domain/logging';
 import { describeTargets } from '../../domain/routine';
+import { collapsedSummary, currentExerciseId, foldWarmups } from '../../domain/workoutView';
 import type { ID } from '../../domain/types';
 import { SetRow } from './SetRow';
 import { ExerciseSheet } from './ExerciseSheet';
@@ -51,9 +52,13 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
   const [plates, setPlates] = useState<ID | null>(null);
   const [message, setMessage] = useState('');
   const [confirm, setConfirm] = useState<'discard' | 'remove' | null>(null);
+  // Cards: the first unfinished exercise is open, the rest are collapsed; tapping a title overrides that.
+  const [openOverride, setOpenOverride] = useState<Record<ID, boolean>>({});
+  const [warmOpen, setWarmOpen] = useState<Record<ID, boolean>>({});
 
   if (!workout) return null;
   const editing = isEditingPast(workout);
+  const currentId = currentExerciseId(rows.map((r) => ({ id: r.we.id, sets: r.sets })));
 
   const editRow = edit ? rows.find((r) => r.sets.some((s) => s.id === edit.setId)) : undefined;
   const editSet = editRow?.sets.find((s) => s.id === edit?.setId);
@@ -94,14 +99,38 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
 
       {rows.map((row) => {
         const fields = fieldsFor(row.exercise.loadModel);
+        const id = row.we.id;
+        const open = openOverride[id] ?? id === currentId;
+        const toggleOpen = () => {
+          setEdit(null);
+          setOpenOverride((o) => ({ ...o, [id]: !open }));
+        };
+        const fold = foldWarmups(row.sets, !!warmOpen[id]);
+        const warmIdx = row.sets.flatMap((x, i) => (x.type === 'warmup' ? [i] : []));
+        const allWarmDone = warmIdx.length > 0 && warmIdx.every((i) => row.sets[i]!.completedAt);
+        const title = (
+          <>
+            {row.we.supersetGroup && <span className="num mr-2 rounded-card border border-line px-2 text-base text-muted" aria-label={`Superset ${row.we.supersetGroup}`}>SS {row.we.supersetGroup}</span>}
+            {row.exercise.name}
+          </>
+        );
+        if (!open) {
+          return (
+            <section key={id} className="mb-2 rounded-card border border-line bg-surface" aria-label={row.exercise.name}>
+              <button type="button" onClick={toggleOpen} aria-expanded={false} className="flex min-h-[56px] w-full items-center justify-between gap-3 px-3 py-2 text-left">
+                <span className="text-2xl uppercase">{title}</span>
+                <span className="num text-sm text-muted">{collapsedSummary(row.sets, row.exercise.loadModel, unit)}</span>
+              </button>
+            </section>
+          );
+        }
         return (
-          <section key={row.we.id} className="mb-4 rounded-card border border-line bg-surface p-3" aria-label={row.exercise.name}>
+          <section key={id} className="mb-4 rounded-card border border-line bg-surface p-3" aria-label={row.exercise.name}>
             <div className="flex items-start justify-between gap-2 pb-2">
-              <div>
-                <h2 className="text-2xl uppercase">
-                  {row.we.supersetGroup && <span className="num mr-2 rounded-card border border-line px-2 text-base text-muted" aria-label={`Superset ${row.we.supersetGroup}`}>SS {row.we.supersetGroup}</span>}
-                  {row.exercise.name}
-                </h2>
+              <div className="min-w-0 flex-1">
+                <button type="button" onClick={toggleOpen} aria-expanded className="min-h-tap text-left">
+                  <h2 className="text-2xl uppercase">{title}</h2>
+                </button>
                 {row.exercise.stickyNote && <p className="whitespace-pre-line text-sm text-muted">{row.exercise.stickyNote}</p>}
                 {row.we.targets && <p className="num text-sm text-muted">Target {describeTargets(row.we.targets)}</p>}
                 {row.we.progressionNote && <p className="text-sm text-muted">{row.we.progressionNote}</p>}
@@ -130,25 +159,37 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
               <span className="min-w-[48px]" />
             </div>
             <div className="flex flex-col gap-1">
-              {row.sets.map((s, i) => (
-                <SetRow
-                  key={s.id}
-                  set={s}
-                  index={i}
-                  fields={fields}
-                  loadModel={row.exercise.loadModel}
-                  previous={row.last[i]}
-                  editing={edit?.setId === s.id ? edit.field : undefined}
-                  onEdit={(field) => setEdit({ setId: s.id, field })}
-                  onOpenDetails={() => setDetails(s.id)}
-                  pr={!!s.completedAt && prSetIds.includes(s.id)}
-                  pairTotal={showPairTotal && row.exercise.loadModel === 'perImplement' ? displayWeight(s, row.exercise, true, s.unit) : undefined}
-                  onToggle={() => {
-                    setEdit(null);
-                    void toggleComplete(s.id);
-                  }}
-                />
-              ))}
+              {fold && (
+                <button type="button" onClick={() => setWarmOpen((o) => ({ ...o, [id]: true }))} className="num min-h-tap rounded-card bg-surface-2 px-3 text-left text-sm text-muted">
+                  Warm-up · {warmIdx.length} {warmIdx.length === 1 ? 'set' : 'sets'} done ▸
+                </button>
+              )}
+              {!fold && allWarmDone && (
+                <button type="button" onClick={() => setWarmOpen((o) => ({ ...o, [id]: false }))} className="num min-h-tap rounded-card px-3 text-left text-sm text-muted">
+                  Warm-up ▾
+                </button>
+              )}
+              {row.sets.map((x, i) =>
+                fold && x.type === 'warmup' ? null : (
+                  <SetRow
+                    key={x.id}
+                    set={x}
+                    index={i}
+                    fields={fields}
+                    loadModel={row.exercise.loadModel}
+                    previous={row.last[i]}
+                    editing={edit?.setId === x.id ? edit.field : undefined}
+                    onEdit={(field) => setEdit({ setId: x.id, field })}
+                    onOpenDetails={() => setDetails(x.id)}
+                    pr={!!x.completedAt && prSetIds.includes(x.id)}
+                    pairTotal={showPairTotal && row.exercise.loadModel === 'perImplement' ? displayWeight(x, row.exercise, true, x.unit) : undefined}
+                    onToggle={() => {
+                      setEdit(null);
+                      void toggleComplete(x.id);
+                    }}
+                  />
+                ),
+              )}
             </div>
             <button type="button" onClick={() => void addSet(row.we.id)} className="mt-2 min-h-tap w-full rounded-card border border-line text-sm text-muted">
               + Add set

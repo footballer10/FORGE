@@ -42,6 +42,7 @@ export function bestWorkingSet<T extends Pick<SetEntry, 'type' | 'completedAt' |
 /** "3/4 sets · 225 lb × 5" for a collapsed card. */
 export function collapsedSummary(sets: SetEntry[], loadModel: LoadModel, unit: WeightUnit): string {
   const p = setProgress(sets);
+  if (p.totalWorking === 0 && p.warmups > 0) return `${p.warmupsDone}/${p.warmups} warm-up`;
   const best = bestWorkingSet(sets);
   const parts = [`${p.doneWorking}/${p.totalWorking} sets`];
   if (best) parts.push(formatSet(best, loadModel, best.unit ?? unit));

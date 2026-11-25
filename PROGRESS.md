@@ -3,7 +3,8 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
-- **Done last session:** Milestone 8b (milestone 8 code complete): tab screens lazy-loaded and Recharts split into its own chunk (entry bundle 923 kB to 277 kB, no size warning); real F icons (rounded, maskable, Apple touch); install-to-Home-Screen help in Settings; offline check passed in headless Chromium (reload offline, lazy tabs load); accessibility pass (lighter `accent-text` token so red text reaches 5:1 on dark, focus-visible ring, Escape closes the confirm dialog; muted text already 5.2:1 or better); Cloudflare Pages config (`public/_headers`) and `docs/deploy.md`. Tests (311) and build pass.
+- **Done last session (post-M8 tweaks):** rest timer after every set incl. warm-ups; rest alarm as locked-screen-safe audio with a Settings option and test button; logging screen declutter (collapsed exercise cards, folded warm-ups). Tests and build pass. Open requests: rework of the Strength tab (user dislikes it; waiting for specifics) and a built-in Claude (decision pending, see chat).
+- **Previous session:** Milestone 8b (milestone 8 code complete): tab screens lazy-loaded and Recharts split into its own chunk (entry bundle 923 kB to 277 kB, no size warning); real F icons (rounded, maskable, Apple touch); install-to-Home-Screen help in Settings; offline check passed in headless Chromium (reload offline, lazy tabs load); accessibility pass (lighter `accent-text` token so red text reaches 5:1 on dark, focus-visible ring, Escape closes the confirm dialog; muted text already 5.2:1 or better); Cloudflare Pages config (`public/_headers`) and `docs/deploy.md`. Tests (311) and build pass.
 - **Next session:** the Cloudflare Pages deploy is a user step (needs the user's Cloudflare account): follow `docs/deploy.md`. After that, the first real-device pass (iPhone): Strong import with the real file, offline, backup share sheet, photos. No further milestone is planned.
 - **Known issues:** see bottom.
 
@@ -18,7 +19,9 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Auto-generated aliases per library exercise: bare name and "Name (Equipment)" Strong-style, for import matching in M2.
 - Finish requires at least one ticked set; the keypad replaces the prefilled value on first digit (backspace edits it).
 - Profile is a singleton row with id `'me'`.
-- Rest timer starts when a non-warm-up set is ticked, using the exercise's default rest; warm-ups start no timer. A timer that expired more than 3 s before the app resumed is dropped silently (no late buzz).
+- Rest timer starts when ANY set is ticked (warm-ups included, like Strong). Warm-ups rest for the exercise rest capped at 60 s; other sets use the exercise default (or the routine override). Ticking another set replaces the running timer. A timer that expired more than 3 s before the app resumed is dropped silently (no late buzz).
+- Rest alarm sound: the app plays one generated audio file that is silent for the whole rest and ends with three beeps (`domain/restAudio.ts`, `features/train/restAudio.ts`), so the beeps sound with the screen locked without any code running. Played on one persistent `<audio>` element unlocked by the first tap. Settings: Off / Sound (audio session `ambient`: plays over music, obeys the silent switch; default) / Loud (`playback`: ignores the silent switch, pauses music). Stored per device in localStorage (`forge.restAlert`). ±15 s and skip regenerate or stop the audio. NOT yet verified on an iPhone.
+- Logging screen declutter: only the first unfinished exercise is open; others show one line (name, done/total working sets, best set). Tapping a title opens or closes it (override kept until the workout closes). Warm-ups fold into one 'Warm-up · N sets done' line once all are ticked; tap to show. Finishing the last set of an exercise collapses it and opens the next.
 - Rest bar lives in `AppShell` above the tab bar, so it shows on every tab; wake lock is also held at shell level while a workout is active.
 - Swap is allowed only while the exercise has no completed sets (its empty sets are soft-deleted and re-prefilled from the new exercise); otherwise remove + add.
 - Notes write through on every keystroke (crash safety). Sticky note is stored on the exercise; "this workout only" note on the workout exercise; session note on the workout.
@@ -182,8 +185,8 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Settings (8a) has no plate or bar editor; those stay in Coach → Training profile (Settings points there). The pair-total toggle also remains on the Train home.
 - Editing a past workout changes its sets but not its start/end times or name (no editor for those yet).
 - Superset rounds are not enforced or visually sequenced; supersets only affect when the rest timer starts.
-- `navigator.vibrate` is unsupported on iOS Safari, so on iPhone the rest timer ends with no buzz or sound (a visual change only). Needs a decision (e.g. audio cue) later; not added to avoid guessing.
-- The rest timer cannot alert while the PWA is backgrounded or locked (no push/background timers on iOS); it is correct on return, just silent.
+- `navigator.vibrate` is unsupported on iOS Safari. The rest alarm is now an audio file (see Decisions) that should sound while locked, but this relies on iOS letting a home-screen app keep playing audio in the background: UNVERIFIED on a device. If it fails, the fallback is web push from the later Cloudflare Worker. While the alarm audio plays, iOS may show Forge on the lock screen's now-playing card.
+- Rest alarm: the silent switch mutes the default 'Sound' mode (use 'Loud' to override, which pauses music). A rest of 5 minutes builds a ~2.4 MB in-memory file per set; fine for a phone.
 - Reorder is up/down buttons, not drag-and-drop (no new dependency).
 - Finish drops unticked sets and exercises with no completed sets (documented behaviour); undo is available for 20 s after finishing (snackbar) or from Backup.
 - Discard soft-deletes the workout (goes to the Trash screen under Backup).

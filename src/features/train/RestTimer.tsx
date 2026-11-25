@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { formatClock, isStale, remainingSec } from '../../domain/restTimer';
+import { syncRestAudio } from './restAudio';
 import { useWorkout } from './workoutStore';
 
 const BUZZ = [200, 100, 200];
@@ -26,6 +27,11 @@ export function RestTimer() {
       clearInterval(t);
       document.removeEventListener('visibilitychange', sync);
     };
+  }, [endsAt]);
+
+  // Keep the alarm audio in step with the timer (new rest, ±15 s, skip). It beeps even with the screen locked.
+  useEffect(() => {
+    syncRestAudio(endsAt);
   }, [endsAt]);
 
   // Finished: buzz (only if it just ended, not when waking up long after) and clear.
