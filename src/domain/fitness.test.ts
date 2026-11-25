@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { BUILT_IN_TESTS, changeIsImprovement, daysLabel, daysUntil, describeCountdown, editText, formatTime, formatValue, parseValue, summarizeTest, testCountdown } from './fitness';
-import type { TestResult } from './types';
+import { BATTERIES, BUILT_IN_TESTS, batterySummary, changeIsImprovement, splitBattery, daysLabel, daysUntil, describeCountdown, editText, formatTime, formatValue, parseValue, summarizeTest, testCountdown } from './fitness';
+import type { FitnessTest, TestResult } from './types';
 
 const r = (id: string, date: string, value: number, extra: Partial<TestResult> = {}): TestResult => ({
   id, createdAt: id, updatedAt: id, testId: 't', date, value, ...extra,
@@ -71,9 +71,9 @@ describe('misc', () => {
     expect(changeIsImprovement('higherIsBetter', -1)).toBe(false);
     expect(changeIsImprovement('higherIsBetter', 0)).toBeUndefined();
   });
-  it('has the six built-ins with unique keys', () => {
-    expect(BUILT_IN_TESTS).toHaveLength(6);
-    expect(new Set(BUILT_IN_TESTS.map((t) => t.key)).size).toBe(6);
+  it('has the eight built-ins with unique keys', () => {
+    expect(BUILT_IN_TESTS).toHaveLength(8);
+    expect(new Set(BUILT_IN_TESTS.map((t) => t.key)).size).toBe(8);
   });
 });
 
@@ -112,5 +112,35 @@ describe('test countdown', () => {
   });
   it('labels days', () => {
     expect([0, 1, -1, 5, -5].map(daysLabel)).toEqual(['today', 'tomorrow', 'yesterday', 'in 5 days', '5 days ago']);
+  });
+});
+
+describe('academy battery', () => {
+  const t = '2026-11-24T10:00:00.000Z';
+  const test = (key: string, extra: Partial<FitnessTest> = {}): FitnessTest => ({ id: `builtin:${key}`, createdAt: t, updatedAt: t, name: key, measure: 'reps', scoring: 'higherIsBetter', builtIn: true, ...extra });
+  const result = (key: string, value: number): TestResult => ({ id: `${key}-${value}`, createdAt: t, updatedAt: t, testId: `builtin:${key}`, date: '2026-11-01', value });
+  const usafa = BATTERIES.find((b) => b.id === 'usafa')!;
+
+  it('includes the six USAFA events as built-in tests', () => {
+    expect(usafa.events.map((e) => e.key)).toEqual(['pullups', 'broad-jump', 'situps', 'pushups', 'run-600yd', 'run-1.5mi']);
+    for (const e of usafa.events) expect(BUILT_IN_TESTS.some((b) => b.key === e.key)).toBe(true);
+    expect(usafa.events.filter((e) => e.group === 'PFT')).toHaveLength(5);
+  });
+  it('puts battery tests first in battery order and the rest after', () => {
+    const tests = [test('vertical-jump'), test('pushups'), test('pullups'), test('custom-x', { id: 'custom-x', builtIn: false })];
+    const { inBattery, others } = splitBattery(usafa, tests);
+    expect(inBattery.map((x) => x.test.id)).toEqual(['builtin:pullups', 'builtin:pushups']);
+    expect(others.map((x) => x.id)).toEqual(['builtin:vertical-jump', 'custom-x']);
+  });
+  it('summarises only once a target or date is typed', () => {
+    const tests = [test('pullups'), test('pushups')];
+    expect(batterySummary(usafa, tests, [], '2026-11-24')).toBeUndefined();
+    const withGoals = [test('pullups', { targetValue: 12, testDate: '2026-12-10' }), test('pushups', { targetValue: 50 })];
+    const s = batterySummary(usafa, withGoals, [result('pullups', 12), result('pushups', 30)], '2026-11-24');
+    expect(s).toMatchObject({ withTarget: 2, atTarget: 1, nextDate: '2026-12-10', daysLeft: 16 });
+  });
+  it('ignores a test date that has passed', () => {
+    const s = batterySummary(usafa, [test('pullups', { targetValue: 12, testDate: '2026-10-01' })], [], '2026-11-24');
+    expect(s?.nextDate).toBeUndefined();
   });
 });

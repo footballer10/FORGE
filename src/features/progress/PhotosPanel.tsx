@@ -79,7 +79,7 @@ export function PhotosPanel() {
   const shown = all ? photos : photos.slice(0, SHOWN);
 
   return (
-    <section className="mx-4 mt-4 rounded-card border border-line bg-surface p-4" aria-label="Progress photos">
+    <section className="rounded-card border border-line bg-surface p-4" aria-label="Progress photos">
       <h2 className="font-display text-xl">Progress photos</h2>
       <p className="text-xs text-muted">Stored only on this device. They are not included in backups, so keep your own copies.</p>
 

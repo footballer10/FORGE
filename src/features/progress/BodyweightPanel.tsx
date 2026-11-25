@@ -87,7 +87,7 @@ export function BodyweightPanel() {
   const list = showAll ? rows : rows.slice(0, 7);
 
   return (
-    <section className="mx-4 mt-4 rounded-card border border-line bg-surface p-4" aria-label="Bodyweight">
+    <section className="rounded-card border border-line bg-surface p-4" aria-label="Bodyweight">
       <h2 className="font-display text-xl">Bodyweight</h2>
 
       {last ? (

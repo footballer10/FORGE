@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { useUi } from '../../app/uiStore';
 import { BackupReminder } from '../data/BackupReminder';
-import { achievementsRepo, coachRepo } from '../../db/repositories';
+import { achievementsRepo, coachRepo, fitnessRepo } from '../../db/repositories';
+import { BATTERIES, batterySummary, daysLabel, type BatterySummary } from '../../domain/fitness';
+import { localDateKey } from '../../domain/calendar';
 import type { StreakSummary } from '../../domain/streaks';
 import { NextUpCard } from './NextUpCard';
 import { InsightNotes } from './InsightNotes';
@@ -14,6 +16,7 @@ export function HomeScreen() {
   const [streak, setStreak] = useState<StreakSummary>();
   const [mode, setMode] = useState<'list' | 'calendar'>('list');
   const [proposals, setProposals] = useState(0);
+  const [academy, setAcademy] = useState<BatterySummary>();
 
   useEffect(() => {
     let live = true;
@@ -25,6 +28,10 @@ export function HomeScreen() {
     return () => {
       live = false;
     };
+  }, []);
+
+  useEffect(() => {
+    void fitnessRepo.load().then((d) => setAcademy(batterySummary(BATTERIES[0]!, d.tests, d.results, localDateKey(new Date())))).catch(() => undefined);
   }, []);
 
   useEffect(() => {
@@ -47,6 +54,12 @@ export function HomeScreen() {
       )}
       <InsightNotes />
       <NextUpCard />
+      {academy && (
+        <button type="button" onClick={() => useUi.getState().setTab('progress')} className="num mb-3 min-h-tap text-left text-sm text-muted">
+          {academy.withTarget > 0 ? `${academy.atTarget} of ${academy.withTarget} academy events at target` : 'Academy tests'}
+          {academy.daysLeft !== undefined ? ` · test ${daysLabel(academy.daysLeft)}` : ''}
+        </button>
+      )}
       {proposals > 0 && (
         <button
           type="button"

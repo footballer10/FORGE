@@ -7,9 +7,11 @@ export type BuiltInTest = Pick<FitnessTest, 'name' | 'measure' | 'scoring' | 'de
 export const BUILT_IN_TESTS: BuiltInTest[] = [
   { key: 'pullups', name: 'Pull-up max', measure: 'reps', scoring: 'higherIsBetter', description: 'Max strict pull-ups, dead hang start.' },
   { key: 'pushups', name: 'Push-up max', measure: 'reps', scoring: 'higherIsBetter', description: 'Max push-ups in one set, chest to fist or floor.' },
+  { key: 'situps', name: 'Sit-ups (2 min)', measure: 'reps', scoring: 'higherIsBetter', description: 'Most sit-ups in the time limit your academy uses (USAFA: about two minutes per event).' },
+  { key: 'run-600yd', name: '600-yard run', measure: 'timeSec', scoring: 'lowerIsBetter', description: 'Fastest time for 600 yards.' },
   { key: 'run-1.5mi', name: '1.5 mile run', measure: 'timeSec', scoring: 'lowerIsBetter', description: 'Fastest time for 1.5 miles.' },
   { key: 'dash-40yd', name: '40 yard dash', measure: 'timeSec', scoring: 'lowerIsBetter', description: 'Hand-timed or timing gates, standing start.' },
-  { key: 'broad-jump', name: 'Standing broad jump', measure: 'distanceM', scoring: 'higherIsBetter', description: 'Two-foot take-off, measured to the back heel.' },
+  { key: 'broad-jump', name: 'Standing broad jump', measure: 'distanceM', scoring: 'higherIsBetter', description: 'Two-foot take-off, measured to the back heel. The Air Force Academy calls this the standing long jump.' },
   { key: 'vertical-jump', name: 'Vertical jump', measure: 'heightCm', scoring: 'higherIsBetter', description: 'Standing reach to jump touch.' },
 ];
 export const builtInId = (key: string) => `builtin:${key}`;
@@ -177,4 +179,68 @@ export function describeCountdown(test: Pick<FitnessTest, 'measure' | 'scoring' 
   }
   if (test.testDate && c.daysLeft !== undefined) parts.push(`test ${test.testDate} (${daysLabel(c.daysLeft)})`);
   return parts.length ? parts.join(', ') : undefined;
+}
+
+/** A preset group of tests for one academy. Events point at built-in tests by key; no scores or pass marks are included. */
+export interface Battery {
+  id: string;
+  name: string;
+  note: string;
+  events: { key: string; group: string; label?: string; note?: string }[];
+}
+
+export const BATTERIES: Battery[] = [
+  {
+    id: 'usafa',
+    name: 'Air Force Academy fitness tests',
+    note: 'Cadets take a Physical Fitness Test (PFT) and an aerobic test (AFT) each semester. Events are from USAFA cadet sources and may change: check the current USAFA instruction for event names, time limits and scoring, then type your targets here.',
+    events: [
+      { key: 'pullups', group: 'PFT' },
+      { key: 'broad-jump', group: 'PFT', label: 'Standing long jump' },
+      { key: 'situps', group: 'PFT' },
+      { key: 'pushups', group: 'PFT' },
+      { key: 'run-600yd', group: 'PFT' },
+      { key: 'run-1.5mi', group: 'AFT', note: 'Aerobic event. Confirm the distance in your current USAFA instruction.' },
+    ],
+  },
+];
+
+export const testKey = (test: Pick<FitnessTest, 'id'>): string | undefined => (test.id.startsWith('builtin:') ? test.id.slice('builtin:'.length) : undefined);
+
+/** Tests in the battery's order (missing ones skipped) and all the others. */
+export function splitBattery<T extends Pick<FitnessTest, 'id'>>(battery: Battery, tests: T[]): { inBattery: { test: T; event: Battery['events'][number] }[]; others: T[] } {
+  const byKey = new Map(tests.flatMap((t) => (testKey(t) ? [[testKey(t)!, t] as const] : [])));
+  const inBattery = battery.events.flatMap((event) => (byKey.has(event.key) ? [{ test: byKey.get(event.key)!, event }] : []));
+  const used = new Set(inBattery.map((x) => x.test.id));
+  return { inBattery, others: tests.filter((t) => !used.has(t.id)) };
+}
+
+export interface BatterySummary {
+  name: string;
+  total: number;
+  /** Events with a typed target. */
+  withTarget: number;
+  /** Events whose best result meets the target. */
+  atTarget: number;
+  /** Earliest test date that is today or later. */
+  nextDate?: string;
+  daysLeft?: number;
+}
+
+/** One line for Home. Undefined until the user has typed a target or a date, so nothing shows by default. */
+export function batterySummary(battery: Battery, tests: FitnessTest[], results: TestResult[], today: string): BatterySummary | undefined {
+  const { inBattery } = splitBattery(battery, tests.filter((t) => !t.deletedAt));
+  let withTarget = 0;
+  let atTarget = 0;
+  let next: string | undefined;
+  for (const { test } of inBattery) {
+    const best = summarizeTest(results.filter((r) => r.testId === test.id), test.scoring).best?.value;
+    if (test.targetValue !== undefined) {
+      withTarget++;
+      if (testCountdown(test, best, today).met) atTarget++;
+    }
+    if (test.testDate && test.testDate >= today && (!next || test.testDate < next)) next = test.testDate;
+  }
+  if (withTarget === 0 && !next) return undefined;
+  return { name: battery.name, total: inBattery.length, withTarget, atTarget, ...(next ? { nextDate: next, daysLeft: daysUntil(next, today) } : {}) };
 }
