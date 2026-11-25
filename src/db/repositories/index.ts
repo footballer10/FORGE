@@ -4,7 +4,8 @@
  */
 import { db } from '../schema';
 import { buildTree, draftToRows, latestVersions, versionChain, type DraftWeek, type ProgramTree } from '../../domain/program';
-import type { Exercise, Program } from '../../domain/types';
+import { inferTraits, type InferredTraits } from '../../domain/exerciseInference';
+import type { Exercise, MovementPattern, Muscle, Program } from '../../domain/types';
 import { createRepo, newId, nowIso, type NewEntity } from './base';
 
 export { workoutRepo, type FullWorkout } from './workouts';
@@ -48,6 +49,28 @@ export const exerciseRepo = {
   /** Library seeding: sourceRefs already stored (including soft-deleted, so deleted exercises stay deleted). */
   async sourceRefs(): Promise<Set<string>> {
     return new Set((await db.exercises.toArray()).flatMap((e) => (e.sourceRef ? [e.sourceRef] : [])));
+  },
+  /** Exercises with no primary muscle (typically imported) and what the app would fill in for each. */
+  async traitSuggestions(): Promise<{ exercise: Exercise; traits?: InferredTraits }[]> {
+    const all = await db.exercises.filter((e) => !e.deletedAt).toArray();
+    return all
+      .filter((e) => e.primaryMuscles.length === 0)
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map((exercise) => {
+        const traits = inferTraits(exercise.name, all);
+        return { exercise, ...(traits ? { traits } : {}) };
+      });
+  },
+  /** Writes muscles, pattern and unilateral for each exercise (the user's reviewed choices). Returns rows changed. */
+  async applyTraits(entries: { id: string; primaryMuscles: Muscle[]; secondaryMuscles: Muscle[]; pattern: MovementPattern; unilateral: boolean }[]): Promise<number> {
+    const t = nowIso();
+    let n = 0;
+    await db.transaction('rw', db.exercises, async () => {
+      for (const { id, ...traits } of entries) {
+        if (await db.exercises.update(id, { ...traits, updatedAt: t })) n++;
+      }
+    });
+    return n;
   },
   bulkCreate: async (rows: NewEntity<Exercise>[]) => {
     const t = nowIso();

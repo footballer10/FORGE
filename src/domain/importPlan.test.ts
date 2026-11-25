@@ -173,6 +173,13 @@ describe('buildImport', () => {
     expect(plankSet.reps).toBeUndefined();
   });
 
+  it('fills muscles and pattern on new exercises from the name; unknown names stay empty', () => {
+    const byName = Object.fromEntries(build().newExercises.map((e) => [e.name, e]));
+    expect(byName['Pull Up']).toMatchObject({ pattern: 'verticalPull', primaryMuscles: ['lats'] });
+    expect(byName['Plank']).toMatchObject({ pattern: 'core' }); // file-based pattern wins
+    expect(byName['Weird Machine Thing (Machine)']!.primaryMuscles).toEqual([]);
+  });
+
   it('honours a manual map to an existing exercise', () => {
     const out = build({ resolutions: { 'Weird Machine Thing (Machine)': { kind: 'map', exerciseId: 'kb' } } });
     expect(out.newExercises.map((e) => e.name)).not.toContain('Weird Machine Thing (Machine)');
