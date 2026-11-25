@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { useUi } from '../../app/uiStore';
-import { BackupReminder } from '../data/BackupReminder';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import type { Exercise, ID, Routine } from '../../domain/types';
 import { ExerciseBrowser } from '../exercises/ExerciseBrowser';
@@ -14,8 +13,6 @@ import { ProgramView } from '../programs/ProgramView';
 import type { ProgramTree } from '../../domain/program';
 import { RoutineEditor } from '../routines/RoutineEditor';
 import { RoutineList } from '../routines/RoutineList';
-import { HistoryCalendar } from './HistoryCalendar';
-import { HistoryList } from './HistoryList';
 import { useWorkout } from './workoutStore';
 
 type View =
@@ -31,7 +28,6 @@ type View =
 
 export function TrainScreen() {
   const [view, setView] = useState<View>({ kind: 'home' });
-  const [historyMode, setHistoryMode] = useState<'list' | 'calendar'>('list');
   const openBackup = useUi((s) => s.openBackup);
   useEffect(() => {
     if (openBackup) {
@@ -39,13 +35,18 @@ export function TrainScreen() {
       setView({ kind: 'data' });
     }
   }, [openBackup]);
+  const openTrain = useUi((s) => s.openTrain);
+  useEffect(() => {
+    if (openTrain) {
+      useUi.getState().setOpenTrain(null);
+      setView({ kind: openTrain });
+    }
+  }, [openTrain]);
   const loaded = useWorkout((s) => s.loaded);
   const active = useWorkout((s) => s.workout);
   const start = useWorkout((s) => s.start);
   const addExercise = useWorkout((s) => s.addExercise);
   const swapExercise = useWorkout((s) => s.swapExercise);
-  const showPairTotal = useWorkout((s) => s.showPairTotal);
-  const setShowPairTotal = useWorkout((s) => s.setShowPairTotal);
 
   if (view.kind === 'pick') {
     return (
@@ -94,61 +95,24 @@ export function TrainScreen() {
 
   return (
     <div className="flex min-h-full flex-col pb-6">
-      <ScreenHeader title="Train" />
-      <BackupReminder onOpen={() => setView({ kind: 'data' })} />
-      <button
-        type="button"
-        onClick={() => setView({ kind: 'library' })}
-        className="mb-4 min-h-tap rounded-card border border-line bg-surface px-4 text-left text-base text-fg"
-      >
-        Exercise library
-      </button>
-      <button
-        type="button"
-        onClick={() => setView({ kind: 'import' })}
-        className="mb-4 min-h-tap rounded-card border border-line bg-surface px-4 text-left text-base text-fg"
-      >
-        Import from Strong
-      </button>
-      <button
-        type="button"
-        onClick={() => setView({ kind: 'data' })}
-        className="mb-4 min-h-tap rounded-card border border-line bg-surface px-4 text-left text-base text-fg"
-      >
-        Backup &amp; restore
-      </button>
-      <label className="mb-4 flex min-h-tap items-center justify-between rounded-card border border-line bg-surface px-4 text-base text-fg">
-        <span>Show dumbbell pair total</span>
-        <input type="checkbox" className="h-6 w-6" checked={showPairTotal} onChange={(e) => void setShowPairTotal(e.target.checked)} />
-      </label>
+      <ScreenHeader title="Start workout" />
       <ProgramList onOpen={(programId) => setView({ kind: 'program', programId })} onNew={() => setView({ kind: 'programEdit' })} onStarted={() => setView({ kind: 'home' })} />
       <RoutineList onEdit={(routine) => setView({ kind: 'routine', ...(routine ? { routine } : {}) })} onStarted={() => setView({ kind: 'home' })} />
-      <div className="flex items-baseline justify-between pb-2">
-        <h2 className="text-2xl uppercase">History</h2>
-        <div className="flex gap-1" role="group" aria-label="History view">
-          {(['list', 'calendar'] as const).map((m) => (
-            <button key={m} type="button" aria-pressed={historyMode === m} onClick={() => setHistoryMode(m)} className={`min-h-tap rounded-card border border-line px-3 text-sm capitalize ${historyMode === m ? 'bg-surface-2 text-fg' : 'text-muted'}`}>
-              {m}
-            </button>
-          ))}
-        </div>
-      </div>
-      {historyMode === 'list' ? <HistoryList /> : <HistoryCalendar />}
       {/* Primary action sits in the bottom third for one-handed use. */}
       <div className="sticky bottom-0 mt-auto bg-bg pt-4">
-        <button
-          type="button"
-          onClick={() => void start('conditioning').then(() => setView({ kind: 'pick' }))}
-          className="mb-2 min-h-tap w-full rounded-card border border-line text-sm"
-        >
-          Start conditioning session (runs, sprints, intervals)
-        </button>
         <button
           type="button"
           onClick={() => void start().then(() => setView({ kind: 'pick' }))}
           className="num min-h-[56px] w-full rounded-card bg-accent text-xl font-semibold uppercase tracking-wider text-accent-fg"
         >
           Start workout
+        </button>
+        <button
+          type="button"
+          onClick={() => void start('conditioning').then(() => setView({ kind: 'pick' }))}
+          className="min-h-tap w-full text-sm text-muted"
+        >
+          Start a conditioning session instead
         </button>
       </div>
     </div>

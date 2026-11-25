@@ -40,9 +40,7 @@ export function CoachScreen() {
       <ScreenHeader title="Coach" />
       <section className="rounded-card border border-line bg-surface p-4" aria-label="Summary for Claude">
         <h2 className="font-display text-xl">Copy for Claude</h2>
-        <p className="mt-1 text-sm text-muted">
-          A summary of your training with the numbers and rules behind each figure. Claude only proposes; nothing changes until you approve it here.
-        </p>
+        <p className="mt-1 text-sm text-muted">Paste it into a Claude chat. Claude only proposes; you approve changes here.</p>
         <div className="mt-3 flex gap-2" role="group" aria-label="Window">
           {SUMMARY_RANGES.map((r) => (
             <button
@@ -51,11 +49,14 @@ export function CoachScreen() {
             >{r.label}</button>
           ))}
         </div>
-        <textarea
-          ref={box} readOnly value={text} rows={12} aria-label="Summary text"
-          className="mt-3 w-full rounded-card border border-line bg-bg p-3 text-base tabular-nums text-fg"
-        />
         <button type="button" onClick={() => void copy()} className="mt-3 min-h-tap w-full rounded-card bg-accent px-4 font-display text-xl uppercase text-white">Copy summary</button>
+        <details className="mt-3">
+          <summary className="min-h-tap cursor-pointer py-2 text-sm text-muted">Preview the text</summary>
+          <textarea
+            ref={box} readOnly value={text} rows={12} aria-label="Summary text"
+            className="mt-1 w-full rounded-card border border-line bg-bg p-3 text-base tabular-nums text-fg"
+          />
+        </details>
         {status && <p role="status" className="mt-2 text-sm text-muted">{status}</p>}
       </section>
 

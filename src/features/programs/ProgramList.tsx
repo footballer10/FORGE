@@ -44,10 +44,10 @@ export function ProgramList({ onOpen, onNew, onStarted }: Props) {
   return (
     <section className="mb-4" aria-label="Programs">
       <div className="flex items-baseline justify-between pb-2">
-        <h2 className="text-2xl uppercase">Programs</h2>
+        <h2 className="text-2xl uppercase">Program</h2>
         <button type="button" onClick={onNew} className="min-h-tap px-2 text-sm text-fg underline">New program</button>
       </div>
-      {items?.length === 0 && <p className="text-sm text-muted">No programs yet. A program is a plan of weeks and sessions; Claude will propose changes to it later.</p>}
+      {items?.length === 0 && <p className="text-sm text-muted">No programs yet.</p>}
       <ul className="flex flex-col gap-2">
         {(items ?? []).map(({ program, next }) => (
           <li key={program.id} className="rounded-card border border-line bg-surface p-3">

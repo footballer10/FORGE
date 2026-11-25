@@ -3,9 +3,10 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
-- **Done last session (post-M8 tweaks):** rest timer after every set incl. warm-ups; rest alarm as locked-screen-safe audio with a Settings option and test button; logging screen declutter (collapsed exercise cards, folded warm-ups). Tests and build pass. Open requests: rework of the Strength tab (user dislikes it; waiting for specifics) and a built-in Claude (decision pending, see chat).
+- **Done this session (information diet, 9a):** Home, Train, Strength, Progress and Coach simplified (see Decisions). Train went from about 7,400 px of scrolling to one screen with sample data. Tests (326) and build pass.
+- **Done earlier (post-M8 tweaks):** rest timer after every set incl. warm-ups; rest alarm as locked-screen-safe audio with a Settings option and test button; logging screen declutter (collapsed exercise cards, folded warm-ups). Tests and build pass. Open requests: rework of the Strength tab (user dislikes it; waiting for specifics) and a built-in Claude (decision pending, see chat).
 - **Previous session:** Milestone 8b (milestone 8 code complete): tab screens lazy-loaded and Recharts split into its own chunk (entry bundle 923 kB to 277 kB, no size warning); real F icons (rounded, maskable, Apple touch); install-to-Home-Screen help in Settings; offline check passed in headless Chromium (reload offline, lazy tabs load); accessibility pass (lighter `accent-text` token so red text reaches 5:1 on dark, focus-visible ring, Escape closes the confirm dialog; muted text already 5.2:1 or better); Cloudflare Pages config (`public/_headers`) and `docs/deploy.md`. Tests (311) and build pass.
-- **Next session:** Milestone 9 (Strength redesign), then Milestone 10 (connector + sync, after the deploy). Before that: the Cloudflare Pages deploy is a user step (needs the user's Cloudflare account): follow `docs/deploy.md`. After that, the first real-device pass (iPhone): Strong import with the real file, offline, backup share sheet, photos. No further milestone is planned.
+- **Next session:** Milestone 9b (per-exercise page), then 11 (Today), then 10 (connector + sync, needs the Cloudflare deploy first), then 12, 13, 14. Before that: the Cloudflare Pages deploy is a user step (needs the user's Cloudflare account): follow `docs/deploy.md`. After that, the first real-device pass (iPhone): Strong import with the real file, offline, backup share sheet, photos.
 - **Known issues:** see bottom.
 
 ## Decisions (defaults chosen; change by asking)
@@ -65,6 +66,7 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Achievements (7a): milestones only, no points. Families: workouts finished (1, 10, 25, 50, 100, 250, 500), hard sets (100 to 10,000), PRs (1, 10, 25, 50, 100; any PR kind counts), and e1RM at 135/225/315/405/495 lb on the strength-score lifts (kg e1RMs are converted to lb to compare; keys always use lb). Each is dated at the workout that crossed it. Thresholds are the app's own round numbers. `sync()` stores only missing keys, so earned achievements are never removed when data is later edited or deleted; title/description are stored on the row. Weekly-streak achievements come with 7b.
 - Streaks (7b): a Monday–Sunday week (local days) is a hit when distinct training days reach the target; target = active program's `daysPerWeek`, else profile `plannedDaysPerWeek`. Any finished workout counts as a day, whatever its kind. Current streak = hit weeks in a row ending last week, plus this week if already hit; the week in progress never breaks it. Weeks with no workouts are included, so a gap breaks the run. Streak achievements are dated at the workout that reached the target in the milestone week.
 - PR celebration (7b): after ticking a working set, a rep PR (heaviest load at that exact rep count, needing an earlier value) gets a 240 ms pulse, ring and "PR" badge on the row, memory only. e1RM and volume PRs are not flagged live; they appear in the summary and on Home. The summary sheet appears after Finish (not after editing a past workout) and marks its new achievements seen.
+- Information diet (9a): each tab has one job. Home = one status line ("N of M days this week", streak only if above zero), a slim backup bar when due, then History: rows show name, date, exercise count, duration and the best set of the first three lifts; tapping a row opens every working set (warm-ups only counted) and Edit/Repeat/Routine/Delete; 10 rows then Show more. Train = Start workout (bottom), Program, Routines (Start plus a ⋯ menu for Edit/Delete). Strength = list of lifts with best e1RM of the last 4 weeks and change vs the 4 weeks before (`domain/liftSummary.ts`); score, tiers, weekly sets, balance, body map, PRs and achievements sit under Strength → Insights. Progress = menu of Bodyweight, Fitness tests, Conditioning, Photos. Exercise library, Strong import and Backup are rows in Settings (open via `uiStore.openTrain`). The dumbbell pair-total toggle and theme live only in Settings.
 - Default rest 120 s for compound lifts, 90 s otherwise; default increment 5 lb barbell, 5 lb dumbbell (per implement), 2.5 lb fallback for small plates is a per-exercise edit.
 
 - Analytics (4a): only finished, non-trashed workouts count. Effective load per `domain/load.ts`; bodyweight lifts use the nearest weigh-in on or before the set, else the workout snapshot, else the set is skipped. Analysis unit is the profile unit. e1RM uses sets of 1–12 reps, one point per workout (its best set); a single is its own max in every formula. Default formula Epley, changed in the chart screen and stored on the profile.
@@ -187,8 +189,8 @@ Design (agreed in chat 2026-11-25):
 - Tapping a lift opens a per-exercise page (Strong/Hevy style): header with current best e1RM and PR badges; ONE chart (e1RM over time, range pills, formula named under it); segments below: History (workout by workout, working sets only, warm-ups folded), Records (best weight at 1, 3, 5, 8, 10 reps, with dates), Volume (per workout).
 - Score, tiers, body map, weekly sets per muscle, balance and plateau move off the main screen into an opt-in "Insights" screen (button in the header). Nothing is deleted. Score and tiers are hidden until the user sets them up. Note for the session: the tier thresholds are the app's own rough multiples, not from a dataset; say so on the screen and ask the user what felt off before changing the formulas.
 - Tasks:
-  - [ ] 9a: Strength list screen + per-exercise page (History, Records) reusing `domain/e1rm.ts`, `prs.ts`; pure helper for the 4-week change (tests)
-  - [ ] 9b: Volume segment; move the other panels into Insights; hide score/tiers until set up; remove dead code; update PROGRESS
+  - [x] 9a (done 2026-11-25): information-diet pass modelled on Strong/Hevy. Home = status line + History (short rows, tap to open). Train = Start workout + Program + Routines only. Strength = plain list of lifts (e1RM, 4-week change) with Insights behind a button. Progress = 4-row menu, each on its own screen. Coach = one Copy button, preview hidden. Library, Import and Backup moved to Settings.
+  - [ ] 9b: per-exercise page: header with current e1RM and PR badges; ONE chart; segments History (workout by workout, working sets only), Records (best weight at 1, 3, 5, 8, 10 reps with dates), Volume (per workout). Trim `ExerciseStrength.tsx` to match.
 - Suggested model: Sonnet, medium effort. Verify on the phone: chart readability at iPhone width.
 
 ## Milestone 10 — Claude connector + cloud sync (user chose this over an in-app chat; free, uses the Claude Pro plan)
@@ -205,6 +207,33 @@ Architecture (to confirm at the start of 10a):
   - [ ] 10c: MCP server on the Worker with read tools; docs/connector.md; user connects it in Claude
   - [ ] 10d: `propose_program` write tool + Coach "Proposals from Claude" inbox using the existing approve flow
 - Suggested model: Opus, high effort (auth, sync conflicts). Prerequisite: the Cloudflare Pages deploy (docs/deploy.md) is done.
+
+## Milestone 11 — Today (the reason to open the app)
+- [ ] 11a: Home or Train shows "Next up": the active program's next session (or the last routine) with weights already filled from the progression rules; one tap starts it. Pure helper picks the next session (reuse `domain/program.ts` `nextSession`).
+- [ ] 11b: During logging, a "Suggested" chip per exercise (already computed by progression) that fills the set in one tap; show why in one short line.
+- [ ] 11c: Auto warm-up builder: from the first working weight, add warm-up sets (bar, 50%, 70%, 85%) with the plate calculator; pure function with tests.
+- Model: Sonnet, medium.
+
+## Milestone 12 — Plain-language insights (tell the user what to do)
+- [ ] 12a: Rules that turn the existing analytics into one-sentence notes with the numbers behind them (plateau, low pulling volume, imbalance, missed sessions). Pure + tests; shown as at most 3 notes on Home under the status line, dismissible.
+- [ ] 12b: Weekly review text the user can send to Claude (or Claude pulls via the connector once M10 exists).
+- Model: Opus for the rules, medium effort.
+
+## Milestone 13 — Fitness-test countdown (service academy and rugby)
+- [ ] 13a: Test date + target per test (pull-ups, push-ups, 1.5 mile, 40 yd, broad jump, vertical) on the Progress > Fitness tests screen; shows current best, target, gap and days left. No invented standards: targets are typed by the user (from the academy's published standards).
+- [ ] 13b: Proposal text for Claude includes the countdown so plans aim at the test.
+- Model: Sonnet, medium.
+
+## Milestone 14 — Issue burn-down (small fixes, one sitting each)
+- [ ] Imported exercises get muscles and movement pattern: infer from the matched library exercise or the name, with a bulk review screen (so they count in weekly sets and balance).
+- [ ] Edit a past workout's name and start/end time.
+- [ ] Drag to reorder exercises (needs a dependency: ask first) or keep buttons.
+- [ ] Unsaved-draft protection in the routine, program and proposal editors.
+- [ ] kg increments in the exercise form; units changes convert displayed set weights.
+- [ ] Settings: plate and bar editor; keyboard focus trap in dialogs.
+- [ ] Library classification review (e.g. Olympic lifts classed as conditioning): fix the mapper heuristics and add tests for the most common lifts.
+- [ ] Trash entry for routines; undo for deleting weigh-ins and tests.
+- Model: Sonnet, medium.
 
 ## Ideas backlog (not scheduled)
 Auto warm-up ramp from the working weight; weekly volume landmarks per muscle; program library (5/3/1, linear progression) as importable JSON; muscle recovery view; Claude "what should I train today" proposals (after M10); beep-test and interval timers; light nutrition (daily calories and protein plus bodyweight trend to estimate maintenance); detailed set-by-set export for Claude (superseded by M10).

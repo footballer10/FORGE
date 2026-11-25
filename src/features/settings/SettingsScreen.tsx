@@ -4,6 +4,7 @@ import { profileRepo } from '../../db/repositories';
 import { E1RM_FORMULAS, formulaInfo } from '../../domain/e1rm';
 import { parseDays } from '../../domain/profileForm';
 import type { E1rmFormula, LengthUnit, Profile, WeightUnit } from '../../domain/types';
+import { MenuRow } from '../../components/SubScreen';
 import { useWorkout } from '../train/workoutStore';
 import { REST_ALERT_LABELS, getRestAlert, setRestAlert, testRestAudio, type RestAlert } from '../train/restAudio';
 
@@ -47,6 +48,25 @@ export function SettingsScreen() {
           Done
         </button>
       </div>
+
+      <section className="flex flex-col gap-2" aria-label="Library and data">
+        {([
+          ['library', 'Exercise library', 'Browse, edit or add exercises'],
+          ['import', 'Import from Strong', 'Bring in your workout history'],
+          ['data', 'Backup and restore', 'Export, restore, trash and undo'],
+        ] as const).map(([kind, title, detail]) => (
+          <MenuRow
+            key={kind}
+            title={title}
+            detail={detail}
+            onClick={() => {
+              useUi.getState().setOpenTrain(kind);
+              useUi.getState().setSettingsOpen(false);
+              useUi.getState().setTab('train');
+            }}
+          />
+        ))}
+      </section>
 
       <section className="rounded-card border border-line bg-surface px-4" aria-label="Units">
         <div className={row}>
