@@ -5,6 +5,7 @@ import { E1RM_FORMULAS, formulaInfo } from '../../domain/e1rm';
 import { parseDays } from '../../domain/profileForm';
 import type { E1rmFormula, LengthUnit, Profile, WeightUnit } from '../../domain/types';
 import { useWorkout } from '../train/workoutStore';
+import { REST_ALERT_LABELS, getRestAlert, setRestAlert, testRestAudio, type RestAlert } from '../train/restAudio';
 
 const isInstalled = (): boolean =>
   (navigator as Navigator & { standalone?: boolean }).standalone === true || window.matchMedia('(display-mode: standalone)').matches;
@@ -19,6 +20,7 @@ export function SettingsScreen() {
   const [error, setError] = useState('');
   const theme = useUi((s) => s.theme);
   const setTheme = useUi((s) => s.setTheme);
+  const [alert, setAlert] = useState<RestAlert>(getRestAlert);
 
   useEffect(() => {
     void profileRepo.get().then((x) => {
@@ -113,6 +115,29 @@ export function SettingsScreen() {
           <input type="checkbox" className="h-6 w-6" checked={p.showDumbbellPairTotal} onChange={(e) => void save({ showDumbbellPairTotal: e.target.checked })} />
         </label>
         <p className="pb-3 text-xs text-muted">Weeks start on Monday. Pair total is a display line only; dumbbells are stored per implement.</p>
+      </section>
+
+      <section className="rounded-card border border-line bg-surface px-4 py-3" aria-label="Rest timer sound">
+        <label className="flex flex-col gap-1 text-sm text-muted">
+          Rest timer sound
+          <select
+            className="min-h-tap w-full rounded-card border border-line bg-bg px-3 text-base text-fg"
+            value={alert}
+            onChange={(e) => {
+              const v = e.target.value as RestAlert;
+              setRestAlert(v);
+              setAlert(v);
+            }}
+          >
+            {(Object.keys(REST_ALERT_LABELS) as RestAlert[]).map((k) => (
+              <option key={k} value={k}>{REST_ALERT_LABELS[k]}</option>
+            ))}
+          </select>
+        </label>
+        <button type="button" disabled={alert === 'off'} onClick={() => testRestAudio(10)} className="mt-2 min-h-tap rounded-card border border-line px-4 text-sm text-fg disabled:opacity-50">
+          Test: three beeps in 10 seconds
+        </button>
+        <p className="mt-2 text-xs text-muted">Lock your phone after tapping Test to check it sounds with the screen off. Needs the app installed to the Home Screen. Three beeps play when a rest ends, after every set including warm-ups.</p>
       </section>
 
       <section className="rounded-card border border-line bg-surface px-4" aria-label="Appearance">

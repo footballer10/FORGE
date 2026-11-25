@@ -133,13 +133,23 @@ describe('workout store', () => {
       expect((await workoutRepo.getActive())?.restTimerEndsAt).toBe(useWorkout.getState().restEndsAt);
     });
 
-    it('does not start for warm-ups; skip clears it', async () => {
-      const bench = await exerciseRepo.create({ ...base, name: 'Bench' });
+    it('starts for warm-ups too (capped at 60 s), restarts on the next set; skip clears it', async () => {
+      const bench = await exerciseRepo.create({ ...base, name: 'Bench', defaultRestSec: 180 });
       await useWorkout.getState().start();
       await useWorkout.getState().addExercise(bench.id);
       await useWorkout.getState().updateSet(sets()[0]!.id, { type: 'warmup' });
+      let before = Date.now();
       await tick();
-      expect(useWorkout.getState().restEndsAt).toBeUndefined();
+      expect(useWorkout.getState().restTotalSec).toBe(60);
+      expect(Date.parse(useWorkout.getState().restEndsAt!) - before).toBeLessThan(61_500);
+
+      // Ticking the next (working) set replaces the running timer with the full rest.
+      await useWorkout.getState().addSet(useWorkout.getState().rows[0]!.we.id);
+      await useWorkout.getState().updateSet(sets()[1]!.id, { weight: 100, reps: 5 });
+      before = Date.now();
+      await useWorkout.getState().toggleComplete(sets()[1]!.id);
+      expect(useWorkout.getState().restTotalSec).toBe(180);
+      expect(Date.parse(useWorkout.getState().restEndsAt!) - before).toBeGreaterThan(179_000);
 
       await useWorkout.getState().startRest(60);
       expect(useWorkout.getState().restEndsAt).toBeTruthy();

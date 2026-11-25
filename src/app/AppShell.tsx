@@ -10,6 +10,7 @@ import { trashRepo } from '../db/repositories';
 import { RestTimer } from '../features/train/RestTimer';
 import { useWakeLock } from '../features/train/useWakeLock';
 import { useWorkout } from '../features/train/workoutStore';
+import { syncRestAudio, unlockRestAudio } from '../features/train/restAudio';
 
 const StrengthScreen = lazy(() => import('../features/strength/StrengthScreen').then((m) => ({ default: m.StrengthScreen })));
 const ProgressScreen = lazy(() => import('../features/progress/ProgressScreen').then((m) => ({ default: m.ProgressScreen })));
@@ -45,6 +46,21 @@ export function AppShell() {
       .then(() => {
         if (useWorkout.getState().workout) useUi.getState().setTab('train');
       });
+  }, []);
+
+  // iOS only lets audio play after a tap: unlock on the first one, then resume a rest already running.
+  useEffect(() => {
+    const unlock = () => {
+      void unlockRestAudio().then(() => syncRestAudio(useWorkout.getState().restEndsAt));
+      window.removeEventListener('click', unlock, true);
+      window.removeEventListener('touchend', unlock, true);
+    };
+    window.addEventListener('click', unlock, true);
+    window.addEventListener('touchend', unlock, true);
+    return () => {
+      window.removeEventListener('click', unlock, true);
+      window.removeEventListener('touchend', unlock, true);
+    };
   }, []);
 
   // Trash older than 30 days is removed for good on launch.
