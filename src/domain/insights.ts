@@ -1,6 +1,6 @@
 import { addDays, weekStart } from './calendar';
 import type { WeekResult } from './streaks';
-import { BALANCE_LIMIT, balanceChecks, detectPlateau, type VolumeSet } from './volume';
+import { balanceChecks, detectPlateau, type VolumeSet } from './volume';
 import type { WeightUnit } from './types';
 
 /**

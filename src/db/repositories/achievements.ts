@@ -25,7 +25,7 @@ export interface WorkoutSummary {
 }
 
 /** Planned training days per week: the active program's `daysPerWeek`, else the profile value. */
-async function weeklyTarget(): Promise<number> {
+export async function weeklyTarget(): Promise<number> {
   const active = (await db.programs.filter((p) => p.status === 'active' && !p.deletedAt).toArray())[0];
   return active?.daysPerWeek ?? (await profileRepo.get()).plannedDaysPerWeek;
 }

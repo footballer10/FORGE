@@ -5,6 +5,7 @@ import { BackupReminder } from '../data/BackupReminder';
 import { achievementsRepo } from '../../db/repositories';
 import type { StreakSummary } from '../../domain/streaks';
 import { NextUpCard } from './NextUpCard';
+import { InsightNotes } from './InsightNotes';
 import { HistoryCalendar } from '../train/HistoryCalendar';
 import { HistoryList } from '../train/HistoryList';
 
@@ -39,6 +40,7 @@ export function HomeScreen() {
           {streak.current > 0 && <span className="text-muted"> · {streak.current}-week streak</span>}
         </p>
       )}
+      <InsightNotes />
       <NextUpCard />
       <BackupReminder
         onOpen={() => {
