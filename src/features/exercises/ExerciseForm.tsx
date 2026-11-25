@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { exerciseRepo } from '../../db/repositories';
-import type { Equipment, Exercise, LoadModel, Muscle, MovementPattern } from '../../domain/types';
+import type { Equipment, Exercise, LoadModel, Muscle, MovementPattern, WeightUnit } from '../../domain/types';
 import { EQUIPMENT_OPTIONS, LOAD_MODEL_OPTIONS, MUSCLE_OPTIONS, labelFor } from './options';
 
 interface Props {
@@ -24,6 +24,7 @@ export function ExerciseForm({ exercise, onDone }: Props) {
   const [pattern, setPattern] = useState<MovementPattern>(exercise?.pattern ?? 'other');
   const [primary, setPrimary] = useState<Muscle[]>(exercise?.primaryMuscles ?? []);
   const [increment, setIncrement] = useState(String(exercise?.weightIncrement ?? 5));
+  const [incUnit, setIncUnit] = useState<WeightUnit>(exercise?.incrementUnit ?? 'lb');
   const [rest, setRest] = useState(String(exercise?.defaultRestSec ?? 90));
   const [unilateral, setUnilateral] = useState(exercise?.unilateral ?? false);
   const [note, setNote] = useState(exercise?.stickyNote ?? '');
@@ -49,13 +50,14 @@ export function ExerciseForm({ exercise, onDone }: Props) {
       primaryMuscles: primary,
       unilateral,
       weightIncrement: inc,
+      incrementUnit: incUnit,
       defaultRestSec: Math.round(restSec),
       ...(note.trim() ? { stickyNote: note.trim() } : {}),
     };
     if (exercise) {
       await exerciseRepo.update(exercise.id, { ...fields, stickyNote: note.trim() || undefined });
     } else {
-      await exerciseRepo.create({ ...fields, secondaryMuscles: [], incrementUnit: 'lb', source: 'custom' });
+      await exerciseRepo.create({ ...fields, secondaryMuscles: [], source: 'custom' });
     }
     onDone();
   }
@@ -99,8 +101,14 @@ export function ExerciseForm({ exercise, onDone }: Props) {
         <span className="text-xs">{hint}</span>
       </label>
       <div className="grid grid-cols-2 gap-2">
-        <label className={label}>Increment (lb)
-          <input className={`${field} num`} inputMode="decimal" value={increment} onChange={(e) => setIncrement(e.target.value)} />
+        <label className={label}>Increment
+          <span className="flex gap-2">
+            <input className={`${field} num min-w-0 flex-1`} inputMode="decimal" value={increment} onChange={(e) => setIncrement(e.target.value)} />
+            <select className={field} aria-label="Increment unit" value={incUnit} onChange={(e) => setIncUnit(e.target.value as WeightUnit)}>
+              <option value="lb">lb</option>
+              <option value="kg">kg</option>
+            </select>
+          </span>
         </label>
         <label className={label}>Rest (seconds)
           <input className={`${field} num`} inputMode="numeric" value={rest} onChange={(e) => setRest(e.target.value)} />
