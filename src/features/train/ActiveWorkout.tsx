@@ -188,6 +188,7 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
                     key={x.id}
                     set={inUnit(x, unit)}
                     index={i}
+                    ordinal={row.sets.slice(0, i).filter((s) => s.type !== 'warmup').length + 1}
                     fields={fields}
                     loadModel={row.exercise.loadModel}
                     previous={row.last[i] && inUnit(row.last[i]!, unit)}

@@ -79,3 +79,14 @@ describe('applySuggestion', () => {
     expect(out[0]).toEqual({ type: 'working', unit: 'lb', weight: 140, reps: 5 });
   });
 });
+
+describe('per-set rest in routines', () => {
+  it('keeps a rest typed on a target and rounds it', () => {
+    const out = sanitizeExercises([{ exerciseId: 'a', order: 0, targets: [{ type: 'working', reps: 5, restSec: 90.4 }, { type: 'working', reps: 5 }] }]);
+    expect(out[0]!.targets.map((t) => t.restSec)).toEqual([90, undefined]);
+  });
+  it('does not group sets whose rests differ', () => {
+    const s = describeTargets([{ type: 'working', reps: 5, restSec: 60 }, { type: 'working', reps: 5, restSec: 180 }]);
+    expect(s).not.toMatch(/2 ×/);
+  });
+});

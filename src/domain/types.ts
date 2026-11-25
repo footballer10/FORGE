@@ -130,6 +130,8 @@ export interface Exercise extends BaseEntity {
   stickyNote?: string;
   /** Bar weight for the plate calculator when loadModel is 'total' on a barbell. */
   barWeight?: Weight;
+  /** Exact name of this exercise in Strong, used when exporting so Strong matches it to its own exercise. */
+  strongName?: string;
   archived?: boolean;
 }
 
@@ -218,6 +220,8 @@ export interface TargetSet {
   rpe?: number;
   durationSec?: number;
   distanceM?: number;
+  /** Rest after this set, seconds. Overrides the exercise rest for this set (Strong-style per-set timers). */
+  restSec?: number;
 }
 
 export type ProgressionRule =

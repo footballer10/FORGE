@@ -4,6 +4,8 @@ import type { LoadModel, SetEntry } from '../../domain/types';
 interface Props {
   set: SetEntry;
   index: number;
+  /** 1-based number among working sets (warm-ups show W and are not counted), like Strong. */
+  ordinal?: number;
   fields: SetField[];
   loadModel: LoadModel;
   previous?: SetEntry;
@@ -23,9 +25,9 @@ function display(set: SetEntry, field: SetField): string {
   return field === 'durationSec' ? formatDuration(v) : String(Math.round(v * 100) / 100);
 }
 
-export function SetRow({ set, index, fields, loadModel, previous, editing, onEdit, onOpenDetails, onToggle, pairTotal, pr }: Props) {
+export function SetRow({ set, index, ordinal, fields, loadModel, previous, editing, onEdit, onOpenDetails, onToggle, pairTotal, pr }: Props) {
   const done = !!set.completedAt;
-  const badge = SET_TYPES.find((t) => t.type === set.type)?.short || String(index + 1);
+  const badge = SET_TYPES.find((t) => t.type === set.type)?.short || String(ordinal ?? index + 1);
   return (
     <div className={`flex items-center gap-2 rounded-card px-1 py-1 ${done ? 'bg-surface-2' : ''} ${pr ? 'animate-pr ring-1 ring-accent' : ''}`}>
       <button

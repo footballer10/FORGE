@@ -12,7 +12,7 @@ export { workoutRepo, type FullWorkout } from './workouts';
 export { profileRepo, defaultProfile } from './profile';
 export { nutritionRepo, type FoodInput, type NutritionData } from './nutrition';
 export { importer } from './importer';
-export { backupRepo } from './backup';
+export { backupRepo, type StrongExportItem } from './backup';
 import { undoRepo } from './undo';
 export { undoRepo, UNDO_EVENT, type RowRefs } from './undo';
 export { trashRepo } from './trash';

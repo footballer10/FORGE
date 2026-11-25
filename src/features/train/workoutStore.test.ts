@@ -449,6 +449,32 @@ describe('progression on start', () => {
     expect(we.suggested).toEqual({ weight: 140, unit: 'lb', reps: 8 });
   });
 
+  it('uses the rest typed for each set in the routine (warm-ups included), else the exercise rest', async () => {
+    const { routineRepo } = await import('../../db/repositories');
+    const sq = await exerciseRepo.create({ ...base, name: 'Squat', defaultRestSec: 120 });
+    const r = await routineRepo.create({
+      name: 'Legs',
+      exercises: [{
+        exerciseId: sq.id, order: 0,
+        targets: [
+          { type: 'warmup', reps: 8, weight: 45, unit: 'lb', restSec: 60 },
+          { type: 'warmup', reps: 3, weight: 135, unit: 'lb', restSec: 90 },
+          { type: 'working', reps: 6, weight: 200, unit: 'lb', restSec: 180 },
+          { type: 'working', reps: 6, weight: 200, unit: 'lb' },
+        ],
+      }],
+    });
+    await useWorkout.getState().startFromRoutine(r.id);
+    const restAfter = async (i: number) => {
+      await useWorkout.getState().toggleComplete(sets()[i]!.id);
+      return useWorkout.getState().restTotalSec;
+    };
+    expect(await restAfter(0)).toBe(60);
+    expect(await restAfter(1)).toBe(90);
+    expect(await restAfter(2)).toBe(180);
+    expect(await restAfter(3)).toBe(120); // no per-set rest: the exercise default
+  });
+
   it('addWarmups puts the ramp before the working sets, once', async () => {
     const sq = await exerciseRepo.create({ ...base, name: 'Squat' });
     await useWorkout.getState().start();

@@ -71,6 +71,22 @@ describe('proposalToDraft', () => {
   });
 });
 
+describe('per-set rest', () => {
+  const withRest = (restSec: unknown) => ({
+    schemaVersion: 1, name: 'P', reason: 'r',
+    weeks: [{ sessions: [{ name: 'A', exercises: [{ exercise: 'Back Squat', sets: [{ type: 'warmup', reps: 8, weight: 45, restSec }, { count: 2, reps: 6, restSec: 180 }] }] }] }],
+  });
+  it('is accepted, expanded with count, and reaches the draft targets', () => {
+    const { proposal, errors } = validateProposal(withRest(60));
+    expect(errors).toEqual([]);
+    const { draft } = proposalToDraft(proposal!, lookup, 'lb', key);
+    expect(draft[0]!.sessions[0]!.exercises[0]!.targets.map((t) => t.restSec)).toEqual([60, 180, 180]);
+  });
+  it('rejects a rest that is negative, fractional or over 30 minutes', () => {
+    for (const bad of [-1, 1.5, 1801, '60']) expect(validateProposal(withRest(bad)).errors.join()).toMatch(/restSec/);
+  });
+});
+
 describe('diffDrafts and carryOverHistory', () => {
   const names = new Map([['sq', 'Back Squat'], ['pu', 'Pull-up'], ['bp', 'Bench']]);
   const make = (reps: number, extra = false) => proposalToDraft(validateProposal({

@@ -43,7 +43,7 @@ export function draftsFromTargets(
 
 const sameShape = (a: TargetSet, b: TargetSet) =>
   a.type === b.type && a.reps === b.reps && a.repsMax === b.repsMax && a.weight === b.weight && a.unit === b.unit &&
-  a.rpe === b.rpe && a.durationSec === b.durationSec && a.distanceM === b.distanceM && a.percentE1rm === b.percentE1rm;
+  a.rpe === b.rpe && a.durationSec === b.durationSec && a.distanceM === b.distanceM && a.percentE1rm === b.percentE1rm && a.restSec === b.restSec;
 
 function describeOne(t: TargetSet): string {
   const parts: string[] = [];
@@ -82,8 +82,9 @@ export function sanitizeExercises(items: readonly RoutineExercise[]): RoutineExe
   for (const e of items) if (e.supersetGroup) counts.set(e.supersetGroup, (counts.get(e.supersetGroup) ?? 0) + 1);
   return reindex(items).map((e) => {
     const targets = e.targets.map((t): TargetSet => {
-      const { repsMax, rpe, ...rest } = t;
+      const { repsMax, rpe, restSec, ...rest } = t;
       const out: TargetSet = { ...rest };
+      if (restSec !== undefined && restSec >= 0) out.restSec = Math.round(restSec);
       if (repsMax !== undefined && t.reps !== undefined && repsMax > t.reps) out.repsMax = repsMax;
       if (rpe !== undefined && rpe >= 1 && rpe <= 10) out.rpe = rpe;
       return out;

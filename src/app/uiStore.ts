@@ -12,6 +12,9 @@ interface UiState {
   setOpenBackup: (v: boolean) => void;
   /** Open Settings straight to a sub-page (Home notice for a waiting proposal). */
   settingsPage: 'claude' | null;
+  /** Set by the Train tab so Settings → Claude opens with the A/B/C starter program ready to review. */
+  starterRequest: boolean;
+  setStarterRequest: (v: boolean) => void;
   setSettingsPage: (v: 'claude' | null) => void;
   /** Set by Settings so the Train tab opens one of its utility screens. */
   openTrain: 'library' | 'import' | 'data' | 'review' | null;
@@ -39,6 +42,8 @@ export const useUi = create<UiState>((set) => ({
   openBackup: false,
   openTrain: null,
   settingsPage: null,
+  starterRequest: false,
+  setStarterRequest: (starterRequest) => set({ starterRequest }),
   setSettingsPage: (settingsPage) => set({ settingsPage }),
   setOpenTrain: (openTrain) => set({ openTrain }),
   settingsOpen: false,

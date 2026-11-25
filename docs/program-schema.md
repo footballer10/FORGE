@@ -43,6 +43,7 @@ nothing until you approve. The code that enforces this is `src/domain/programPro
 | `sets[].percentE1rm` | 0.1-1.2 | fraction of current e1RM, 0.75 = 75% |
 | `sets[].rpe` | 1-10 | optional |
 | `sets[].durationSec`, `distanceM` | whole seconds, metres | for time/distance work |
+| `sets[].restSec` | whole number 0-1800 | rest after this set (warm-ups too); beats the exercise `restSec` for that set |
 
 A set needs `reps`, `durationSec` or `distanceM`.
 
@@ -149,7 +150,8 @@ Progression (all optional; the app only suggests, you can always override):
                             "percentE1rm": { "type": "number", "minimum": 0.1, "maximum": 1.2 },
                             "rpe": { "type": "number", "minimum": 1, "maximum": 10 },
                             "durationSec": { "type": "integer", "minimum": 1, "maximum": 36000 },
-                            "distanceM": { "type": "number", "minimum": 1, "maximum": 200000 }
+                            "distanceM": { "type": "number", "minimum": 1, "maximum": 200000 },
+                            "restSec": { "type": "integer", "minimum": 0, "maximum": 1800 }
                           },
                           "anyOf": [{ "required": ["reps"] }, { "required": ["durationSec"] }, { "required": ["distanceM"] }]
                         }

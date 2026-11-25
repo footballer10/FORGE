@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { adjustRest, formatClock, isStale, remainingSec, restEndsAt, restSecondsFor } from './restTimer';
+import { adjustRest, formatClock, formatRest, isStale, parseRest, remainingSec, restEndsAt, restSecondsFor } from './restTimer';
 
 const T0 = Date.parse('2026-01-05T10:00:00.000Z');
 
@@ -39,5 +39,32 @@ describe('rest timer', () => {
     expect(formatClock(95)).toBe('1:35');
     expect(formatClock(5)).toBe('0:05');
     expect(formatClock(-3)).toBe('0:00');
+  });
+});
+
+describe('per-set rest', () => {
+  it('a rest typed for the set wins over the exercise rest, warm-ups included', () => {
+    expect(restSecondsFor({ defaultRestSec: 120 }, 'working', undefined, 180)).toBe(180);
+    expect(restSecondsFor({ defaultRestSec: 120 }, 'warmup', undefined, 90)).toBe(90);
+    expect(restSecondsFor({ defaultRestSec: 120 }, 'working', 100, 0)).toBe(0);
+    expect(restSecondsFor({ defaultRestSec: 120 }, 'working', 100)).toBe(100);
+  });
+  it('parses m:ss and seconds, blank is undefined, junk is null', () => {
+    expect(parseRest('1:30')).toBe(90);
+    expect(parseRest('3:00')).toBe(180);
+    expect(parseRest('90')).toBe(90);
+    expect(parseRest(' 0:45 ')).toBe(45);
+    expect(parseRest('')).toBeUndefined();
+    expect(parseRest('1:7')).toBeNull();
+    expect(parseRest('1:75')).toBeNull();
+    expect(parseRest('abc')).toBeNull();
+    expect(parseRest('31:00')).toBeNull();
+    expect(parseRest('99999')).toBeNull();
+  });
+  it('formats as m:ss', () => {
+    expect(formatRest(90)).toBe('1:30');
+    expect(formatRest(60)).toBe('1:00');
+    expect(formatRest(45)).toBe('0:45');
+    expect(formatRest(180)).toBe('3:00');
   });
 });

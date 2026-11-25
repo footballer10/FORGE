@@ -20,6 +20,8 @@ export interface ProposalSet {
   rpe?: number;
   durationSec?: number;
   distanceM?: number;
+  /** Rest after this set, seconds (0 to 1800). */
+  restSec?: number;
 }
 export interface ProposalExercise {
   exercise: string;
@@ -134,7 +136,7 @@ export function validateProposal(raw: unknown): { proposal?: Proposal; errors: s
         else e.sets.forEach((t, ti) => {
           const tp = `${ep}.sets[${ti}]`;
           if (!isObj(t)) return err(tp, 'must be an object');
-          unknownKeys(t, ['type', 'count', 'reps', 'repsMax', 'weight', 'unit', 'percentE1rm', 'rpe', 'durationSec', 'distanceM'], tp);
+          unknownKeys(t, ['type', 'count', 'reps', 'repsMax', 'weight', 'unit', 'percentE1rm', 'rpe', 'durationSec', 'distanceM', 'restSec'], tp);
           let type: SetType | undefined;
           if (t.type !== undefined) {
             if (typeof t.type === 'string' && SET_TYPES.includes(t.type as SetType)) type = t.type as SetType;
@@ -157,6 +159,7 @@ export function validateProposal(raw: unknown): { proposal?: Proposal; errors: s
           put('rpe', num(t, 'rpe', tp, 1, 10));
           put('durationSec', num(t, 'durationSec', tp, 1, 36000, true));
           put('distanceM', num(t, 'distanceM', tp, 1, 200000));
+          put('restSec', num(t, 'restSec', tp, 0, 1800, true));
           if (set.repsMax !== undefined && (set.reps === undefined || set.repsMax < set.reps)) err(`${tp}.repsMax`, 'needs reps and must be at least reps');
           if (set.weight !== undefined && set.percentE1rm !== undefined) err(tp, 'give weight or percentE1rm, not both');
           if (set.reps === undefined && set.durationSec === undefined && set.distanceM === undefined) err(tp, 'needs reps, durationSec or distanceM');
@@ -230,6 +233,7 @@ export function proposalToDraft(
             ...(t.rpe !== undefined ? { rpe: t.rpe } : {}),
             ...(t.durationSec !== undefined ? { durationSec: t.durationSec } : {}),
             ...(t.distanceM !== undefined ? { distanceM: t.distanceM } : {}),
+            ...(t.restSec !== undefined ? { restSec: t.restSec } : {}),
           }),
         ));
         return [{
@@ -341,4 +345,4 @@ Rules: no comments or trailing commas; unknown fields are errors; "exercise" mus
   ]
 }
 
-Set fields: type (warmup|working|drop|failure|amrap, default working), count (repeat N times), reps, repsMax (range), weight, unit, percentE1rm (0.75 = 75%, not with weight), rpe, durationSec, distanceM. A set needs reps, durationSec or distanceM. Progression kinds: none; doubleProgression (repsMin, repsMax); percentE1rm (percent); rpeTarget (rpe). Limits: 52 weeks, 7 sessions per week, 20 exercises per session.`;
+Set fields: type (warmup|working|drop|failure|amrap, default working), count (repeat N times), reps, repsMax (range), weight, unit, percentE1rm (0.75 = 75%, not with weight), rpe, durationSec, distanceM, restSec (rest after this set in seconds; use it for per-set timers). A set needs reps, durationSec or distanceM. Progression kinds: none; doubleProgression (repsMin, repsMax); percentE1rm (percent); rpeTarget (rpe). Limits: 52 weeks, 7 sessions per week, 20 exercises per session.`;
