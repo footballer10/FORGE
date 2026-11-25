@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canComplete, durationMinutes, fieldsFor, formatSet, prefillDrafts } from './logging';
+import { canComplete, durationMinutes, fieldsFor, formatSet, prefillDrafts, suggestionTarget } from './logging';
 
 describe('logging', () => {
   it('chooses fields by load model', () => {
@@ -33,5 +33,13 @@ describe('logging', () => {
   });
   it('computes minutes', () => {
     expect(durationMinutes('2026-11-24T10:00:00.000Z', '2026-11-24T10:52:20.000Z')).toBe(52);
+  });
+});
+
+describe('suggestionTarget', () => {
+  it('skips warm-ups and finished sets', () => {
+    const sets = [{ type: 'warmup' as const }, { type: 'working' as const, completedAt: 'x' }, { type: 'working' as const, id: 'n' }, { type: 'working' as const }];
+    expect(suggestionTarget(sets)).toBe(sets[2]);
+    expect(suggestionTarget([{ type: 'warmup' as const }])).toBeUndefined();
   });
 });

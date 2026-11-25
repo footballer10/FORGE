@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { achievementsRepo, exerciseRepo, metaRepo, nowIso, plannedSessionRepo, profileRepo, routineRepo, undoRepo, workoutRepo } from '../../db/repositories';
-import { canComplete, prefillDrafts } from '../../domain/logging';
+import { canComplete, prefillDrafts, suggestionTarget } from '../../domain/logging';
 import { moveItem } from '../../domain/order';
 import { restAfterExercise, toggleSupersetLink } from '../../domain/superset';
 import { adjustRest, isStale, restEndsAt, restSecondsFor } from '../../domain/restTimer';
@@ -43,6 +43,8 @@ interface State {
   removeExercise: (workoutExerciseId: ID) => Promise<void>;
   addSet: (workoutExerciseId: ID) => Promise<void>;
   updateSet: (setId: ID, patch: Partial<SetEntry>) => Promise<void>;
+  /** Fill the next open working set of an exercise with its suggested weight (and reps). */
+  fillSuggested: (workoutExerciseId: ID) => Promise<void>;
   /** Tick a set done (needs reps / time) or un-tick it. Returns false when it cannot complete yet. */
   toggleComplete: (setId: ID) => Promise<boolean>;
   removeSet: (setId: ID) => Promise<void>;
@@ -211,6 +213,14 @@ export const useWorkout = create<State>((set, get) => {
     async updateSet(setId, patch) {
       patchLocal(setId, patch);
       await workoutRepo.updateSet(setId, patch);
+    },
+
+    async fillSuggested(workoutExerciseId) {
+      const row = get().rows.find((r) => r.we.id === workoutExerciseId);
+      const sug = row?.we.suggested;
+      const target = row && sug ? suggestionTarget(row.sets) : undefined;
+      if (!sug || !target) return;
+      await get().updateSet(target.id, { weight: sug.weight, unit: sug.unit, ...(sug.reps !== undefined ? { reps: sug.reps } : {}) });
     },
 
     async toggleComplete(setId) {

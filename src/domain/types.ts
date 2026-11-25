@@ -174,6 +174,8 @@ export interface WorkoutExercise extends BaseEntity {
   targets?: TargetSet[];
   /** Progression suggestion applied when the workout started (result and formula), shown while logging. */
   progressionNote?: string;
+  /** The same suggestion as numbers, so the logging screen can offer a one-tap fill. */
+  suggested?: { weight: number; unit: WeightUnit; reps?: number };
 }
 
 export interface SetEntry extends BaseEntity {
