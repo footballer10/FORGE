@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BUILT_IN_TESTS, changeIsImprovement, editText, formatTime, formatValue, parseValue, summarizeTest } from './fitness';
+import { BUILT_IN_TESTS, changeIsImprovement, daysLabel, daysUntil, describeCountdown, editText, formatTime, formatValue, parseValue, summarizeTest, testCountdown } from './fitness';
 import type { TestResult } from './types';
 
 const r = (id: string, date: string, value: number, extra: Partial<TestResult> = {}): TestResult => ({
@@ -74,5 +74,43 @@ describe('misc', () => {
   it('has the six built-ins with unique keys', () => {
     expect(BUILT_IN_TESTS).toHaveLength(6);
     expect(new Set(BUILT_IN_TESTS.map((t) => t.key)).size).toBe(6);
+  });
+});
+
+describe('test countdown', () => {
+  const hi = { scoring: 'higherIsBetter' as const, targetValue: 15, testDate: '2026-12-20' };
+  const lo = { measure: 'timeSec' as const, scoring: 'lowerIsBetter' as const, targetValue: 600, testDate: '2026-12-20' };
+  it('counts days, past and future', () => {
+    expect(daysUntil('2026-12-20', '2026-11-25')).toBe(25);
+    expect(daysUntil('2026-11-25', '2026-11-25')).toBe(0);
+    expect(daysUntil('2026-11-20', '2026-11-25')).toBe(-5);
+    expect(daysUntil('2027-01-01', '2026-12-31')).toBe(1);
+  });
+  it('gap for higher-is-better', () => {
+    expect(testCountdown(hi, 12, '2026-11-25')).toMatchObject({ gap: 3, met: false, daysLeft: 25 });
+    expect(testCountdown(hi, 15, '2026-11-25')).toMatchObject({ gap: 0, met: true });
+    expect(testCountdown(hi, 18, '2026-11-25')).toMatchObject({ gap: 0, met: true });
+  });
+  it('gap for lower-is-better', () => {
+    expect(testCountdown(lo, 650, '2026-11-25')).toMatchObject({ gap: 50, met: false });
+    expect(testCountdown(lo, 600, '2026-11-25').met).toBe(true);
+  });
+  it('no result or no goal', () => {
+    expect(testCountdown(hi, undefined, '2026-11-25')).toMatchObject({ met: false, target: 15 });
+    expect(testCountdown(hi, undefined, '2026-11-25').gap).toBeUndefined();
+    const c = testCountdown({ scoring: 'higherIsBetter' }, 10, '2026-11-25');
+    expect(c.daysLeft).toBeUndefined();
+    expect(c.target).toBeUndefined();
+  });
+  it('describes with inputs', () => {
+    const t = { measure: 'reps' as const, scoring: 'higherIsBetter' as const, testDate: '2026-12-20' };
+    expect(describeCountdown(t, testCountdown({ ...hi }, 12, '2026-11-25'), 'in')).toBe('target 15 reps, 3 reps to gain, test 2026-12-20 (in 25 days)');
+    const r = { measure: 'timeSec' as const, scoring: 'lowerIsBetter' as const, testDate: '2026-12-20' };
+    expect(describeCountdown(r, testCountdown(lo, 650, '2026-11-25'), 'in')).toBe('target 10:00, 50 s to cut, test 2026-12-20 (in 25 days)');
+    expect(describeCountdown(t, testCountdown({ ...hi }, 15, '2026-12-20'), 'in')).toContain('target met');
+    expect(describeCountdown(t, testCountdown({ scoring: 'higherIsBetter' }, 1, '2026-11-25'), 'in')).toBeUndefined();
+  });
+  it('labels days', () => {
+    expect([0, 1, -1, 5, -5].map(daysLabel)).toEqual(['today', 'tomorrow', 'yesterday', 'in 5 days', '5 days ago']);
   });
 });

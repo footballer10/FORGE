@@ -3,6 +3,8 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
+- **Done this session (13a + 13b, milestone 13 complete):** each fitness test can have a target and a test date, typed by the user (`FitnessTest.targetValue` in base units, `testDate`; optional fields, no schema bump). Progress > Fitness tests: under each test name a line like "target 15 reps, 6 reps to gain, test 2026-12-20 (in 25 days)" (or "target met"); open a test to edit the goal ("Save goal", clear both boxes to remove). Pure `testCountdown`, `describeCountdown`, `daysUntil` in `domain/fitness.ts`; `fitnessRepo.setGoal`. 13b: the Coach summary's Fitness tests section lists the goal per test (even with no results yet) and, when any test has a date, adds a line asking Claude to aim the plan at it and not change my targets. Tests (400) and build pass. Not opened in a browser or on an iPhone.
+- **Next session:** milestone 14 (issue burn-down, one item per sitting; start with imported exercises' muscles/pattern). Still open: deploy the Worker, sync once, add the connector (docs/connector.md) and report what happens.
 - **Done this session (12a + 12b, milestone 12 complete):** `domain/insights.ts` turns existing analytics into one-sentence notes with the numbers: missed week (last week's days vs planned), imbalance (push:pull, squat:hinge over 4 weeks, reusing `balanceChecks`; 'Pulling volume is low' for push-heavy), plateau (no e1RM gain in 6 weeks, reusing `detectPlateau`). Home shows at most 3 under the status line (`InsightNotes`): tap a note for the rule and inputs, × dismisses it. Dismissals are ids kept in localStorage on the device; ids include the lift's last-gain date or the week, so a note can return when the situation changes. 12b: Coach has a 'Copy weekly review' button: a short ask for Claude, all current notes with their rules, then the 7-day summary (`domain/weeklyReview.ts`). Tests (392) and build pass. Not opened in a browser or on an iPhone.
 - **Next session:** milestone 13 (fitness-test countdown), then 14. Still open: deploy the Worker, sync once, add the connector (docs/connector.md) and report what happens.
 - **Done this session (11c, milestone 11 complete):** "+ Warm-ups" button on barbell exercises that have a working weight and no warm-ups yet. Pure `domain/warmup.ts` `buildWarmups`: empty bar × 10, then 50% × 5, 70% × 3, 85% × 1 of the first working weight, each rounded down to what the plates can load (plate calculator logic), duplicates and steps at or above the work weight dropped. Warm-ups are inserted before the working sets (`workoutRepo.insertWarmups`); bar and plates come from the exercise, the equipment profile, else 45 lb and a standard plate set. Tests (383) and build pass.
@@ -25,6 +27,7 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - **Known issues:** see bottom.
 
 ## Decisions (defaults chosen; change by asking)
+- Fitness-test countdown (13): one target and one test date per test, stored on the test (target in base units, shown in the profile length unit). Gap = target − best (higher is better) or best − target (lower is better), floored at 0; measured against the BEST result, not the latest. A past date shows "N days ago". The Worker/connector does not expose targets yet (the Copy summary does).
 - Insights (12a): max 3 notes on Home, order missed week, imbalance, plateaus (longest first). Dismissed note ids live in localStorage, not the database (display preference; no sync or schema change). 'Missed' ignores long breaks (nothing the week before). Weekly review (12b) copies from Coach; the connector path is separate and unchanged.
 - Hosting: Cloudflare Pages, Vite `base: '/'`.
 - Week starts Monday.
@@ -236,8 +239,8 @@ Architecture (to confirm at the start of 10a):
 - Model: Opus for the rules, medium effort.
 
 ## Milestone 13 — Fitness-test countdown (service academy and rugby)
-- [ ] 13a: Test date + target per test (pull-ups, push-ups, 1.5 mile, 40 yd, broad jump, vertical) on the Progress > Fitness tests screen; shows current best, target, gap and days left. No invented standards: targets are typed by the user (from the academy's published standards).
-- [ ] 13b: Proposal text for Claude includes the countdown so plans aim at the test.
+- [x] 13a (done): Test date + target per test (pull-ups, push-ups, 1.5 mile, 40 yd, broad jump, vertical) on the Progress > Fitness tests screen; shows current best, target, gap and days left. No invented standards: targets are typed by the user (from the academy's published standards).
+- [x] 13b (done, milestone 13 complete): Proposal text for Claude includes the countdown so plans aim at the test.
 - Model: Sonnet, medium.
 
 ## Milestone 14 — Issue burn-down (small fixes, one sitting each)
@@ -255,6 +258,7 @@ Architecture (to confirm at the start of 10a):
 Auto warm-up ramp from the working weight; weekly volume landmarks per muscle; program library (5/3/1, linear progression) as importable JSON; muscle recovery view; Claude "what should I train today" proposals (after M10); beep-test and interval timers; light nutrition (daily calories and protein plus bodyweight trend to estimate maintenance); detailed set-by-set export for Claude (superseded by M10).
 
 ## Known issues
+- Countdown (13): one date per test (no separate battery dates); the connector's MCP tools do not return targets or dates yet; not seen in a browser or on a phone. The date input is the native picker.
 - Exercise page (9b): typechecked, unit-tested and built, not opened in a browser or on an iPhone; check chart readability and the three segments at phone width. Records use exact rep counts only (a heavier 5 does not fill the 3-rep row). Badges show PRs from the last 30 days (constant). The Insights tier thresholds remain the app's own rough multiples: ask the user what felt off before changing them.
 - Settings (8a) has no plate or bar editor; those stay in Coach → Training profile (Settings points there). The pair-total toggle also remains on the Train home.
 - Editing a past workout changes its sets but not its start/end times or name (no editor for those yet).

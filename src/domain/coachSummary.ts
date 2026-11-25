@@ -49,9 +49,12 @@ export interface SummaryPr {
 
 export interface SummaryTest {
   name: string;
-  latest: string;
-  latestDate: string;
-  best: string;
+  /** Absent when only a target or date is set and nothing was logged. */
+  latest?: string;
+  latestDate?: string;
+  best?: string;
+  /** Countdown text from `describeCountdown`: target, gap, test date and days left. */
+  goal?: string;
 }
 
 export interface SummaryProgram {
@@ -181,7 +184,7 @@ export function buildCoachSummary(i: CoachSummaryInput): string {
   } else out.push(`- no weigh-ins`);
 
   out.push(``, `## Fitness tests`);
-  if (i.tests.length) for (const t of i.tests) out.push(`- ${t.name}: latest ${t.latest} (${t.latestDate}); best ${t.best}`);
+  if (i.tests.length) for (const t of i.tests) out.push(`- ${[`${t.name}: ${t.latest ? `latest ${t.latest} (${t.latestDate}); best ${t.best}` : 'no results yet'}`, t.goal && `goal: ${t.goal}`].filter(Boolean).join('; ')}`);
   else out.push(`- no results logged`);
 
   out.push(``, `## Current program`);
@@ -194,6 +197,7 @@ export function buildCoachSummary(i: CoachSummaryInput): string {
 
   out.push(``, `## How to answer`);
   out.push(`Suggest changes as a proposal with a reason for each. Do not assume anything not shown above; ask if something is missing.`);
+  if (i.tests.some((t) => t.goal?.includes('test '))) out.push(`Where a fitness test has a date, aim the plan at it: say what each phase does for that test and how many days remain. Targets are mine; do not change them.`);
   out.push(`I approve every change in the app before it affects my training.`);
   return out.join('\n');
 }
