@@ -1,4 +1,5 @@
 import { applySuggestion, draftsFromTargets } from '../../domain/routine';
+import { summarizeSets, type PreviewLine } from '../../domain/nextUp';
 import { suggestProgression } from '../../domain/progression';
 import type { ID, RoutineExercise, SetEntry, Workout, WorkoutExercise, WeightUnit } from '../../domain/types';
 import { db } from '../schema';
@@ -97,6 +98,32 @@ export const workoutRepo = {
       for (const draft of drafts) await workoutRepo.addSet(we.id, draft);
     }
     return w;
+  },
+
+  /**
+   * What `startFromPlan` would create, without writing anything: one line per exercise with the
+   * sets and weights it would start with (same prefill and progression logic).
+   */
+  async previewPlan(exercises: RoutineExercise[], fallbackUnit: WeightUnit): Promise<PreviewLine[]> {
+    const out: PreviewLine[] = [];
+    for (const re of [...exercises].sort((a, b) => a.order - b.order)) {
+      const ex = await db.exercises.get(re.exerciseId);
+      if (!ex || ex.deletedAt) continue;
+      const last = await workoutRepo.lastSetsFor(re.exerciseId);
+      const firstWork = re.targets.find((t) => t.type !== 'warmup');
+      const suggestion = re.progression
+        ? suggestProgression({
+            rule: re.progression,
+            ...(firstWork?.reps !== undefined ? { targetReps: firstWork.reps } : {}),
+            last,
+            increment: { value: ex.weightIncrement, unit: ex.incrementUnit },
+          })
+        : undefined;
+      let drafts = draftsFromTargets(re.targets, last, fallbackUnit);
+      if (suggestion) drafts = applySuggestion(drafts, re.targets.length > 0 ? re.targets : [{ type: 'working' }], suggestion);
+      out.push({ exerciseId: ex.id, name: ex.name, summary: summarizeSets(drafts) });
+    }
+    return out;
   },
 
   startFromRoutine(routine: { id: ID; name: string; exercises: RoutineExercise[] }, fallbackUnit: WeightUnit): Promise<Workout> {

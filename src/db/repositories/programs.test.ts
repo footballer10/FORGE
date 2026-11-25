@@ -56,4 +56,13 @@ describe('programRepo', () => {
     expect(full?.exercises[0]).toMatchObject({ restSec: 45 });
     expect(full?.exercises[0]?.sets[0]).toMatchObject({ weight: 100, reps: 5 });
   });
+
+  it('previews a planned session without writing a workout', async () => {
+    const ex = await exerciseRepo.create({ name: 'Bench', aliases: [], equipment: 'barbell', primaryMuscles: [], secondaryMuscles: [], pattern: 'horizontalPush', unilateral: false, defaultRestSec: 120, weightIncrement: 5, incrementUnit: 'lb', loadModel: 'total', source: 'custom' });
+    const p = await programRepo.saveVersion({ fields: { name: 'P' }, weeks: weeks(ex.id), reason: 'x' });
+    const session = (await plannedSessionRepo.list()).find((s) => s.programId === p.id && s.name === 'Push')!;
+    const lines = await workoutRepo.previewPlan(session.exercises, 'lb');
+    expect(lines).toEqual([{ exerciseId: ex.id, name: 'Bench', summary: '1 × 5 @ 100 lb' }]);
+    expect(await workoutRepo.listHistory()).toHaveLength(0);
+  });
 });
