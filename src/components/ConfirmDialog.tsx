@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { TrapFocus } from './TrapFocus';
 
 interface Props {
   title: string;
@@ -20,7 +21,7 @@ export function ConfirmDialog({ title, body, confirmLabel, cancelLabel = 'Cancel
   }, [onCancel]);
 
   return (
-    <div role="alertdialog" aria-modal="true" aria-label={title} className="fixed inset-0 z-50 flex items-end bg-black/60 pb-safe" onClick={onCancel}>
+    <TrapFocus role="alertdialog" aria-modal="true" aria-label={title} className="fixed inset-0 z-50 flex items-end bg-black/60 pb-safe" onClick={onCancel}>
       <div className="mx-auto w-full max-w-md rounded-t-card border border-line bg-surface p-4" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-2xl uppercase">{title}</h2>
         {body && <p className="mt-1 text-sm text-muted">{body}</p>}
@@ -37,6 +38,6 @@ export function ConfirmDialog({ title, body, confirmLabel, cancelLabel = 'Cancel
           </button>
         </div>
       </div>
-    </div>
+    </TrapFocus>
   );
 }

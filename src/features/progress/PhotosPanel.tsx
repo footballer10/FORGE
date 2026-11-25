@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { TrapFocus } from '../../components/TrapFocus';
 import { photoRepo } from '../../db/repositories';
 import { localDateKey } from '../../domain/calendar';
 import { POSES, daysBetween, poseLabel, type Pose } from '../../domain/photos';
@@ -153,7 +154,7 @@ export function PhotosPanel() {
       )}
 
       {mode.kind !== 'grid' && (
-        <div role="dialog" aria-modal="true" aria-label="Photo viewer" className="fixed inset-0 z-50 flex flex-col bg-bg p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <TrapFocus role="dialog" aria-modal="true" aria-label="Photo viewer" className="fixed inset-0 z-50 flex flex-col bg-bg p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
           <div className="mb-2 flex items-center justify-between">
             <h3 className="font-display text-lg">{mode.kind === 'compare' ? 'Compare' : 'Photo'}</h3>
             <button type="button" onClick={() => { setMode({ kind: 'grid' }); setConfirmDelete(false); }} className="min-h-tap px-3 text-base">Close</button>
@@ -194,7 +195,7 @@ export function PhotosPanel() {
               </>
             );
           })()}
-        </div>
+        </TrapFocus>
       )}
     </section>
   );

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { TrapFocus } from '../../components/TrapFocus';
 import { bodyRepo, metaRepo, profileRepo, workoutRepo } from '../../db/repositories';
 import { localDateKey } from '../../domain/calendar';
 import { parseDays, parseLines, parsePositive } from '../../domain/profileForm';
@@ -52,7 +53,7 @@ export function Onboarding() {
   }
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Welcome to Forge" className="fixed inset-0 z-50 overflow-y-auto bg-bg px-4 pb-safe pt-safe">
+    <TrapFocus role="dialog" aria-modal="true" aria-label="Welcome to Forge" className="fixed inset-0 z-50 overflow-y-auto bg-bg px-4 pb-safe pt-safe">
       <div className="mx-auto flex max-w-md flex-col gap-4 pb-8">
         <h1 className="pt-6 text-4xl uppercase">Welcome to Forge</h1>
         <p className="text-sm text-muted">Three quick choices. Everything can be changed later in Settings. Your data stays on this device.</p>
@@ -89,6 +90,6 @@ export function Onboarding() {
         <button type="button" onClick={() => void finish(true)} className="min-h-tap rounded-card bg-accent px-4 font-semibold text-white">Get started</button>
         <button type="button" onClick={() => void finish(false)} className="min-h-tap text-sm text-muted">Skip for now</button>
       </div>
-    </div>
+    </TrapFocus>
   );
 }
