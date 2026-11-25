@@ -1,3 +1,5 @@
+import { useUi } from '../../app/uiStore';
+import { STARTER_PROPOSAL } from '../../domain/starterProgram';
 import { useCallback, useEffect, useState } from 'react';
 import { coachRepo, syncRepo, type ProposalPreview } from '../../db/repositories';
 import type { AiDecision } from '../../domain/types';
@@ -58,6 +60,22 @@ export function ProposalPanel() {
     await refreshInbox();
     setSyncing(false);
   }
+  /** The A/B/C program built from the user's Strong templates, put through the same review as any proposal. */
+  const loadStarter = useCallback(async () => {
+    const json = JSON.stringify(STARTER_PROPOSAL, null, 1);
+    setStatus('');
+    setText(json);
+    setDecisionId(undefined);
+    setPreview(await coachRepo.prepareProposal(json));
+    setMode('update');
+  }, []);
+  useEffect(() => {
+    if (useUi.getState().starterRequest) {
+      useUi.getState().setStarterRequest(false);
+      void loadStarter();
+    }
+  }, [loadStarter]);
+
   async function openProposal(d: AiDecision) {
     setStatus('');
     setText(d.payload ?? '');
@@ -84,7 +102,7 @@ export function ProposalPanel() {
     setBusy(true);
     try {
       const p = await coachRepo.approveProposal(preview, mode, text, decisionId);
-      setStatus(`Saved "${p.name}" as version ${p.version}. Find it under Train → Programs.`);
+      setStatus(`Saved "${p.name}" as version ${p.version}. Find it under Train → Program, open it and tap Make active to start.`);
       setText('');
       setPreview(null);
       setDecisionId(undefined);
@@ -125,6 +143,7 @@ export function ProposalPanel() {
           {canSync && <button type="button" disabled={syncing} onClick={() => void checkForProposals()} className="mt-2 min-h-tap rounded-card border border-line px-4 text-sm disabled:opacity-50">{syncing ? 'Checking…' : 'Check for proposals'}</button>}
         </div>
       )}
+      <button type="button" className="mt-3 min-h-tap rounded-card border border-line px-4 text-sm" onClick={() => void loadStarter()}>Load my A/B/C program (from your Strong templates)</button>
       <p className="mt-1 text-sm text-muted">Paste the JSON Claude gives you. You see exactly what would change before anything is saved.</p>
       <button
         type="button" className="mt-3 min-h-tap rounded-card border border-line px-4 text-sm"

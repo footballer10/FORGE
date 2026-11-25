@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useUi } from '../../app/uiStore';
 import { UNDO_EVENT, programRepo } from '../../db/repositories';
 import { nextSession } from '../../domain/program';
 import type { Program } from '../../domain/types';
@@ -47,7 +48,22 @@ export function ProgramList({ onOpen, onNew, onStarted }: Props) {
         <h2 className="text-2xl uppercase">Program</h2>
         <button type="button" onClick={onNew} className="min-h-tap px-2 text-sm text-fg underline">New program</button>
       </div>
-      {items?.length === 0 && <p className="text-sm text-muted">No programs yet.</p>}
+      {items?.length === 0 && (
+        <div className="flex flex-col items-start gap-2">
+          <p className="text-sm text-muted">No programs yet.</p>
+          <button
+            type="button"
+            onClick={() => {
+              useUi.getState().setStarterRequest(true);
+              useUi.getState().setSettingsPage('claude');
+              useUi.getState().setSettingsOpen(true);
+            }}
+            className="min-h-tap rounded-card border border-line px-4 text-sm"
+          >
+            Add my A/B/C program
+          </button>
+        </div>
+      )}
       <ul className="flex flex-col gap-2">
         {(items ?? []).map(({ program, next }) => (
           <li key={program.id} className="rounded-card border border-line bg-surface p-3">
