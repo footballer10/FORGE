@@ -2,10 +2,9 @@ import { useEffect, useState } from 'react';
 import { UNDO_EVENT, backupRepo, metaRepo, nowIso, undoRepo } from '../../db/repositories';
 import { useWorkout } from '../train/workoutStore';
 import { TrashScreen } from './TrashScreen';
+import { StrongExportScreen } from './StrongExportScreen';
 import { parseExport, type ExportFile, type TableMergePlan } from '../../domain/backup';
-import type { WeightUnit } from '../../domain/types';
 
-const field = 'min-h-tap w-full rounded-card border border-line bg-surface px-3 text-base text-fg';
 const button = 'min-h-tap w-full rounded-card border border-line bg-surface px-4 text-left text-base text-fg';
 
 /** Hand a text file to the user: share sheet when it can take files (iPhone), else a download. */
@@ -34,11 +33,11 @@ const stampName = () => new Date().toISOString().slice(0, 10);
 
 export function DataScreen({ onBack }: { onBack: () => void }) {
   const [status, setStatus] = useState('');
-  const [unit, setUnit] = useState<WeightUnit>('lb');
   const [restore, setRestore] = useState<{ file: ExportFile; plan: TableMergePlan[]; name: string } | null>(null);
   const [confirmReplace, setConfirmReplace] = useState(false);
   const [busy, setBusy] = useState(false);
   const [trash, setTrash] = useState(false);
+  const [strongExport, setStrongExport] = useState(false);
   const [undoLabel, setUndoLabel] = useState<string>();
   useEffect(() => {
     const load = () => void undoRepo.latest().then((e) => setUndoLabel(e?.label));
@@ -47,6 +46,7 @@ export function DataScreen({ onBack }: { onBack: () => void }) {
     return () => window.removeEventListener(UNDO_EVENT, load);
   }, []);
   if (trash) return <TrashScreen onBack={() => setTrash(false)} />;
+  if (strongExport) return <StrongExportScreen onBack={() => setStrongExport(false)} />;
 
   const run = async (fn: () => Promise<string>) => {
     setBusy(true);
@@ -66,13 +66,6 @@ export function DataScreen({ onBack }: { onBack: () => void }) {
       await deliver(`forge-backup-${stampName()}.json`, JSON.stringify(file), 'application/json');
       await metaRepo.set('lastBackupAt', nowIso());
       return `Backup saved: ${file.counts.workouts ?? 0} workouts, ${file.counts.sets ?? 0} sets.`;
-    });
-
-  const exportCsv = () =>
-    run(async () => {
-      const csv = await backupRepo.strongCsv(unit);
-      await deliver(`forge-strong-${stampName()}.csv`, csv, 'text/csv');
-      return `CSV saved (${Math.max(0, csv.split('\n').length - 1)} sets, weights in ${unit}).`;
     });
 
   const pickRestore = (f: File) =>
@@ -122,12 +115,8 @@ export function DataScreen({ onBack }: { onBack: () => void }) {
           Save full backup (JSON)
         </button>
         <p className="text-sm text-muted">Everything except progress photos. Save it to Files or iCloud Drive from the share sheet.</p>
-        <select aria-label="CSV weight unit" value={unit} onChange={(e) => setUnit(e.target.value as WeightUnit)} className={field}>
-          <option value="lb">CSV weights in lb</option>
-          <option value="kg">CSV weights in kg</option>
-        </select>
-        <button type="button" disabled={busy} onClick={() => void exportCsv()} className={button}>Export workouts as Strong CSV</button>
-        <p className="text-sm text-muted">Dumbbells are written as pair totals, as Strong logs them.</p>
+        <button type="button" disabled={busy} onClick={() => setStrongExport(true)} className={button}>Export workouts to Strong…</button>
+        <p className="text-sm text-muted">Pick the workouts to send; they arrive in Strong looking like you logged them there.</p>
       </section>
 
       <section className="flex flex-col gap-2">

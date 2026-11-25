@@ -30,7 +30,8 @@ export function formatDuration(sec: number): string {
 
 const round = (n: number) => Math.round(n * 1000) / 1000;
 
-export function toStrongCsv(workouts: ExportableWorkout[], exercises: Exercise[], unit: WeightUnit = 'lb'): string {
+/** `names` maps exerciseId to the name Strong knows it by (see strongNames.ts); missing ids fall back to the Forge name. */
+export function toStrongCsv(workouts: ExportableWorkout[], exercises: Exercise[], unit: WeightUnit = 'lb', names?: ReadonlyMap<string, string>): string {
   const byId = new Map(exercises.map((e) => [e.id, e]));
   const rows: (string | number)[][] = [STRONG_HEADER];
   const sorted = [...workouts].sort((a, b) => a.workout.startedAt.localeCompare(b.workout.startedAt));
@@ -38,7 +39,7 @@ export function toStrongCsv(workouts: ExportableWorkout[], exercises: Exercise[]
     const dur = workout.endedAt ? Math.max(0, Math.round((Date.parse(workout.endedAt) - Date.parse(workout.startedAt)) / 1000)) : 0;
     for (const we of wes) {
       const ex = byId.get(we.exerciseId);
-      const name = ex?.name ?? 'Unknown exercise';
+      const name = names?.get(we.exerciseId) ?? ex?.name ?? 'Unknown exercise';
       const pair = ex?.equipment === 'dumbbell' && ex.loadModel === 'perImplement' ? 2 : 1;
       let n = 0;
       const sets = we.sets.filter((s) => s.completedAt && !s.deletedAt).sort((a, b) => a.order - b.order);

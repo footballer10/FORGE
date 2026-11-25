@@ -92,4 +92,54 @@ describe('backupRepo', () => {
     expect(out).toContain('Bench Press (Barbell),1,185,5');
     expect(out.split('\n')).toHaveLength(3);
   });
+
+  describe('export to Strong with a selection', () => {
+    const lib = (name: string, extra: object = {}) => exerciseRepo.create({ ...ex, name, source: 'library' as const, ...extra });
+    async function logged(name: string, exs: { exerciseId: string; sets: { type: 'warmup' | 'working'; weight: number; reps: number }[] }[]) {
+      const w = await workoutRepo.start({ name });
+      for (const e of exs) {
+        const we = await workoutRepo.addExercise(w.id, e.exerciseId);
+        for (const s of e.sets) await workoutRepo.addSet(we.id, { ...s, unit: 'lb', completedAt: nowIso() });
+      }
+      await workoutRepo.finish(w.id);
+      return w;
+    }
+
+    it('writes Strong names, W for warm-ups and pair totals, only for the chosen workouts', async () => {
+      const squat = await lib('Barbell Squat');
+      const row = await lib('Dumbbell Incline Row', { equipment: 'dumbbell', loadModel: 'perImplement' });
+      const a = await logged('A Day', [
+        { exerciseId: squat.id, sets: [{ type: 'warmup', weight: 45, reps: 8 }, { type: 'working', weight: 205, reps: 6 }, { type: 'working', weight: 205, reps: 6 }] },
+        { exerciseId: row.id, sets: [{ type: 'working', weight: 50, reps: 10 }] },
+      ]);
+      await logged('B Day', [{ exerciseId: squat.id, sets: [{ type: 'working', weight: 225, reps: 5 }] }]);
+
+      const only = (await backupRepo.strongCsv('lb', [a.id])).split('\n');
+      expect(only).toHaveLength(5); // header + 4 sets, B Day left out
+      expect(only[1]).toContain(',A Day,');
+      expect(only[1]).toContain('Squat (Barbell),W,45,8');
+      expect(only[2]).toContain('Squat (Barbell),1,205,6');
+      expect(only[3]).toContain('Squat (Barbell),2,205,6');
+      expect(only[4]).toContain('Incline Row (Dumbbell),1,100,10'); // 50 lb each, written as the 100 lb pair total
+      expect((await backupRepo.strongCsv('lb')).split('\n')).toHaveLength(6);
+    });
+
+    it('lists workouts with a from-Strong flag and flags names it had to guess', async () => {
+      const squat = await lib('Barbell Squat');
+      const odd = await lib('Zercher Squat');
+      const w = await logged('Legs', [{ exerciseId: squat.id, sets: [{ type: 'working', weight: 100, reps: 5 }] }, { exerciseId: odd.id, sets: [{ type: 'working', weight: 80, reps: 5 }] }]);
+      const list = await backupRepo.strongExportList();
+      expect(list).toEqual([expect.objectContaining({ id: w.id, name: 'Legs', sets: 2, fromStrong: false })]);
+
+      const check = await backupRepo.strongNameCheck([w.id]);
+      expect(check.find((c) => c.forgeName === 'Barbell Squat')?.strong).toEqual({ name: 'Squat (Barbell)', source: 'hint' });
+      expect(check.find((c) => c.forgeName === 'Zercher Squat')?.strong.source).toBe('guess');
+
+      await backupRepo.setStrongNames({ [odd.id]: ' Zercher Squat (Barbell) ' });
+      expect((await backupRepo.strongCsv('lb', [w.id])).split('\n').some((l) => l.includes('Zercher Squat (Barbell),1,80,5'))).toBe(true);
+      expect((await backupRepo.strongNameCheck([w.id])).find((c) => c.forgeName === 'Zercher Squat')?.strong.source).toBe('set');
+      await backupRepo.setStrongNames({ [odd.id]: '' });
+      expect((await backupRepo.strongNameCheck([w.id])).find((c) => c.forgeName === 'Zercher Squat')?.strong.source).toBe('guess');
+    });
+  });
 });

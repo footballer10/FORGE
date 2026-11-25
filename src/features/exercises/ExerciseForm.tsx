@@ -28,6 +28,7 @@ export function ExerciseForm({ exercise, onDone }: Props) {
   const [rest, setRest] = useState(String(exercise?.defaultRestSec ?? 90));
   const [unilateral, setUnilateral] = useState(exercise?.unilateral ?? false);
   const [note, setNote] = useState(exercise?.stickyNote ?? '');
+  const [strongName, setStrongName] = useState(exercise?.strongName ?? '');
   const [error, setError] = useState('');
 
   const toggle = (m: Muscle) => setPrimary((p) => (p.includes(m) ? p.filter((x) => x !== m) : [...p, m]));
@@ -55,9 +56,9 @@ export function ExerciseForm({ exercise, onDone }: Props) {
       ...(note.trim() ? { stickyNote: note.trim() } : {}),
     };
     if (exercise) {
-      await exerciseRepo.update(exercise.id, { ...fields, stickyNote: note.trim() || undefined });
+      await exerciseRepo.update(exercise.id, { ...fields, stickyNote: note.trim() || undefined, strongName: strongName.trim() || undefined });
     } else {
-      await exerciseRepo.create({ ...fields, secondaryMuscles: [], source: 'custom' });
+      await exerciseRepo.create({ ...fields, ...(strongName.trim() ? { strongName: strongName.trim() } : {}), secondaryMuscles: [], source: 'custom' });
     }
     onDone();
   }
@@ -78,6 +79,9 @@ export function ExerciseForm({ exercise, onDone }: Props) {
       </div>
       <label className={label}>Name
         <input className={field} value={name} onChange={(e) => setName(e.target.value)} />
+      </label>
+      <label className={label}>Name in Strong (used when you export)
+        <input className={field} value={strongName} onChange={(e) => setStrongName(e.target.value)} placeholder="Squat (Barbell)" />
       </label>
       <label className={label}>Aliases (comma separated)
         <input className={field} value={aliases} onChange={(e) => setAliases(e.target.value)} placeholder="Flat Bench, BB Bench" />
