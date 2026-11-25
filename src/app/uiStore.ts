@@ -11,8 +11,8 @@ interface UiState {
   openBackup: boolean;
   setOpenBackup: (v: boolean) => void;
   /** Set by Settings so the Train tab opens one of its utility screens. */
-  openTrain: 'library' | 'import' | 'data' | null;
-  setOpenTrain: (v: 'library' | 'import' | 'data' | null) => void;
+  openTrain: 'library' | 'import' | 'data' | 'review' | null;
+  setOpenTrain: (v: 'library' | 'import' | 'data' | 'review' | null) => void;
   /** Settings screen is shown over the current tab. */
   settingsOpen: boolean;
   setSettingsOpen: (v: boolean) => void;

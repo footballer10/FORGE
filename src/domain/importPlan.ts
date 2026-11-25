@@ -3,6 +3,7 @@
  * exercise is modelled, apply the dumbbell pair-total convention, detect duplicate workouts,
  * and build the entities to store. No Dexie or React imports.
  */
+import { inferTraits } from './exerciseInference';
 import { readStrongRecord, resolveColumns, type ParsedWorkout, type StrongRow } from './strongParser';
 import type {
   Equipment,
@@ -62,7 +63,7 @@ function tokens(s: string): Set<string> {
   );
 }
 
-function similarity(a: string, b: string): number {
+export function similarity(a: string, b: string): number {
   const ta = tokens(a);
   const tb = tokens(b);
   if (ta.size === 0 || tb.size === 0) return 0;
@@ -300,6 +301,7 @@ export function resolveExercises(
       exercise = target;
     } else {
       const d = m.draft;
+      const inferred = inferTraits(d.name, library);
       const created: Exercise = {
         id: newId(),
         createdAt: now,
@@ -307,10 +309,11 @@ export function resolveExercises(
         name: d.name,
         aliases: d.aliases,
         equipment: d.equipment,
-        primaryMuscles: [],
-        secondaryMuscles: [],
-        pattern: d.pattern,
-        unilateral: false,
+        primaryMuscles: inferred?.primaryMuscles ?? [],
+        secondaryMuscles: inferred?.secondaryMuscles ?? [],
+        // The file-based pattern (time/distance, carries) wins; otherwise the inferred one.
+        pattern: d.pattern !== 'other' ? d.pattern : (inferred?.pattern ?? 'other'),
+        unilateral: inferred?.unilateral ?? false,
         defaultRestSec: d.loadModel === 'timeDistance' || d.loadModel === 'repsOnly' ? 60 : 90,
         weightIncrement: 5,
         incrementUnit: 'lb',

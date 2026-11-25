@@ -3,6 +3,8 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
+- **Done this session (14a + 14b, first item of milestone 14):** imported exercises get muscles and movement pattern. Pure `domain/exerciseInference.ts` `inferTraits`: copies the closest library exercise (name similarity ≥ 0.75 with equipment words and the "(Tag)" ignored), else keyword rules on the name (squat, hinge, presses, rows, pulls, curls, core, carries; first match wins), else nothing. New imports now fill muscles, pattern and unilateral at creation (a file-based pattern such as time/distance wins). For exercises already imported: Settings → "Review exercise muscles" lists every exercise with no primary muscle, each with its suggestion and the reason, ticked by default; "Apply to N exercises" writes them (`exerciseRepo.traitSuggestions` / `applyTraits`). No suggestion = listed with a note to set it in the library. Tests (407) and build pass. Not opened in a browser or on an iPhone.
+- **Next session:** the next unticked item of milestone 14 (edit a past workout's name and times). Still open: deploy the Worker, sync once, add the connector (docs/connector.md) and report what happens.
 - **Done this session (13a + 13b, milestone 13 complete):** each fitness test can have a target and a test date, typed by the user (`FitnessTest.targetValue` in base units, `testDate`; optional fields, no schema bump). Progress > Fitness tests: under each test name a line like "target 15 reps, 6 reps to gain, test 2026-12-20 (in 25 days)" (or "target met"); open a test to edit the goal ("Save goal", clear both boxes to remove). Pure `testCountdown`, `describeCountdown`, `daysUntil` in `domain/fitness.ts`; `fitnessRepo.setGoal`. 13b: the Coach summary's Fitness tests section lists the goal per test (even with no results yet) and, when any test has a date, adds a line asking Claude to aim the plan at it and not change my targets. Tests (400) and build pass. Not opened in a browser or on an iPhone.
 - **Next session:** milestone 14 (issue burn-down, one item per sitting; start with imported exercises' muscles/pattern). Still open: deploy the Worker, sync once, add the connector (docs/connector.md) and report what happens.
 - **Done this session (12a + 12b, milestone 12 complete):** `domain/insights.ts` turns existing analytics into one-sentence notes with the numbers: missed week (last week's days vs planned), imbalance (push:pull, squat:hinge over 4 weeks, reusing `balanceChecks`; 'Pulling volume is low' for push-heavy), plateau (no e1RM gain in 6 weeks, reusing `detectPlateau`). Home shows at most 3 under the status line (`InsightNotes`): tap a note for the rule and inputs, × dismisses it. Dismissals are ids kept in localStorage on the device; ids include the lift's last-gain date or the week, so a note can return when the situation changes. 12b: Coach has a 'Copy weekly review' button: a short ask for Claude, all current notes with their rules, then the 7-day summary (`domain/weeklyReview.ts`). Tests (392) and build pass. Not opened in a browser or on an iPhone.
@@ -244,7 +246,7 @@ Architecture (to confirm at the start of 10a):
 - Model: Sonnet, medium.
 
 ## Milestone 14 — Issue burn-down (small fixes, one sitting each)
-- [ ] Imported exercises get muscles and movement pattern: infer from the matched library exercise or the name, with a bulk review screen (so they count in weekly sets and balance).
+- [x] Imported exercises get muscles and movement pattern: infer from the matched library exercise or the name, with a bulk review screen (so they count in weekly sets and balance). (done as 14a inference + 14b review screen)
 - [ ] Edit a past workout's name and start/end time.
 - [ ] Drag to reorder exercises (needs a dependency: ask first) or keep buttons.
 - [ ] Unsaved-draft protection in the routine, program and proposal editors.
@@ -252,7 +254,7 @@ Architecture (to confirm at the start of 10a):
 - [ ] Settings: plate and bar editor; keyboard focus trap in dialogs.
 - [ ] Library classification review (e.g. Olympic lifts classed as conditioning): fix the mapper heuristics and add tests for the most common lifts.
 - [ ] Trash entry for routines; undo for deleting weigh-ins and tests.
-- Model: Sonnet, medium.
+- Model: Sonnet, medium. Milestone 14 is a list of independent fixes: do one or two per session and tick them off (no further ID split needed).
 
 ## Ideas backlog (not scheduled)
 Auto warm-up ramp from the working weight; weekly volume landmarks per muscle; program library (5/3/1, linear progression) as importable JSON; muscle recovery view; Claude "what should I train today" proposals (after M10); beep-test and interval timers; light nutrition (daily calories and protein plus bodyweight trend to estimate maintenance); detailed set-by-set export for Claude (superseded by M10).
@@ -278,7 +280,7 @@ Auto warm-up ramp from the working weight; weekly volume landmarks per muscle; p
 - Google Fonts load from the network on first visit and are runtime-cached; if first load is offline the system fallback fonts are used.
 - Strong import has only been exercised with synthetic CSVs (tests + a browser run); the real Strong export's column names, distance units and date format are unverified. Try the user's real file first and report anything that looks off.
 - Strong import: a whole import can be undone only while it is the latest undo entry; "Past imports" only changes dumbbell conventions, and re-applying overwrites any manual edits to those sets.
-- Imported exercises have no muscles/pattern beyond name inference, so they do not count toward muscle volume until edited in the library.
+- Imported exercises (14): muscles and pattern are guesses from the library or the name (see Settings → Review exercise muscles); names with no rule stay empty and need the library editor. Rules are English keywords only; the review screen cannot edit a single suggestion (untick it and use the library). The review lists only exercises with NO primary muscle, so a wrong earlier guess is not listed again.
 - Strong import holds the whole file in memory and builds all entities in one transaction; fine for a few years of data, not tested on tens of thousands of sets.
 - Preview lists every distinct exercise name with native selects; a long list (hundreds) has no search or bulk-apply.
 - Backup and restore were tested with fake-indexeddb and headless Chromium (download path); the iPhone share-sheet path is untested on a device.

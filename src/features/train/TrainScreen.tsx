@@ -3,6 +3,7 @@ import { useUi } from '../../app/uiStore';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import type { Exercise, ID, Routine } from '../../domain/types';
 import { ExerciseBrowser } from '../exercises/ExerciseBrowser';
+import { TraitReview } from '../exercises/TraitReview';
 import { ExerciseForm } from '../exercises/ExerciseForm';
 import { ActiveWorkout } from './ActiveWorkout';
 import { DataScreen } from '../data/DataScreen';
@@ -20,6 +21,7 @@ type View =
   | { kind: 'library' }
   | { kind: 'import' }
   | { kind: 'data' }
+  | { kind: 'review' }
   | { kind: 'routine'; routine?: Routine }
   | { kind: 'program'; programId: string }
   | { kind: 'programEdit'; tree?: ProgramTree }
@@ -75,6 +77,7 @@ export function TrainScreen() {
     return <ProgramView key={view.programId} programId={view.programId} onBack={() => setView({ kind: 'home' })} onEdit={(tree) => setView({ kind: 'programEdit', tree })} onStarted={() => setView({ kind: 'home' })} />;
   }
   if (view.kind === 'data') return <DataScreen onBack={() => setView({ kind: 'home' })} />;
+  if (view.kind === 'review') return <TraitReview onBack={() => setView({ kind: 'home' })} />;
   if (view.kind === 'import') return <ImportScreen onBack={() => setView({ kind: 'home' })} />;
   if (view.kind === 'library') {
     return (
