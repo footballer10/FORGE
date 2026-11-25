@@ -1,6 +1,6 @@
 # Claude connector + cloud sync (milestone 10)
 
-Status: 10a (sync backend), 10b (app sync) and 10c (MCP read tools) done. 10d (propose_program) is next.
+Status: 10a (sync backend), 10b (app sync), 10c (MCP read tools) and 10d (propose_program) done. Milestone 10 is code complete; it still needs the real-device check.
 
 ## What it is
 One Cloudflare Worker (`worker/`) with a D1 database in your own free Cloudflare account. Forge pushes and pulls changed rows; later the same Worker exposes an MCP server so the Claude app can read your training data. Photos, the undo stack and raw import rows stay on the device.
@@ -30,7 +30,10 @@ After deploying and syncing from the app at least once:
 3. No sign-in is needed. Ask Claude something like "Look at my last 4 weeks of training in Forge".
 If the connector screen refuses the URL, tell me what it says; the fallback is OAuth, which is a bigger change.
 
-Read-only tools: `get_profile`, `list_exercises`, `list_workouts`, `get_exercise_history` (e1RM with formula and unit), `get_weekly_sets` (hard sets per muscle, primary 1 / secondary 0.5), `get_active_program`, `get_bodyweight`. There are no write tools yet. Dates and weeks use UTC, so a late-evening workout can show on the next day. Data is only as fresh as your last Sync now in the app.
+Read-only tools: `get_profile`, `list_exercises`, `list_workouts`, `get_exercise_history` (e1RM with formula and unit), `get_weekly_sets` (hard sets per muscle, primary 1 / secondary 0.5), `get_active_program`, `get_bodyweight`. `get_proposals` shows what Claude proposed before and what you decided.
+
+## Proposals from Claude (10d)
+The one write tool is `propose_program`. It validates the program with the same rules as the app (and checks every exercise name exists in your library), then stores a proposal with status `proposed`. It cannot create or change programs, workouts or any other data, and at most 5 proposals can wait at once. In the app: Coach → Program from Claude → Proposals waiting (tap Check for proposals to sync first), then Review to see the diff, and Approve or Reject. Approving uses the normal flow (new version of the active program, or a separate draft). Your decision syncs back, so Claude can see it with `get_proposals`. Dates and weeks use UTC, so a late-evening workout can show on the next day. Data is only as fresh as your last Sync now in the app.
 
 ## Decisions
 - Auth: one long secret token, no accounts. App sync uses a Bearer header; the connector uses the token in the URL path (`/mcp/<token>`, Bearer also accepted). Not yet tried in the real Claude connector screen.

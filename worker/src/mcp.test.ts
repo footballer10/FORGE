@@ -51,7 +51,7 @@ describe('MCP endpoint', () => {
       if (t.name !== 'propose_program') expect(t.annotations.readOnlyHint).toBe(true);
       return t.name;
     });
-    expect(names.filter((n) => n !== 'propose_program')).toEqual(['get_profile', 'list_exercises', 'list_workouts', 'get_exercise_history', 'get_weekly_sets', 'get_active_program', 'get_bodyweight', 'get_proposals']);
+    expect(names.filter((n: string) => n !== 'propose_program')).toEqual(['get_profile', 'list_exercises', 'list_workouts', 'get_exercise_history', 'get_weekly_sets', 'get_active_program', 'get_bodyweight', 'get_proposals']);
   });
 
   it('the only write tool is propose_program', async () => {

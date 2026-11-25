@@ -179,7 +179,7 @@ export const coachRepo = {
   },
 
   /** Save an approved proposal as a program (new version of the active one, or a separate draft) and log the decision. */
-  async approveProposal(preview: ProposalPreview, mode: 'update' | 'new', rawText: string): Promise<Program> {
+  async approveProposal(preview: ProposalPreview, mode: 'update' | 'new', rawText: string, decisionId?: string): Promise<Program> {
     if (!preview.proposal || !preview.draft || preview.missing.length) throw new Error('Proposal is not ready to save.');
     const p = preview.proposal;
     const update = mode === 'update' && !!preview.current;
@@ -189,15 +189,29 @@ export const coachRepo = {
       weeks: update ? carryOverHistory(preview.draft, preview.baseDraft ?? []) : preview.draft,
       reason: p.reason, author: 'claude',
     });
-    await aiDecisionRepo.create({
-      date: nowIso(), summary: `${p.name}: ${update ? `${preview.diff.length} change(s) to the active program` : 'new program'}`,
-      reason: p.reason, status: 'approved', programId: program.id, programVersion: program.version, payload: rawText,
-    });
+    const decision = {
+      summary: `${p.name}: ${update ? `${preview.diff.length} change(s) to the active program` : 'new program'}`,
+      reason: p.reason, status: 'approved' as const, programId: program.id, programVersion: program.version,
+    };
+    // A proposal from the inbox already has a row: update it instead of logging a second decision.
+    if (decisionId && (await aiDecisionRepo.get(decisionId))) await aiDecisionRepo.update(decisionId, decision);
+    else await aiDecisionRepo.create({ date: nowIso(), ...decision, payload: rawText });
     return program;
   },
 
-  async rejectProposal(preview: ProposalPreview, rawText: string): Promise<void> {
+  /** Proposals Claude left through the connector, waiting for the user's decision (newest first). */
+  async pendingProposals() {
+    return (await aiDecisionRepo.list()).filter((d) => d.status === 'proposed' && d.payload).sort((a, b) => b.date.localeCompare(a.date));
+  },
+
+  /** Reject an inbox proposal without opening it (also the way out of one that no longer validates). */
+  async dismissProposal(decisionId: string): Promise<void> {
+    await aiDecisionRepo.update(decisionId, { status: 'rejected' });
+  },
+
+  async rejectProposal(preview: ProposalPreview, rawText: string, decisionId?: string): Promise<void> {
     if (!preview.proposal) return;
+    if (decisionId && (await aiDecisionRepo.get(decisionId))) return void (await aiDecisionRepo.update(decisionId, { status: 'rejected' }));
     await aiDecisionRepo.create({ date: nowIso(), summary: `${preview.proposal.name}: rejected`, reason: preview.proposal.reason, status: 'rejected', payload: rawText });
   },
 
