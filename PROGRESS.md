@@ -3,6 +3,8 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
+- **Done this session (14, item 4, first half):** the exercise form's Increment now has a lb/kg choice (saved as the exercise's `incrementUnit`; the keypad and progression already convert it to the set's unit). Tests (410) and build pass; not opened in a browser. **Not done, needs your decision:** "units change converts displayed set weights". Sets keep the unit they were logged in (CLAUDE.md: convert only for display), so the choice is between (a) show every set in the profile unit by converting on display, or (b) rewrite stored sets to the new unit. I recommend (a): reversible, no stored data touched. Say "go with a" and it is the next session.
+- **Next session:** your answer on (a)/(b), then the Settings plate/bar editor and dialog focus trap, then the library classification review and Trash for routines / undo for weigh-ins and tests. Drag-to-reorder still needs your OK for a dependency.
 - **Done this session (14, item 3):** unsaved-draft protection. Shared hook `components/useLeaveGuard.tsx`: the draft counts as changed once its JSON differs from its first value; Cancel then asks "Discard changes?" (Keep editing is the default) and a reload or close shows the browser warning. Used in the routine and planned-session editor (`ExercisesEditor`) and the program editor. The Claude proposal paste box keeps its text in localStorage (`forge.proposalDraft`) so it survives leaving the Coach tab or closing the app; approve, reject or clearing the box removes it. Tests (410) and build pass; the hook has no unit test (React only, tests run in node) and was not clicked through in a browser.
 - **Next session:** milestone 14, next items: kg increments in the exercise form plus unit changes converting displayed set weights (check the design with the user first; it touches stored data), then the Settings plate/bar editor and dialog focus trap. Drag-to-reorder still needs your OK for a dependency.
 - **Done this session (14, item 2):** editing a past workout now has "Edit name and times" at the top of the logging screen (`features/train/DetailsEditor.tsx`): name plus start and end pickers, saved with one button after validation (`domain/workoutDetails.ts`: name required, end after start, end not in the future; times are local wall-clock). Writes through `workoutRepo.update` at once. Tests (410) and build pass. Not opened on an iPhone (native datetime-local picker).
@@ -254,7 +256,7 @@ Architecture (to confirm at the start of 10a):
 - [x] Edit a past workout's name and start/end time.
 - [ ] Drag to reorder exercises (needs a dependency: ask first) or keep buttons.
 - [x] Unsaved-draft protection in the routine, program and proposal editors.
-- [ ] kg increments in the exercise form; units changes convert displayed set weights.
+- [~] kg increments in the exercise form (done); units changes convert displayed set weights (waiting for a decision, see Current).
 - [ ] Settings: plate and bar editor; keyboard focus trap in dialogs.
 - [ ] Library classification review (e.g. Olympic lifts classed as conditioning): fix the mapper heuristics and add tests for the most common lifts.
 - [ ] Trash entry for routines; undo for deleting weigh-ins and tests.
@@ -278,7 +280,6 @@ Auto warm-up ramp from the working weight; weekly volume landmarks per muscle; p
 - Keypad ± for weight converts the exercise increment into the set's unit; weights are shown in the set's stored unit, not the profile unit, if they differ.
 - Library pattern/loadModel/rest values are name-based heuristics (`exerciseMapper.ts`); some library entries will be mis-classified. Fix per exercise in the editor; bump `LIBRARY_VERSION` only to add missing exercises (existing ones are never overwritten).
 - Exercise library JSON (~790 KB, 150 KB gzip) is a lazy chunk, precached by the service worker; The size warning limit is raised to 800 kB for it and the Recharts chunk.
-- Increment unit is lb-only in the exercise form; kg increments come with the units setting.
 - Library exercises (not just custom) can be deleted from the editor; deleted ones are not re-seeded.
 - App icons are a simple red F on near-black (generated from `public/icon.svg`); swap for a designed mark whenever wanted.
 - Google Fonts load from the network on first visit and are runtime-cached; if first load is offline the system fallback fonts are used.
