@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useLeaveGuard } from '../../components/useLeaveGuard';
 import { programRepo } from '../../db/repositories';
-import { moveItem } from '../../domain/order';
+import { moveTo } from '../../domain/order';
+import { SortableList } from '../../components/SortableList';
 import { duplicateWeek, emptySession, emptyWeek, treeToDraft, weekLabel, type DraftSession, type DraftWeek, type ProgramTree } from '../../domain/program';
 import { describeTargets } from '../../domain/routine';
 import type { TrainingPhase } from '../../domain/types';
@@ -104,9 +105,15 @@ export function ProgramEditor({ tree, onDone }: Props) {
         </label>
       </div>
 
-      {weeks.map((w, wi) => (
-        <section key={w.key} className="mb-4 rounded-card border border-line bg-surface p-3" aria-label={`Week ${wi + 1}`}>
-          <h2 className="pb-2 text-2xl uppercase">{weekLabel({ weekNumber: wi + 1, ...(w.phase ? { phase: w.phase } : {}), ...(w.isDeload ? { isDeload: true } : {}) })}</h2>
+      <SortableList ids={weeks.map((w) => w.key)} onMove={(from, to) => setWeeks((cur) => moveTo(cur, from, to))}>
+      {(wi, weekHandle) => {
+        const w = weeks[wi]!;
+        return (
+        <section className="mb-4 rounded-card border border-line bg-surface p-3" aria-label={`Week ${wi + 1}`}>
+          <div className="flex items-center justify-between gap-2 pb-2">
+            <h2 className="text-2xl uppercase">{weekLabel({ weekNumber: wi + 1, ...(w.phase ? { phase: w.phase } : {}), ...(w.isDeload ? { isDeload: true } : {}) })}</h2>
+            {weekHandle}
+          </div>
           <div className="flex items-center gap-2 pb-2">
             <select
               aria-label={`Week ${wi + 1} phase`}
@@ -125,32 +132,38 @@ export function ProgramEditor({ tree, onDone }: Props) {
               Deload
             </label>
           </div>
-          <ul className="flex flex-col gap-2 pb-2">
-            {w.sessions.map((s, si) => (
-              <li key={s.key} className="rounded-card border border-line bg-surface-2 p-2">
-                <div className="flex items-baseline justify-between gap-2">
+          <div className="flex flex-col gap-2 pb-2">
+            <SortableList ids={w.sessions.map((x) => x.key)} onMove={(from, to) => patchWeek(wi, { sessions: moveTo(w.sessions, from, to) })}>
+            {(si, sessionHandle) => {
+              const s = w.sessions[si]!;
+              return (
+              <div className="mb-2 rounded-card border border-line bg-surface-2 p-2">
+                <div className="flex items-center justify-between gap-2">
                   <span className="text-lg uppercase">{s.name}</span>
-                  <span className="num text-xs text-muted">{s.exercises.length} exercises</span>
+                  <span className="flex items-center gap-1">
+                    <span className="num text-xs text-muted">{s.exercises.length} exercises</span>
+                    {sessionHandle}
+                  </span>
                 </div>
                 {s.exercises.length > 0 && <p className="num pb-1 text-xs text-muted">{s.exercises.map((e) => describeTargets(e.targets)).join(' | ')}</p>}
                 <div className="flex flex-wrap gap-2">
                   <button type="button" className={btn} onClick={() => setEditing({ week: wi, session: si })}>Edit</button>
-                  <button type="button" className={btn} aria-label="Move session up" disabled={si === 0} onClick={() => patchWeek(wi, { sessions: moveItem(w.sessions, si, -1) })}>↑</button>
-                  <button type="button" className={btn} aria-label="Move session down" disabled={si === w.sessions.length - 1} onClick={() => patchWeek(wi, { sessions: moveItem(w.sessions, si, 1) })}>↓</button>
                   <button type="button" className={btn} onClick={() => patchWeek(wi, { sessions: w.sessions.filter((_, i) => i !== si) })}>Remove</button>
                 </div>
-              </li>
-            ))}
-          </ul>
+              </div>
+              );
+            }}
+            </SortableList>
+          </div>
           <div className="flex flex-wrap gap-2">
             <button type="button" className={btn} onClick={() => patchWeek(wi, { sessions: [...w.sessions, emptySession(key(), `Day ${w.sessions.length + 1}`)] })}>Add session</button>
             <button type="button" className={btn} onClick={() => setWeeks((cur) => duplicateWeek(cur, wi, key))}>Copy week</button>
-            <button type="button" className={btn} aria-label="Move week up" disabled={wi === 0} onClick={() => setWeeks((cur) => moveItem(cur, wi, -1))}>↑</button>
-            <button type="button" className={btn} aria-label="Move week down" disabled={wi === weeks.length - 1} onClick={() => setWeeks((cur) => moveItem(cur, wi, 1))}>↓</button>
             <button type="button" className={btn} onClick={() => setWeeks((cur) => cur.filter((_, i) => i !== wi))}>Remove week</button>
           </div>
         </section>
-      ))}
+        );
+      }}
+      </SortableList>
       <button type="button" onClick={() => setWeeks((cur) => [...cur, emptyWeek(key())])} className="mb-4 min-h-tap rounded-card border border-line bg-surface px-4 text-left text-base text-fg">
         Add week
       </button>

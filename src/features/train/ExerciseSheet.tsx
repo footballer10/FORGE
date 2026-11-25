@@ -8,7 +8,7 @@ interface Props {
   linkedToNext: boolean;
   onStickyNote: (note: string) => void;
   onSessionNote: (note: string) => void;
-  onMove: (delta: -1 | 1) => void;
+  onReorder: () => void;
   onSwap: () => void;
   onSuperset: () => void;
   onRemove: () => void;
@@ -19,7 +19,7 @@ const area = 'min-h-[88px] w-full rounded-card border border-line bg-surface-2 p
 const btn = 'min-h-[56px] flex-1 rounded-card border border-line text-base disabled:opacity-40';
 
 /** Per-exercise actions: notes (sticky + this session), move, swap, remove. */
-export function ExerciseSheet({ row, index, count, linkedToNext, onStickyNote, onSessionNote, onMove, onSwap, onSuperset, onRemove, onClose }: Props) {
+export function ExerciseSheet({ row, index, count, linkedToNext, onStickyNote, onSessionNote, onReorder, onSwap, onSuperset, onRemove, onClose }: Props) {
   const swapBlocked = row.sets.some((s) => s.completedAt);
   return (
     <div role="dialog" aria-label={`${row.exercise.name} options`} className="fixed inset-0 z-50 flex flex-col justify-end bg-black/60" onClick={onClose}>
@@ -33,8 +33,7 @@ export function ExerciseSheet({ row, index, count, linkedToNext, onStickyNote, o
         <textarea id="session-note" className={area} placeholder="How it felt, pain, changes" value={row.we.notes ?? ''} onChange={(e) => onSessionNote(e.target.value)} />
 
         <div className="flex gap-2 pt-4">
-          <button type="button" className={btn} disabled={index === 0} onClick={() => onMove(-1)}>Move up</button>
-          <button type="button" className={btn} disabled={index === count - 1} onClick={() => onMove(1)}>Move down</button>
+          <button type="button" className={btn} disabled={count < 2} onClick={onReorder}>Reorder exercises</button>
         </div>
         <div className="flex gap-2 pt-2">
           <button type="button" className={btn} disabled={index === count - 1} onClick={onSuperset}>
