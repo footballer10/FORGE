@@ -1,17 +1,18 @@
 import { isExpired } from '../../domain/safety';
-import type { Exercise, Workout } from '../../domain/types';
+import type { Exercise, Routine, Workout } from '../../domain/types';
 import { db } from '../schema';
 import { nowIso } from './base';
 
-/** Soft-deleted workouts and exercises, restore, and permanent removal. */
+/** Soft-deleted workouts, exercises and routines, restore, and permanent removal. */
 export const trashRepo = {
-  async list(): Promise<{ workouts: Workout[]; exercises: Exercise[] }> {
-    const [workouts, exercises] = await Promise.all([
+  async list(): Promise<{ workouts: Workout[]; exercises: Exercise[]; routines: Routine[] }> {
+    const [workouts, exercises, routines] = await Promise.all([
       db.workouts.filter((w) => !!w.deletedAt).toArray(),
       db.exercises.filter((e) => !!e.deletedAt).toArray(),
+      db.routines.filter((r) => !!r.deletedAt).toArray(),
     ]);
     const byDeleted = <T extends { deletedAt?: string }>(a: T, b: T) => (b.deletedAt ?? '').localeCompare(a.deletedAt ?? '');
-    return { workouts: workouts.sort(byDeleted), exercises: exercises.sort(byDeleted) };
+    return { workouts: workouts.sort(byDeleted), exercises: exercises.sort(byDeleted), routines: routines.sort(byDeleted) };
   },
 
   async restoreWorkout(id: string): Promise<void> {
@@ -26,6 +27,18 @@ export const trashRepo = {
     if (!e) return;
     const { deletedAt: _d, ...rest } = e;
     await db.exercises.put({ ...rest, updatedAt: nowIso() });
+  },
+
+  async restoreRoutine(id: string): Promise<void> {
+    const r = await db.routines.get(id);
+    if (!r) return;
+    const { deletedAt: _d, ...rest } = r;
+    await db.routines.put({ ...rest, updatedAt: nowIso() });
+  },
+
+  /** Permanently remove a routine (workouts started from it keep their own copy of the targets). */
+  async purgeRoutine(id: string): Promise<void> {
+    await db.routines.delete(id);
   },
 
   /** Permanently remove a workout with its exercises, sets and original import rows. */
@@ -52,12 +65,14 @@ export const trashRepo = {
   },
 
   /** Remove everything that has been in the trash for 30 days or more. Returns counts. */
-  async purgeExpired(now = new Date()): Promise<{ workouts: number; exercises: number }> {
-    const { workouts, exercises } = await trashRepo.list();
+  async purgeExpired(now = new Date()): Promise<{ workouts: number; exercises: number; routines: number }> {
+    const { workouts, exercises, routines } = await trashRepo.list();
     const w = workouts.filter((x) => x.deletedAt && isExpired(x.deletedAt, now));
     for (const x of w) await trashRepo.purgeWorkout(x.id);
     let ex = 0;
     for (const x of exercises.filter((e) => e.deletedAt && isExpired(e.deletedAt, now))) if (await trashRepo.purgeExercise(x.id)) ex++;
-    return { workouts: w.length, exercises: ex };
+    const rt = routines.filter((x) => x.deletedAt && isExpired(x.deletedAt, now));
+    for (const x of rt) await trashRepo.purgeRoutine(x.id);
+    return { workouts: w.length, exercises: ex, routines: rt.length };
   },
 };
