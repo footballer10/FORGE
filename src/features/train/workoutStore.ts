@@ -254,7 +254,9 @@ export const useWorkout = create<State>((set, get) => {
       }
       if (!canComplete(found.set, found.row.exercise.loadModel)) return false;
       await get().updateSet(setId, { completedAt: nowIso() });
-      const sec = restSecondsFor(found.row.exercise, found.set.type, found.row.we.restSec);
+      // A rest typed for this set in the routine/program (matched by position) beats the exercise rest.
+      const position = found.row.sets.findIndex((s) => s.id === setId);
+      const sec = restSecondsFor(found.row.exercise, found.set.type, found.row.we.restSec, found.row.we.targets?.[position]?.restSec);
       const items = get().rows.map((r) => ({ id: r.we.id, supersetGroup: r.we.supersetGroup }));
       const due = restAfterExercise(items, found.row.we.id);
       if (sec > 0 && due && !isEditingPast(get().workout)) await get().startRest(sec);

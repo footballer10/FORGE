@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useLeaveGuard } from '../../components/useLeaveGuard';
 import { exerciseRepo, routineRepo } from '../../db/repositories';
 import { moveTo } from '../../domain/order';
+import { formatRest, parseRest } from '../../domain/restTimer';
 import { SortableList } from '../../components/SortableList';
 import { defaultTarget, describeTargets, sanitizeExercises } from '../../domain/routine';
 import { toggleSupersetLink } from '../../domain/superset';
@@ -30,6 +31,30 @@ interface Props {
 }
 
 const input = 'min-h-tap w-full rounded-card border border-line bg-surface px-3 text-base text-fg placeholder:text-muted';
+/** Rest after a set: "1:30" or "90". Shows what is typed while editing, and the formatted value otherwise. */
+function RestField({ value, label, onChange }: { value: number | undefined; label: string; onChange: (sec: number | undefined) => void }) {
+  const [draft, setDraft] = useState<string | null>(null);
+  const shown = draft ?? (value === undefined ? '' : formatRest(value));
+  const bad = draft !== null && parseRest(draft) === null;
+  return (
+    <input
+      aria-label={label}
+      aria-invalid={bad}
+      inputMode="text"
+      placeholder="rest"
+      className={`min-h-tap w-14 shrink-0 rounded-card border bg-surface-2 px-1 text-center text-base tabular-nums text-fg placeholder:text-muted ${bad ? 'border-accent' : 'border-line'}`}
+      value={shown}
+      onFocus={() => setDraft(shown)}
+      onChange={(e) => {
+        setDraft(e.target.value);
+        const v = parseRest(e.target.value);
+        if (v !== null) onChange(v);
+      }}
+      onBlur={() => setDraft(null)}
+    />
+  );
+}
+
 const small = 'min-h-tap w-full rounded-card border border-line bg-surface-2 px-2 text-center text-base text-fg tabular-nums placeholder:text-muted';
 const btn = 'min-h-tap min-w-tap rounded-card border border-line px-3 text-sm text-fg';
 
@@ -175,7 +200,7 @@ export function ExercisesEditor({ heading, nameLabel = 'Name', namePlaceholder, 
               <button type="button" className={btn} onClick={() => setItems((c) => c.filter((_, k) => k !== i))}>Remove</button>
             </div>
             <label className="flex items-center gap-2 pb-2 text-sm text-muted">
-              <span className="w-24 shrink-0">Rest (sec)</span>
+              <span className="w-24 shrink-0">Default rest (sec)</span>
               <input
                 className={small}
                 inputMode="numeric"
@@ -222,6 +247,7 @@ export function ExercisesEditor({ heading, nameLabel = 'Name', namePlaceholder, 
                 </>
               )}
               <span className="flex-1 text-center">RPE</span>
+              <span className="w-14 shrink-0 text-center">Rest</span>
               <span className="min-w-tap" />
             </div>
             {it.targets.map((t, n) => (
@@ -247,6 +273,7 @@ export function ExercisesEditor({ heading, nameLabel = 'Name', namePlaceholder, 
                   </>
                 )}
                 <input aria-label={`Set ${n + 1} RPE`} className={small} inputMode="decimal" value={t.rpe ?? ''} onChange={(e) => setNum(i, n, 'rpe', e.target.value)} />
+                <RestField label={`Set ${n + 1} rest`} value={t.restSec} onChange={(sec) => setItems((cur) => cur.map((e, k) => (k !== i ? e : { ...e, targets: e.targets.map((x, m) => { if (m !== n) return x; const { restSec: _r, ...rest } = x; return sec === undefined ? rest : { ...rest, restSec: sec }; }) })))} />
                 <button type="button" aria-label={`Remove set ${n + 1}`} className="min-h-tap min-w-tap text-muted" onClick={() => patchItem(i, { targets: it.targets.filter((_, k) => k !== n) })}>✕</button>
               </div>
             ))}
