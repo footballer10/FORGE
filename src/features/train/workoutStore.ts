@@ -55,6 +55,8 @@ interface State {
   /** Drops unticked sets and empty exercises, then ends the workout. Returns false if nothing was completed. */
   finish: () => Promise<boolean>;
   discard: () => Promise<void>;
+  /** Edit a past workout's name and times (already validated). */
+  setDetails: (d: { name: string; startedAt: string; endedAt: string }) => Promise<void>;
   /** Reopen a finished workout for editing in place (its end time is kept). */
   openPast: (workoutId: ID) => Promise<void>;
   /** Start a new workout from a past one's structure. Returns false if a workout is already active. */
@@ -357,6 +359,13 @@ export const useWorkout = create<State>((set, get) => {
       const w = get().workout;
       set({ restEndsAt: undefined, restTotalSec: undefined });
       if (w) await workoutRepo.update(w.id, { restTimerEndsAt: undefined });
+    },
+
+    async setDetails(d) {
+      const w = get().workout;
+      if (!w) return;
+      set({ workout: { ...w, ...d } });
+      await workoutRepo.update(w.id, d);
     },
 
     async setWorkoutNotes(notes) {
