@@ -2,7 +2,7 @@ import { addDays, localDateKey } from '../../domain/calendar';
 import { buildCoachSummary, formatTargets, type CoachSummaryInput, type SummaryLift, type SummaryPr } from '../../domain/coachSummary';
 import { E1RM_MAX_REPS } from '../../domain/e1rm';
 import { dailyWeights, ewmaTrend, trendChange } from '../../domain/bodyweight';
-import { formatValue, summarizeTest } from '../../domain/fitness';
+import { describeCountdown, formatValue, summarizeTest, testCountdown } from '../../domain/fitness';
 import { hasLoad } from '../../domain/load';
 import { detectPrs, e1rmSeries, liftSets, type LiftSet } from '../../domain/prs';
 import type { ID, SetEntry } from '../../domain/types';
@@ -104,9 +104,11 @@ export const coachRepo = {
     // Fitness tests.
     const tests = fitness.tests.flatMap((t) => {
       const s = summarizeTest(fitness.results.filter((r) => r.testId === t.id), t.scoring);
-      if (!s.latest || !s.best) return [];
+      const c = testCountdown(t, s.best?.value, today);
+      const goal = describeCountdown(t, c, profile.lengthUnit, s.latest?.unit ?? unit);
+      if (!s.latest && !goal) return [];
       const fmt = (v: number) => formatValue(t.measure, v, profile.lengthUnit, s.latest?.unit ?? unit);
-      return [{ name: t.name, latest: fmt(s.latest.value), latestDate: s.latest.date, best: fmt(s.best.value) }];
+      return [{ name: t.name, ...(s.latest && s.best ? { latest: fmt(s.latest.value), latestDate: s.latest.date, best: fmt(s.best.value) } : {}), ...(goal ? { goal } : {}) }];
     });
 
     // Active program.

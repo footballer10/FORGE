@@ -48,6 +48,10 @@ export const fitnessRepo = {
     for (const r of await db.testResults.where('testId').equals(id).filter((r) => !r.deletedAt).toArray()) await results.softDelete(r.id);
     await tests.softDelete(id);
   },
+  /** Set or clear (undefined) the user's target and test date. */
+  async setGoal(id: string, goal: { targetValue?: number; testDate?: string }): Promise<void> {
+    await tests.update(id, { targetValue: goal.targetValue, testDate: goal.testDate });
+  },
   async addResult(testId: string, date: string, value: number, unit?: WeightUnit, notes?: string): Promise<TestResult> {
     return results.create({ testId, date, value, ...(unit ? { unit } : {}), ...(notes ? { notes } : {}) });
   },

@@ -31,6 +31,16 @@ describe('buildCoachSummary', () => {
     expect(text).toContain('5-rep best 275 lb (was 265)');
     expect(text).toContain('-1.2 lb over 28 days');
   });
+  it('includes the fitness-test countdown and asks Claude to aim at it', () => {
+    const t = buildCoachSummary({ ...base, tests: [
+      { name: 'Pull-up max', latest: '8 reps', latestDate: '2026-11-20', best: '9 reps', goal: 'target 15 reps, 6 reps to gain, test 2026-12-20 (in 26 days)' },
+      { name: '1.5 mile run', goal: 'target 10:00, no result yet' },
+    ] });
+    expect(t).toContain('- Pull-up max: latest 8 reps (2026-11-20); best 9 reps; goal: target 15 reps, 6 reps to gain, test 2026-12-20 (in 26 days)');
+    expect(t).toContain('- 1.5 mile run: no results yet; goal: target 10:00, no result yet');
+    expect(t).toContain('aim the plan at it');
+    expect(buildCoachSummary(base)).not.toContain('aim the plan at it');
+  });
   it('handles empty data and no program', () => {
     const t = buildCoachSummary({ ...base, lifts: [], prs: [], muscleSetsPerWeek: [], bodyweight: undefined });
     expect(t).toContain('no loaded lifts');

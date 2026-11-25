@@ -127,3 +127,54 @@ export function summarizeTest(results: TestResult[], scoring: TestScoring): Test
 /** Is a change an improvement for this test? Zero is neither. */
 export const changeIsImprovement = (scoring: TestScoring, delta: number): boolean | undefined =>
   delta === 0 ? undefined : scoring === 'higherIsBetter' ? delta > 0 : delta < 0;
+
+const dayNumber = (key: string) => Date.UTC(+key.slice(0, 4), +key.slice(5, 7) - 1, +key.slice(8, 10)) / 86_400_000;
+/** Whole days from `today` to `date` (negative once the date has passed). Both are YYYY-MM-DD local day keys. */
+export const daysUntil = (date: string, today: string): number => Math.round(dayNumber(date) - dayNumber(today));
+
+export interface Countdown {
+  /** Whole days until the test date; undefined when no date is set. Negative when it has passed. */
+  daysLeft?: number;
+  /** Target in base units; undefined when none is set. */
+  target?: number;
+  /** Best result so far, base units. */
+  best?: number;
+  /** How far the best is from the target, base units, always >= 0. 0 when met. Undefined without a target or a result. */
+  gap?: number;
+  met: boolean;
+}
+
+/** Best result vs the user's typed target and the days left to the test date. Formula: gap = target − best (higher is better) or best − target (lower is better). */
+export function testCountdown(test: Pick<FitnessTest, 'scoring' | 'targetValue' | 'testDate'>, best: number | undefined, today: string): Countdown {
+  const target = test.targetValue;
+  const hasBoth = target !== undefined && best !== undefined;
+  const raw = hasBoth ? (test.scoring === 'higherIsBetter' ? target - best : best - target) : undefined;
+  return {
+    ...(test.testDate ? { daysLeft: daysUntil(test.testDate, today) } : {}),
+    ...(target !== undefined ? { target } : {}),
+    ...(best !== undefined ? { best } : {}),
+    ...(raw !== undefined ? { gap: Math.max(0, raw) } : {}),
+    met: raw !== undefined && raw <= 0,
+  };
+}
+
+/** "in 12 days", "tomorrow", "today", "3 days ago". */
+export function daysLabel(n: number): string {
+  if (n === 0) return 'today';
+  if (n === 1) return 'tomorrow';
+  if (n === -1) return 'yesterday';
+  return n > 0 ? `in ${n} days` : `${-n} days ago`;
+}
+
+/** One line for the Coach summary and the test list; every number shown with its inputs. */
+export function describeCountdown(test: Pick<FitnessTest, 'measure' | 'scoring' | 'testDate'>, c: Countdown, lengthUnit: LengthUnit, weightUnit?: string): string | undefined {
+  const parts: string[] = [];
+  const f = (v: number) => formatValue(test.measure, v, lengthUnit, weightUnit);
+  if (c.target !== undefined) {
+    parts.push(`target ${f(c.target)}`);
+    if (c.gap !== undefined) parts.push(c.met ? 'target met' : `${f(c.gap)} ${test.scoring === 'higherIsBetter' ? 'to gain' : 'to cut'}`);
+    else parts.push('no result yet');
+  }
+  if (test.testDate && c.daysLeft !== undefined) parts.push(`test ${test.testDate} (${daysLabel(c.daysLeft)})`);
+  return parts.length ? parts.join(', ') : undefined;
+}

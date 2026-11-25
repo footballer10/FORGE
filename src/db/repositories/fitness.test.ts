@@ -26,6 +26,16 @@ describe('fitnessRepo', () => {
     await fitnessRepo.removeResult(a.id);
     expect((await fitnessRepo.load()).results).toHaveLength(0);
   });
+  it('saves and clears a target and test date', async () => {
+    await fitnessRepo.load();
+    await fitnessRepo.setGoal('builtin:pullups', { targetValue: 15, testDate: '2026-12-20' });
+    let t = (await fitnessRepo.load()).tests.find((x) => x.id === 'builtin:pullups')!;
+    expect([t.targetValue, t.testDate]).toEqual([15, '2026-12-20']);
+    await fitnessRepo.setGoal('builtin:pullups', {});
+    t = (await fitnessRepo.load()).tests.find((x) => x.id === 'builtin:pullups')!;
+    expect(t.targetValue).toBeUndefined();
+    expect(t.testDate).toBeUndefined();
+  });
   it('removing a test trashes its results', async () => {
     const t = await fitnessRepo.addCustom('X', 'reps', 'higherIsBetter');
     await fitnessRepo.addResult(t.id, '2026-03-01', 5);

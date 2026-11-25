@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { fitnessRepo } from '../../db/repositories';
 import { localDateKey } from '../../domain/calendar';
-import { MEASURE_LABEL, changeIsImprovement, editText, formatTime, formatValue, inputUnit, parseValue, summarizeTest } from '../../domain/fitness';
+import { MEASURE_LABEL, changeIsImprovement, describeCountdown, editText, formatTime, formatValue, inputUnit, parseValue, summarizeTest, testCountdown } from '../../domain/fitness';
 import type { FitnessTest, LengthUnit, TestMeasure, TestResult, TestScoring, WeightUnit } from '../../domain/types';
 
 const field = 'min-h-tap rounded-card border border-line bg-surface px-3 text-base text-fg placeholder:text-muted';
@@ -14,6 +14,35 @@ interface Loaded {
   results: TestResult[];
   lengthUnit: LengthUnit;
   weightUnit: WeightUnit;
+}
+
+function GoalEditor({ test, data, onChange }: { test: FitnessTest; data: Loaded; onChange: () => void }) {
+  const { lengthUnit, weightUnit } = data;
+  const [target, setTarget] = useState(test.targetValue === undefined ? '' : editText(test.measure, test.targetValue, lengthUnit));
+  const [date, setDate] = useState(test.testDate ?? '');
+  const [error, setError] = useState('');
+  async function save() {
+    const v = target.trim() ? parseValue(test.measure, target, lengthUnit) : undefined;
+    if (target.trim() && v === undefined) {
+      setError(test.measure === 'timeSec' ? 'Enter a target like 10:12 or 4.85.' : test.measure === 'reps' ? 'Enter whole reps above 0.' : 'Enter a number above 0.');
+      return;
+    }
+    setError('');
+    await fitnessRepo.setGoal(test.id, { targetValue: v, testDate: date || undefined });
+    onChange();
+  }
+  return (
+    <div className="mt-3 border-t border-line pt-3">
+      <p className="text-sm font-medium">Target and test date</p>
+      <div className="mt-1 flex flex-wrap items-center gap-2">
+        <input inputMode={test.measure === 'timeSec' ? 'text' : 'decimal'} className={`${field} w-36`} placeholder={`Target (${inputUnit(test.measure, lengthUnit, weightUnit)})`} aria-label={`${test.name} target`} value={target} onChange={(e) => setTarget(e.target.value)} />
+        <input type="date" aria-label={`${test.name} test date`} className={`${field} w-40`} value={date} onChange={(e) => setDate(e.target.value)} />
+        <button type="button" onClick={() => void save()} className="min-h-tap rounded-card border border-line px-4 text-sm">Save goal</button>
+      </div>
+      {error && <p role="alert" className="mt-1 text-sm text-accent-text">{error}</p>}
+      <p className="mt-1 text-xs text-muted">You type the target (from the published standard); Forge does not supply one. Clear both boxes to remove the goal.</p>
+    </div>
+  );
 }
 
 function TestDetail({ test, results, data, onChange }: { test: FitnessTest; results: TestResult[]; data: Loaded; onChange: () => void }) {
@@ -113,6 +142,7 @@ function TestDetail({ test, results, data, onChange }: { test: FitnessTest; resu
           ))}
         </ul>
       )}
+      <GoalEditor key={`${test.targetValue}|${test.testDate}`} test={test} data={data} onChange={onChange} />
       {!test.builtIn && (
         <button type="button" className="mt-1 min-h-tap text-sm text-muted" onClick={() => void fitnessRepo.removeTest(test.id).then(onChange)}>
           Delete this test and its results
@@ -172,6 +202,7 @@ export function FitnessPanel() {
     };
   }, [tick]);
   const refresh = () => setTick((t) => t + 1);
+  const today = localDateKey(new Date());
   const byTest = useMemo(() => {
     const m = new Map<string, TestResult[]>();
     for (const r of data?.results ?? []) m.set(r.testId, [...(m.get(r.testId) ?? []), r]);
@@ -187,6 +218,8 @@ export function FitnessPanel() {
           const rs = byTest.get(t.id) ?? [];
           const s = summarizeTest(rs, t.scoring);
           const isOpen = open === t.id;
+          const cd = testCountdown(t, s.best?.value, today);
+          const goalText = describeCountdown(t, cd, data.lengthUnit, s.best?.unit ?? data.weightUnit);
           const imp = s.changeFromPrevious === undefined ? undefined : changeIsImprovement(t.scoring, s.changeFromPrevious);
           return (
             <li key={t.id}>
@@ -197,6 +230,7 @@ export function FitnessPanel() {
                     {s.latest ? `${formatValue(t.measure, s.latest.value, data.lengthUnit, s.latest.unit ?? data.weightUnit)} · ${dayLabel(s.latest.date)}` : 'No results yet'}
                     {s.best && s.history.length > 1 && s.best.id !== s.latest?.id && ` · best ${formatValue(t.measure, s.best.value, data.lengthUnit, s.best.unit ?? data.weightUnit)}`}
                   </span>
+                  {goalText && <span className={`block text-xs tabular-nums ${cd.met ? 'text-accent-text' : 'text-muted'}`}>{goalText}</span>}
                 </span>
                 {s.latestIsBest && <span className="text-xs text-accent-text">New best</span>}
                 {imp !== undefined && !s.latestIsBest && <span className="text-xs text-muted">{imp ? 'better' : 'worse'} than last</span>}

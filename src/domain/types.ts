@@ -324,6 +324,10 @@ export interface FitnessTest extends BaseEntity {
   /** Battery preset membership (later phase, e.g. 'cfa', 'rugby'). */
   batteries?: string[];
   builtIn: boolean;
+  /** Goal typed by the user, in base units (reps, seconds, metres, centimetres, or weight). Never invented by the app. */
+  targetValue?: number;
+  /** Date of the real test, YYYY-MM-DD. */
+  testDate?: ISODate;
 }
 
 export interface TestResult extends BaseEntity {
