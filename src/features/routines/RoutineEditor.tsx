@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useLeaveGuard } from '../../components/useLeaveGuard';
 import { exerciseRepo, routineRepo } from '../../db/repositories';
-import { moveItem } from '../../domain/order';
+import { moveTo } from '../../domain/order';
+import { SortableList } from '../../components/SortableList';
 import { defaultTarget, describeTargets, sanitizeExercises } from '../../domain/routine';
 import { toggleSupersetLink } from '../../domain/superset';
 import type { Exercise, ID, ProgressionRule, Routine, RoutineExercise, SetType, TargetSet } from '../../domain/types';
@@ -135,25 +136,26 @@ export function ExercisesEditor({ heading, nameLabel = 'Name', namePlaceholder, 
         <textarea className={`${input} py-2`} rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
       </label>
 
-      {items.map((it, i) => {
+      <SortableList ids={items.map((_, i) => String(i))} onMove={(from, to) => setItems((c) => moveTo(c, from, to))}>
+      {(i, handle) => {
+        const it = items[i]!;
         const ex = byId.get(it.exerciseId);
         const model = ex?.loadModel ?? 'total';
         const timed = model === 'timeDistance';
         const showWeight = model !== 'repsOnly' && !timed;
         return (
-          <section key={i} className="mb-4 rounded-card border border-line bg-surface p-3" aria-label={ex?.name ?? 'Deleted exercise'}>
+          <section className="mb-4 rounded-card border border-line bg-surface p-3" aria-label={ex?.name ?? 'Deleted exercise'}>
             <div className="flex items-start justify-between gap-2">
-              <div>
+              <div className="min-w-0 flex-1">
                 <h2 className="text-2xl uppercase">
                   {it.supersetGroup && <span className="num mr-2 rounded-card border border-line px-2 text-base text-muted">SS {it.supersetGroup}</span>}
                   {ex?.name ?? 'Deleted exercise'}
                 </h2>
                 <p className="num text-sm text-muted">{describeTargets(it.targets)}</p>
               </div>
+              {handle}
             </div>
             <div className="flex flex-wrap gap-2 pb-2 pt-2">
-              <button type="button" className={btn} aria-label="Move up" disabled={i === 0} onClick={() => setItems((c) => moveItem(c, i, -1))}>↑</button>
-              <button type="button" className={btn} aria-label="Move down" disabled={i === items.length - 1} onClick={() => setItems((c) => moveItem(c, i, 1))}>↓</button>
               <button
                 type="button"
                 className={btn}
@@ -258,7 +260,8 @@ export function ExercisesEditor({ heading, nameLabel = 'Name', namePlaceholder, 
             {showWeight && <p className="pt-1 text-xs text-muted">Weight left blank uses your last session. Max reps makes a range (6–8).</p>}
           </section>
         );
-      })}
+      }}
+      </SortableList>
 
       <button type="button" onClick={() => setSub('pick')} className="mb-4 min-h-tap rounded-card border border-line bg-surface px-4 text-left text-base text-fg">
         Add exercise

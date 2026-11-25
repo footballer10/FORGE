@@ -10,11 +10,11 @@ beforeEach(async () => {
 
 describe('fitnessRepo', () => {
   it('seeds the built-ins once and never resurrects a deleted one', async () => {
-    expect((await fitnessRepo.load()).tests).toHaveLength(6);
-    expect((await fitnessRepo.load()).tests).toHaveLength(6);
+    expect((await fitnessRepo.load()).tests).toHaveLength(8);
+    expect((await fitnessRepo.load()).tests).toHaveLength(8);
     await fitnessRepo.removeTest('builtin:pullups');
     const after = await fitnessRepo.load();
-    expect(after.tests).toHaveLength(5);
+    expect(after.tests).toHaveLength(7);
     expect(after.tests[0]!.name).toBe('Push-up max');
   });
   it('adds custom tests and results, edits and trashes them', async () => {
@@ -50,6 +50,6 @@ describe('ensureBuiltIns concurrency', () => {
   it('does not fail when called twice at once', async () => {
     await db.fitnessTests.clear();
     await Promise.all([fitnessRepo.ensureBuiltIns(), fitnessRepo.ensureBuiltIns()]);
-    expect(await db.fitnessTests.count()).toBe(6);
+    expect(await db.fitnessTests.count()).toBe(8);
   });
 });

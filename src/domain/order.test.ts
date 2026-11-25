@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { moveItem } from './order';
+import { moveItem, moveTo } from './order';
 
 describe('moveItem', () => {
   it('moves up and down', () => {
@@ -12,5 +12,19 @@ describe('moveItem', () => {
     expect(moveItem(src, 1, 1)).toEqual(['a', 'b']);
     expect(moveItem(src, 5, 1)).toEqual(['a', 'b']);
     expect(src).toEqual(['a', 'b']);
+  });
+});
+
+describe('moveTo', () => {
+  it('drags an item to a new position', () => {
+    expect(moveTo(['a', 'b', 'c', 'd'], 0, 2)).toEqual(['b', 'c', 'a', 'd']);
+    expect(moveTo(['a', 'b', 'c', 'd'], 3, 0)).toEqual(['d', 'a', 'b', 'c']);
+  });
+  it('ignores equal or out-of-range positions and never mutates', () => {
+    const src = ['a', 'b', 'c'];
+    expect(moveTo(src, 1, 1)).toEqual(['a', 'b', 'c']);
+    expect(moveTo(src, -1, 1)).toEqual(['a', 'b', 'c']);
+    expect(moveTo(src, 0, 9)).toEqual(['a', 'b', 'c']);
+    expect(src).toEqual(['a', 'b', 'c']);
   });
 });

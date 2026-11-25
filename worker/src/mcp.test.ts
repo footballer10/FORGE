@@ -21,6 +21,12 @@ const seed = [
   { table: 'sets', row: { id: 's0', workoutExerciseId: 'we1', workoutId: 'w1', exerciseId: 'sq', order: 0, type: 'warmup', weight: 135, unit: 'lb', reps: 5, completedAt: T0, ...base } },
   { table: 'sets', row: { id: 's1', workoutExerciseId: 'we1', workoutId: 'w1', exerciseId: 'sq', order: 1, type: 'working', weight: 225, unit: 'lb', reps: 5, completedAt: T0, ...base } },
   { table: 'sets', row: { id: 's2', workoutExerciseId: 'we1', workoutId: 'w1', exerciseId: 'sq', order: 2, type: 'working', weight: 245, unit: 'lb', reps: 3, completedAt: T0, ...base } },
+  { table: 'nutritionEntries', row: { id: 'n1', date: '2026-03-02', name: 'Oats', calories: 500, proteinG: 20, ...base } },
+  { table: 'nutritionEntries', row: { id: 'n2', date: '2026-03-02', calories: 700, proteinG: 50, ...base } },
+  { table: 'nutritionEntries', row: { id: 'n3', date: '2026-03-01', calories: 2400, proteinG: 140, ...base } },
+  { table: 'nutritionEntries', row: { id: 'n4', date: '2026-03-01', calories: 999, deletedAt: T0, ...base } },
+  { table: 'fitnessTests', row: { id: 'builtin:pullups', name: 'Pull-up max', measure: 'reps', scoring: 'higherIsBetter', builtIn: true, targetValue: 12, testDate: '2026-06-01', ...base } },
+  { table: 'testResults', row: { id: 'r1', testId: 'builtin:pullups', date: '2026-03-01', value: 8, ...base } },
   { table: 'sets', row: { id: 's3', workoutExerciseId: 'we1', workoutId: 'w1', exerciseId: 'sq', order: 3, type: 'working', weight: 300, unit: 'lb', reps: 1, ...base } }, // not completed
 ];
 
@@ -51,7 +57,7 @@ describe('MCP endpoint', () => {
       if (t.name !== 'propose_program') expect(t.annotations.readOnlyHint).toBe(true);
       return t.name;
     });
-    expect(names.filter((n: string) => n !== 'propose_program')).toEqual(['get_profile', 'list_exercises', 'list_workouts', 'get_exercise_history', 'get_weekly_sets', 'get_active_program', 'get_bodyweight', 'get_proposals']);
+    expect(names.filter((n: string) => n !== 'propose_program')).toEqual(['get_profile', 'list_exercises', 'list_workouts', 'get_exercise_history', 'get_weekly_sets', 'get_active_program', 'get_bodyweight', 'get_nutrition', 'get_fitness_tests', 'get_proposals']);
   });
 
   it('the only write tool is propose_program', async () => {
@@ -105,6 +111,22 @@ const rawCall = async (name: string, args: object) => {
 };
 const rowCount = async (table: string) =>
   (await env.DB.prepare('SELECT COUNT(*) AS n FROM rows WHERE table_name = ?').bind(table).all<{ n: number }>()).results![0]!.n;
+
+describe('nutrition and fitness tools', () => {
+  it('get_nutrition lists logged days with totals, skipping trashed entries', async () => {
+    const r = await callTool('get_nutrition', { days: 14 });
+    expect(r.days).toEqual([
+      { date: '2026-03-02', calories: 1200, proteinG: 70, entries: 2 },
+      { date: '2026-03-01', calories: 2400, proteinG: 140, entries: 1 },
+    ]);
+    expect(r.loggedDays).toBe(2);
+    expect(r.averageCalories).toBe(1800);
+  });
+  it('get_fitness_tests returns the typed target, test date and results', async () => {
+    const r = await callTool('get_fitness_tests');
+    expect(r[0]).toMatchObject({ name: 'Pull-up max', target: 12, testDate: '2026-06-01', betterIs: 'higher', results: [{ date: '2026-03-01', value: 8 }] });
+  });
+});
 
 describe('propose_program', () => {
   it('stores a proposed decision and changes nothing else', async () => {

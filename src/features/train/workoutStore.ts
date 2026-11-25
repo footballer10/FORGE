@@ -73,6 +73,8 @@ interface State {
   /** Sticky note stored on the exercise itself; shown every time it is logged. */
   setStickyNote: (exerciseId: ID, note: string) => Promise<void>;
   moveExercise: (workoutExerciseId: ID, delta: -1 | 1) => Promise<void>;
+  /** Apply a full new order (drag and drop). */
+  setExerciseOrder: (orderedIds: ID[]) => Promise<void>;
   /** Replace an exercise that has no completed sets. Returns false when sets are already done. */
   swapExercise: (workoutExerciseId: ID, newExerciseId: ID) => Promise<boolean>;
 }
@@ -397,6 +399,15 @@ export const useWorkout = create<State>((set, get) => {
       const next = moveItem(ids, ids.indexOf(workoutExerciseId), delta);
       if (next.every((id, i) => id === ids[i])) return;
       await workoutRepo.reorderExercises(next);
+      await refresh(w.id);
+    },
+
+    async setExerciseOrder(orderedIds) {
+      const w = get().workout;
+      if (!w) return;
+      const ids = get().rows.map((r) => r.we.id);
+      if (orderedIds.length !== ids.length || !orderedIds.every((id) => ids.includes(id)) || orderedIds.every((id, i) => id === ids[i])) return;
+      await workoutRepo.reorderExercises(orderedIds);
       await refresh(w.id);
     },
 

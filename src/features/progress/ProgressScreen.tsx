@@ -10,7 +10,7 @@ type Page = 'bodyweight' | 'tests' | 'conditioning' | 'photos';
 
 const PAGES: { id: Page; title: string; detail: string }[] = [
   { id: 'bodyweight', title: 'Bodyweight', detail: 'Weigh-ins and trend' },
-  { id: 'tests', title: 'Fitness tests', detail: 'Pull-ups, push-ups, mile, sprint, jumps' },
+  { id: 'tests', title: 'Fitness tests', detail: 'Air Force Academy PFT and AFT, plus your own tests' },
   { id: 'conditioning', title: 'Conditioning', detail: 'Runs, sprints and intervals' },
   { id: 'photos', title: 'Progress photos', detail: 'Kept on this device only' },
 ];

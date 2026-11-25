@@ -7,12 +7,14 @@ import type {
   FitnessTest,
   ImportBatch,
   MetaEntry,
+  NutritionEntry,
   PlannedSession,
   Profile,
   Program,
   ProgramWeek,
   ProgressPhoto,
   RawImportRow,
+  SavedFood,
   ReadinessCheckIn,
   Routine,
   SetEntry,
@@ -48,6 +50,8 @@ export class ForgeDB extends Dexie {
   aiDecisions!: Table<AiDecision, string>;
   undo!: Table<UndoEntry, string>;
   meta!: Table<MetaEntry, string>;
+  nutritionEntries!: Table<NutritionEntry, string>;
+  savedFoods!: Table<SavedFood, string>;
 
   constructor(name = 'forge') {
     super(name);
@@ -72,6 +76,11 @@ export class ForgeDB extends Dexie {
       aiDecisions: 'id, date, programId, status',
       undo: 'id, createdAt',
       meta: 'key',
+    });
+    // v2: nutrition logging. New tables only; existing data is untouched.
+    this.version(2).stores({
+      nutritionEntries: 'id, date',
+      savedFoods: 'id, name',
     });
   }
 }

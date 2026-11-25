@@ -46,7 +46,7 @@ export function ConditioningPanel() {
   const shown = all ? sessions : sessions.slice(0, SHOWN);
 
   return (
-    <section className="mx-4 mt-4 rounded-card border border-line bg-surface p-4" aria-label="Conditioning">
+    <section className="rounded-card border border-line bg-surface p-4" aria-label="Conditioning">
       <h2 className="font-display text-xl">Conditioning</h2>
 
       {bests.length > 0 && (

@@ -33,7 +33,7 @@ Forge is a personal strength-training tracker for one user, built iPhone first. 
 - Display face: Barlow Condensed for numbers and headings; Inter for body text.
 - Large tabular numerals for weight and reps.
 - Tap targets ≥ 44 pt; primary actions in the bottom third of the screen.
-- Bottom tab bar: **Home, Train, Strength, Progress, Coach**.
+- Bottom tab bar: **Home, Train, Strength, Progress, Nutrition**. Claude is reached through the Claude app (connector); the approval inbox and connection live in Settings → Claude.
 - Custom numeric keypad for weight/reps, with +/- steps matching the exercise's increment.
 - Motion is brief and purposeful (set complete, PR).
 - Gamification is subtle: achievements, weekly streaks and PR celebrations appear on Home and the post-workout summary, never on the logging screen.
@@ -97,4 +97,8 @@ Lock-screen timer / Live Activity; Apple Watch app; gym equipment profiles; trai
 | 2026-11-24 | Strong dumbbells were pair totals → import halves by default. |
 | 2026-11-24 | No Fullback Strength import. |
 | 2026-11-24 | Tab navigation via Zustand state (no router dependency). |
+| 2026-11-25 | Coach tab removed: talking to Claude happens in the Claude app via the connector; the proposal inbox, connection and profile moved to Settings → Claude. Nutrition took the fifth tab. |
+| 2026-11-25 | Academy tests: USAFA PFT and AFT preset (user's academy). No scoring tables are bundled; the user types targets. |
+| 2026-11-25 | Drag-to-reorder added with @dnd-kit (user approved new dependencies as needed). |
+| 2026-11-25 | Apple Watch: needs a native watchOS app; not buildable in this environment (see PROGRESS). |
 | 2026-11-24 | Tailwind v3 (stable config); `fake-indexeddb` dev-only for repository tests. |

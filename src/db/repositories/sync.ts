@@ -14,7 +14,7 @@ import { db } from '../schema';
 export const SYNC_TABLES = [
   'exercises', 'workouts', 'workoutExercises', 'sets', 'routines', 'programs', 'programWeeks',
   'plannedSessions', 'bodyMetrics', 'fitnessTests', 'testResults', 'readiness', 'profile',
-  'importBatches', 'achievements', 'aiDecisions',
+  'importBatches', 'achievements', 'aiDecisions', 'nutritionEntries', 'savedFoods',
 ] as const;
 
 export const PUSH_BATCH = 200;
@@ -71,7 +71,13 @@ async function call(f: FetchLike, s: SyncSettings, path: string, init?: RequestI
     headers: { ...(init?.headers ?? {}), authorization: `Bearer ${s.token}`, 'content-type': 'application/json' },
   });
   if (res.status === 401) throw new Error('The Worker rejected the token (401). Check the token in Settings.');
-  if (!res.ok) throw new Error(`Sync failed (HTTP ${res.status}).`);
+  if (!res.ok) {
+    const detail = await res.text().catch(() => '');
+    if (res.status === 400 && /Unknown table/i.test(detail)) {
+      throw new Error('Your Worker is out of date and does not know the newest data yet. Redeploy it (open the worker folder and run "npx wrangler deploy"); syncing resumes after that.');
+    }
+    throw new Error(`Sync failed (HTTP ${res.status}).`);
+  }
   return res;
 }
 

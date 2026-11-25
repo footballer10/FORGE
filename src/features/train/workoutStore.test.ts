@@ -224,6 +224,15 @@ describe('workout store', () => {
       await useWorkout.getState().load();
       expect(names()).toEqual(['A', 'C', 'B']);
 
+      // Drag and drop applies a whole new order; bad input (missing or unknown ids) is ignored.
+      await useWorkout.getState().setExerciseOrder([idOf('B'), idOf('A'), idOf('C')]);
+      expect(names()).toEqual(['B', 'A', 'C']);
+      await useWorkout.getState().setExerciseOrder([idOf('A')]);
+      await useWorkout.getState().setExerciseOrder(['nope', idOf('A'), idOf('C')]);
+      expect(names()).toEqual(['B', 'A', 'C']);
+      await useWorkout.getState().setExerciseOrder([idOf('A'), idOf('C'), idOf('B')]);
+      expect(names()).toEqual(['A', 'C', 'B']);
+
       await useWorkout.getState().removeExercise(idOf('C'));
       const d = await exerciseRepo.create({ ...base, name: 'D' });
       await useWorkout.getState().addExercise(d.id);

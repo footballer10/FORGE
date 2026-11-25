@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { fitnessRepo, UNDO_EVENT } from '../../db/repositories';
 import { localDateKey } from '../../domain/calendar';
-import { MEASURE_LABEL, changeIsImprovement, describeCountdown, editText, formatTime, formatValue, inputUnit, parseValue, summarizeTest, testCountdown } from '../../domain/fitness';
+import { BATTERIES, MEASURE_LABEL, changeIsImprovement, splitBattery, describeCountdown, editText, formatTime, formatValue, inputUnit, parseValue, summarizeTest, testCountdown } from '../../domain/fitness';
 import type { FitnessTest, LengthUnit, TestMeasure, TestResult, TestScoring, WeightUnit } from '../../domain/types';
 
 const field = 'min-h-tap rounded-card border border-line bg-surface px-3 text-base text-fg placeholder:text-muted';
@@ -187,6 +187,80 @@ function NewTest({ onDone }: { onDone: () => void }) {
   );
 }
 
+type BatteryItems = ReturnType<typeof splitBattery<FitnessTest>>['inBattery'];
+
+/** Academy preset tools: one test date for every event, and one form to log a whole test day. */
+function BatteryTools({ items, data, onChange }: { items: BatteryItems; data: Loaded; onChange: () => void }) {
+  const { lengthUnit, weightUnit } = data;
+  const [date, setDate] = useState(items.find((i) => i.test.testDate)?.test.testDate ?? '');
+  const [day, setDay] = useState(localDateKey(new Date()));
+  const [values, setValues] = useState<Record<string, string>>({});
+  const [msg, setMsg] = useState('');
+
+  async function setAll() {
+    for (const { test } of items) await fitnessRepo.setGoal(test.id, { targetValue: test.targetValue, testDate: date || undefined });
+    setMsg(date ? 'Test date set on every event.' : 'Test date cleared.');
+    onChange();
+  }
+  async function logAll() {
+    const bad: string[] = [];
+    const todo: { id: string; v: number }[] = [];
+    for (const { test, event } of items) {
+      const text = values[test.id] ?? '';
+      if (!text.trim()) continue;
+      const v = parseValue(test.measure, text, lengthUnit);
+      if (v === undefined) bad.push(event.label ?? test.name);
+      else todo.push({ id: test.id, v });
+    }
+    if (bad.length) {
+      setMsg(`Check: ${bad.join(', ')}.`);
+      return;
+    }
+    if (!todo.length) {
+      setMsg('Type at least one result.');
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) {
+      setMsg('Pick a date.');
+      return;
+    }
+    for (const t of todo) await fitnessRepo.addResult(t.id, day, t.v);
+    setValues({});
+    setMsg(`Logged ${todo.length} ${todo.length === 1 ? 'result' : 'results'}.`);
+    onChange();
+  }
+
+  return (
+    <div className="mt-3 flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <input type="date" aria-label="Academy test date" className={`${field} w-40`} value={date} onChange={(e) => setDate(e.target.value)} />
+        <button type="button" onClick={() => void setAll()} className="min-h-tap rounded-card border border-line px-4 text-sm">Set test date for all</button>
+      </div>
+      <details className="rounded-card border border-line">
+        <summary className="min-h-tap cursor-pointer px-3 py-2 text-sm">Log a full test day</summary>
+        <div className="flex flex-col gap-2 px-3 pb-3">
+          <input type="date" aria-label="Test day" className={`${field} w-40`} value={day} max={localDateKey(new Date())} onChange={(e) => setDay(e.target.value)} />
+          {items.map(({ test, event }) => (
+            <label key={test.id} className="flex items-center gap-2 text-sm">
+              <span className="w-36 shrink-0">{event.label ?? test.name}</span>
+              <input
+                className={`${field} min-w-0 flex-1`}
+                inputMode={test.measure === 'timeSec' ? 'text' : 'decimal'}
+                placeholder={inputUnit(test.measure, lengthUnit, weightUnit)}
+                aria-label={`${event.label ?? test.name} result`}
+                value={values[test.id] ?? ''}
+                onChange={(e) => setValues((v) => ({ ...v, [test.id]: e.target.value }))}
+              />
+            </label>
+          ))}
+          <button type="button" onClick={() => void logAll()} className="min-h-tap rounded-card bg-accent px-4 text-sm font-medium text-white">Save results</button>
+        </div>
+      </details>
+      {msg && <p role="status" className="text-sm text-muted">{msg}</p>}
+    </div>
+  );
+}
+
 /** Fitness tests and their result history. Values are shown as logged; "best" follows each test's direction. */
 export function FitnessPanel() {
   const [data, setData] = useState<Loaded | null>(null);
@@ -215,11 +289,9 @@ export function FitnessPanel() {
   }, [data]);
 
   if (!data) return null;
-  return (
-    <section className="mx-4 mt-4 rounded-card border border-line bg-surface p-4" aria-label="Fitness tests">
-      <h2 className="font-display text-xl">Fitness tests</h2>
-      <ul className="mt-2 divide-y divide-line">
-        {data.tests.map((t) => {
+  const BATTERY = BATTERIES[0]!;
+  const battery = splitBattery(BATTERY, data.tests);
+  const renderTest = (t: FitnessTest, label?: string, group?: string, note?: string) => {
           const rs = byTest.get(t.id) ?? [];
           const s = summarizeTest(rs, t.scoring);
           const isOpen = open === t.id;
@@ -230,11 +302,12 @@ export function FitnessPanel() {
             <li key={t.id}>
               <button type="button" aria-expanded={isOpen} onClick={() => setOpen(isOpen ? null : t.id)} className="flex min-h-tap w-full items-center gap-2 py-2 text-left">
                 <span className="flex-1">
-                  <span className="block">{t.name}</span>
+                  <span className="block">{group && <span className="num mr-2 rounded-card border border-line px-1 text-xs text-muted">{group}</span>}{label ?? t.name}</span>
                   <span className="block text-xs tabular-nums text-muted">
                     {s.latest ? `${formatValue(t.measure, s.latest.value, data.lengthUnit, s.latest.unit ?? data.weightUnit)} · ${dayLabel(s.latest.date)}` : 'No results yet'}
                     {s.best && s.history.length > 1 && s.best.id !== s.latest?.id && ` · best ${formatValue(t.measure, s.best.value, data.lengthUnit, s.best.unit ?? data.weightUnit)}`}
                   </span>
+                  {note && <span className="block text-xs text-muted">{note}</span>}
                   {goalText && <span className={`block text-xs tabular-nums ${cd.met ? 'text-accent-text' : 'text-muted'}`}>{goalText}</span>}
                 </span>
                 {s.latestIsBest && <span className="text-xs text-accent-text">New best</span>}
@@ -244,8 +317,19 @@ export function FitnessPanel() {
               {isOpen && <TestDetail test={t} results={rs} data={data} onChange={refresh} />}
             </li>
           );
-        })}
-      </ul>
+  };
+  return (
+    <section className="rounded-card border border-line bg-surface p-4" aria-label="Fitness tests">
+      {battery.inBattery.length > 0 && (
+        <div className="mt-2" aria-label={BATTERY.name}>
+          <h3 className="text-base font-medium">{BATTERY.name}</h3>
+          <p className="text-xs text-muted">{BATTERY.note}</p>
+          <BatteryTools items={battery.inBattery} data={data} onChange={refresh} />
+          <ul className="mt-2 divide-y divide-line">{battery.inBattery.map(({ test, event }) => renderTest(test, event.label, event.group, event.note))}</ul>
+        </div>
+      )}
+      <h3 className="mt-4 text-base font-medium">{battery.inBattery.length ? 'Other tests' : 'Tests'}</h3>
+      <ul className="mt-1 divide-y divide-line">{battery.others.map((t) => renderTest(t))}</ul>
       {adding ? (
         <NewTest onDone={() => { setAdding(false); refresh(); }} />
       ) : (

@@ -8,7 +8,7 @@ import { effectiveLoad, isAnalyticSet } from '../../src/domain/load';
 import { volumeSets, weeklyTotals } from '../../src/domain/volume';
 import { extractJson, proposalExerciseNames, validateProposal } from '../../src/domain/programProposal';
 import type {
-  AiDecision, BodyMetric, Exercise, PlannedSession, Profile, Program, ProgramWeek, SetEntry, Workout, WorkoutExercise,
+  AiDecision, BodyMetric, Exercise, FitnessTest, NutritionEntry, PlannedSession, TestResult, Profile, Program, ProgramWeek, SetEntry, Workout, WorkoutExercise,
 } from '../../src/domain/types';
 
 export interface Data {
@@ -22,6 +22,9 @@ export interface Data {
   plannedSessions: PlannedSession[];
   bodyMetrics: BodyMetric[];
   aiDecisions: AiDecision[];
+  nutritionEntries: NutritionEntry[];
+  fitnessTests: FitnessTest[];
+  testResults: TestResult[];
 }
 
 const day = (iso: string) => iso.slice(0, 10); // UTC day: the Worker has no time zone
@@ -169,13 +172,48 @@ export function getBodyweight(d: Data, limit = 30) {
   };
 }
 
+/** Daily calories and protein for the last `days` days (logged days only listed), with the user's typed targets. */
+export function getNutrition(d: Data, days = 14) {
+  const n = Math.min(Math.max(days, 1), 90);
+  const byDay = new Map<string, { calories: number; proteinG: number; entries: number }>();
+  for (const e of d.nutritionEntries) {
+    if (e.deletedAt) continue;
+    const t = byDay.get(e.date) ?? { calories: 0, proteinG: 0, entries: 0 };
+    t.calories += e.calories;
+    t.proteinG += e.proteinG ?? 0;
+    t.entries += 1;
+    byDay.set(e.date, t);
+  }
+  const rows = [...byDay.entries()].sort(([a], [b]) => (a < b ? 1 : -1)).slice(0, n).map(([date, t]) => ({ date, calories: Math.round(t.calories), proteinG: Math.round(t.proteinG), entries: t.entries }));
+  const avg = (k: 'calories' | 'proteinG') => (rows.length ? Math.round(rows.reduce((s, r) => s + r[k], 0) / rows.length) : undefined);
+  return {
+    note: 'Only days with at least one logged entry are listed; averages are over those days.',
+    targets: d.profile?.nutritionTargets ?? {},
+    loggedDays: rows.length,
+    averageCalories: avg('calories'),
+    averageProteinG: avg('proteinG'),
+    days: rows,
+  };
+}
+
+/** Fitness tests with the user's typed target and test date, plus recent results. Times in seconds, distances in metres, heights in cm. */
+export function getFitnessTests(d: Data) {
+  return d.fitnessTests
+    .filter((t) => !t.deletedAt)
+    .map((t) => ({
+      name: t.name, measure: t.measure, betterIs: t.scoring === 'higherIsBetter' ? 'higher' : 'lower',
+      target: t.targetValue, testDate: t.testDate, batteries: t.batteries,
+      results: d.testResults.filter((r) => r.testId === t.id && !r.deletedAt).sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 8).map((r) => ({ date: r.date, value: r.value })),
+    }));
+}
+
 export const MAX_PENDING_PROPOSALS = 5;
 export const MAX_PROPOSAL_CHARS = 100_000;
 
 /**
  * Turn a proposal from Claude into an `aiDecisions` row with status `proposed`. This is the ONLY
  * thing the connector can write: it never touches programs, workouts or any training data.
- * The app shows the row in Coach and applies nothing until the user approves it there.
+ * The app shows the row in Settings → Claude (and a notice on Home) and applies nothing until the user approves it there.
  */
 export function buildProposalRow(
   d: Data, raw: unknown, now: string, id: string,

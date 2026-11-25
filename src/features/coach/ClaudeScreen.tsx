@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { ScreenHeader } from '../../components/ScreenHeader';
+import { SubScreen } from '../../components/SubScreen';
+import { SyncPanel } from '../settings/SyncPanel';
 import { coachRepo, insightsRepo } from '../../db/repositories';
 import { SUMMARY_RANGES } from '../../domain/coachSummary';
 import { buildWeeklyReview, REVIEW_DAYS } from '../../domain/weeklyReview';
 import { ProfileEditor } from './ProfileEditor';
 import { ProposalPanel } from './ProposalPanel';
 
-export function CoachScreen() {
+/** Everything about working with Claude. The conversation happens in the Claude app; this page is the connection, the approval inbox and the profile. */
+export function ClaudeScreen({ onBack }: { onBack: () => void }) {
   const [editing, setEditing] = useState(false);
   const [days, setDays] = useState<number>(56);
   const [text, setText] = useState('');
@@ -42,16 +44,28 @@ export function CoachScreen() {
   }
 
   return (
-    <div className="pb-6">
-      <ScreenHeader title="Coach" />
-      <section className="mb-4 rounded-card border border-line bg-surface p-4" aria-label="Weekly review">
-        <h2 className="font-display text-xl">Weekly review</h2>
-        <p className="mt-1 text-sm text-muted">Last 7 days plus the app's notes, with a short ask for Claude. Claude only proposes; you approve changes here.</p>
-        <button type="button" onClick={() => void copyReview()} className="mt-3 min-h-tap w-full rounded-card bg-accent px-4 font-display text-xl uppercase text-white">Copy weekly review</button>
+    <SubScreen title="Claude" onBack={onBack} backLabel="Settings">
+      <p className="pb-4 text-sm text-muted">
+        Talk to Claude in the Claude app: with the connector on, it reads your training from here. When Claude proposes a program change it
+        lands below, and nothing changes until you approve it.
+      </p>
+
+      <ProposalPanel />
+
+      <div className="mt-4">
+        <SyncPanel />
+      </div>
+
+      <section className="mt-4 rounded-card border border-line bg-surface p-4" aria-label="Training profile">
+        <h2 className="font-display text-xl">Training profile</h2>
+        <p className="mt-1 text-sm text-muted">Goals, phase, constraints and equipment. Claude reads this too.</p>
+        <button type="button" onClick={() => setEditing(true)} className="mt-3 min-h-tap rounded-card border border-line px-4 text-sm">Edit profile</button>
       </section>
-      <section className="rounded-card border border-line bg-surface p-4" aria-label="Summary for Claude">
-        <h2 className="font-display text-xl">Copy for Claude</h2>
-        <p className="mt-1 text-sm text-muted">Paste it into a Claude chat. Claude only proposes; you approve changes here.</p>
+
+      <details className="mt-4 rounded-card border border-line bg-surface p-4">
+        <summary className="min-h-tap cursor-pointer py-2 font-display text-xl">Copy and paste instead</summary>
+        <p className="mt-1 text-sm text-muted">For a Claude chat that is not connected to Forge.</p>
+        <button type="button" onClick={() => void copyReview()} className="mt-3 min-h-tap w-full rounded-card border border-line px-4 text-base">Copy weekly review</button>
         <div className="mt-3 flex gap-2" role="group" aria-label="Window">
           {SUMMARY_RANGES.map((r) => (
             <button
@@ -60,24 +74,13 @@ export function CoachScreen() {
             >{r.label}</button>
           ))}
         </div>
-        <button type="button" onClick={() => void copy()} className="mt-3 min-h-tap w-full rounded-card bg-accent px-4 font-display text-xl uppercase text-white">Copy summary</button>
-        <details className="mt-3">
-          <summary className="min-h-tap cursor-pointer py-2 text-sm text-muted">Preview the text</summary>
-          <textarea
-            ref={box} readOnly value={text} rows={12} aria-label="Summary text"
-            className="mt-1 w-full rounded-card border border-line bg-bg p-3 text-base tabular-nums text-fg"
-          />
-        </details>
+        <button type="button" onClick={() => void copy()} className="mt-3 min-h-tap w-full rounded-card border border-line px-4 text-base">Copy summary</button>
+        <textarea
+          ref={box} readOnly value={text} rows={8} aria-label="Summary text"
+          className="mt-3 w-full rounded-card border border-line bg-bg p-3 text-base tabular-nums text-fg"
+        />
         {status && <p role="status" className="mt-2 text-sm text-muted">{status}</p>}
-      </section>
-
-      <ProposalPanel />
-
-      <section className="mt-4 rounded-card border border-line bg-surface p-4" aria-label="Training profile">
-        <h2 className="font-display text-xl">Training profile</h2>
-        <p className="mt-1 text-sm text-muted">Goals, phase, constraints and equipment. Included in the summary.</p>
-        <button type="button" onClick={() => setEditing(true)} className="mt-3 min-h-tap rounded-card border border-line px-4 text-sm">Edit profile</button>
-      </section>
-    </div>
+      </details>
+    </SubScreen>
   );
 }

@@ -24,6 +24,8 @@ export const EXPORT_TABLES = [
   'rawImportRows',
   'achievements',
   'aiDecisions',
+  'nutritionEntries',
+  'savedFoods',
 ] as const;
 export type ExportTable = (typeof EXPORT_TABLES)[number];
 

@@ -1,6 +1,6 @@
 # Forge program proposal format (schemaVersion 1)
 
-Claude proposes a training program as one JSON object. The Coach tab validates it, shows what would change, and saves
+Claude proposes a training program as one JSON object. The Forge app (Settings → Claude) validates it, shows what would change, and saves
 nothing until you approve. The code that enforces this is `src/domain/programProposal.ts`.
 
 ## Rules
@@ -168,4 +168,4 @@ Progression (all optional; the app only suggests, you can always override):
 ```
 
 The JSON Schema describes the shape; the app's validator also checks the cross-field rules (`repsMax` needs `reps`,
-`weight` and `percentE1rm` are exclusive). The same format text is built into the app (Coach tab, "Copy format for Claude").
+`weight` and `percentE1rm` are exclusive). The same format text is built into the app (Settings → Claude, "Copy format for Claude").

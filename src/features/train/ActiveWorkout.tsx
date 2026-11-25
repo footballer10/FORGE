@@ -11,6 +11,7 @@ import { SetRow } from './SetRow';
 import { ExerciseSheet } from './ExerciseSheet';
 import { SetSheet } from './SetSheet';
 import { PlateSheet } from './PlateSheet';
+import { ReorderSheet } from './ReorderSheet';
 import { DetailsEditor } from './DetailsEditor';
 import { isEditingPast, useWorkout, type ExerciseRow } from './workoutStore';
 
@@ -45,12 +46,13 @@ function Elapsed({ startedAt }: { startedAt: string }) {
 export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
   const {
     prSetIds, workout, rows, unit, updateSet, toggleComplete, fillSuggested, addWarmups, addSet, removeSet, removeExercise, finish, discard,
-    setWorkoutNotes, setExerciseNote, setStickyNote, moveExercise, toggleSuperset, showPairTotal, equipment,
+    setWorkoutNotes, setExerciseNote, setStickyNote, setExerciseOrder, toggleSuperset, showPairTotal, equipment,
   } = useWorkout();
   const [edit, setEdit] = useState<{ setId: ID; field: SetField } | null>(null);
   const [details, setDetails] = useState<ID | null>(null);
   const [menu, setMenu] = useState<ID | null>(null);
   const [plates, setPlates] = useState<ID | null>(null);
+  const [reordering, setReordering] = useState(false);
   const [message, setMessage] = useState('');
   const [confirm, setConfirm] = useState<'discard' | 'remove' | null>(null);
   // Cards: the first unfinished exercise is open, the rest are collapsed; tapping a title overrides that.
@@ -269,7 +271,10 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
           onSuperset={() => void toggleSuperset(menuRow.we.id)}
           onStickyNote={(n) => void setStickyNote(menuRow.exercise.id, n)}
           onSessionNote={(n) => void setExerciseNote(menuRow.we.id, n)}
-          onMove={(d) => void moveExercise(menuRow.we.id, d)}
+          onReorder={() => {
+            setMenu(null);
+            setReordering(true);
+          }}
           onSwap={() => {
             setMenu(null);
             onSwapExercise(menuRow.we.id);
@@ -280,6 +285,8 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
           onClose={() => setMenu(null)}
         />
       )}
+
+      {reordering && <ReorderSheet rows={rows} onReorder={(ids) => void setExerciseOrder(ids)} onClose={() => setReordering(false)} />}
 
       {plateRow && (
         <PlateSheet

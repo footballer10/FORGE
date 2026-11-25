@@ -11,17 +11,18 @@ import { RestTimer } from '../features/train/RestTimer';
 import { useWakeLock } from '../features/train/useWakeLock';
 import { useWorkout } from '../features/train/workoutStore';
 import { syncRestAudio, unlockRestAudio } from '../features/train/restAudio';
+import { startAutoSync } from '../db/autoSync';
 
 const StrengthScreen = lazy(() => import('../features/strength/StrengthScreen').then((m) => ({ default: m.StrengthScreen })));
 const ProgressScreen = lazy(() => import('../features/progress/ProgressScreen').then((m) => ({ default: m.ProgressScreen })));
-const CoachScreen = lazy(() => import('../features/coach/CoachScreen').then((m) => ({ default: m.CoachScreen })));
+const NutritionScreen = lazy(() => import('../features/nutrition/NutritionScreen').then((m) => ({ default: m.NutritionScreen })));
 const SettingsScreen = lazy(() => import('../features/settings/SettingsScreen').then((m) => ({ default: m.SettingsScreen })));
 const SCREENS = {
   home: HomeScreen,
   train: TrainScreen,
   strength: StrengthScreen,
   progress: ProgressScreen,
-  coach: CoachScreen,
+  nutrition: NutritionScreen,
 };
 
 export function AppShell() {
@@ -62,6 +63,9 @@ export function AppShell() {
       window.removeEventListener('touchend', unlock, true);
     };
   }, []);
+
+  // Keep the cloud copy (and so Claude's view of your training) fresh without tapping Sync.
+  useEffect(() => startAutoSync(), []);
 
   // Trash older than 30 days is removed for good on launch.
   useEffect(() => {

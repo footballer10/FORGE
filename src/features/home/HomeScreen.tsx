@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { useUi } from '../../app/uiStore';
 import { BackupReminder } from '../data/BackupReminder';
-import { achievementsRepo } from '../../db/repositories';
+import { achievementsRepo, coachRepo, fitnessRepo } from '../../db/repositories';
+import { BATTERIES, batterySummary, daysLabel, type BatterySummary } from '../../domain/fitness';
+import { localDateKey } from '../../domain/calendar';
 import type { StreakSummary } from '../../domain/streaks';
 import { NextUpCard } from './NextUpCard';
 import { InsightNotes } from './InsightNotes';
@@ -13,6 +15,8 @@ import { HistoryList } from '../train/HistoryList';
 export function HomeScreen() {
   const [streak, setStreak] = useState<StreakSummary>();
   const [mode, setMode] = useState<'list' | 'calendar'>('list');
+  const [proposals, setProposals] = useState(0);
+  const [academy, setAcademy] = useState<BatterySummary>();
 
   useEffect(() => {
     let live = true;
@@ -24,6 +28,14 @@ export function HomeScreen() {
     return () => {
       live = false;
     };
+  }, []);
+
+  useEffect(() => {
+    void fitnessRepo.load().then((d) => setAcademy(batterySummary(BATTERIES[0]!, d.tests, d.results, localDateKey(new Date())))).catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    void coachRepo.pendingProposals().then((p) => setProposals(p.length)).catch(() => undefined);
   }, []);
 
   return (
@@ -42,6 +54,25 @@ export function HomeScreen() {
       )}
       <InsightNotes />
       <NextUpCard />
+      {academy && (
+        <button type="button" onClick={() => useUi.getState().setTab('progress')} className="num mb-3 min-h-tap text-left text-sm text-muted">
+          {academy.withTarget > 0 ? `${academy.atTarget} of ${academy.withTarget} academy events at target` : 'Academy tests'}
+          {academy.daysLeft !== undefined ? ` · test ${daysLabel(academy.daysLeft)}` : ''}
+        </button>
+      )}
+      {proposals > 0 && (
+        <button
+          type="button"
+          onClick={() => {
+            useUi.getState().setSettingsPage('claude');
+            useUi.getState().setSettingsOpen(true);
+          }}
+          className="mb-3 flex min-h-tap items-center justify-between rounded-card border border-accent bg-surface px-3 py-2 text-left text-sm"
+        >
+          <span>Claude sent {proposals === 1 ? 'a program change' : `${proposals} program changes`} for you to review</span>
+          <span className="font-semibold text-accent-text">Review</span>
+        </button>
+      )}
       <BackupReminder
         onOpen={() => {
           useUi.getState().setOpenBackup(true);
