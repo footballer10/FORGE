@@ -5,7 +5,7 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 ## Current
 - **Done last session (post-M8 tweaks):** rest timer after every set incl. warm-ups; rest alarm as locked-screen-safe audio with a Settings option and test button; logging screen declutter (collapsed exercise cards, folded warm-ups). Tests and build pass. Open requests: rework of the Strength tab (user dislikes it; waiting for specifics) and a built-in Claude (decision pending, see chat).
 - **Previous session:** Milestone 8b (milestone 8 code complete): tab screens lazy-loaded and Recharts split into its own chunk (entry bundle 923 kB to 277 kB, no size warning); real F icons (rounded, maskable, Apple touch); install-to-Home-Screen help in Settings; offline check passed in headless Chromium (reload offline, lazy tabs load); accessibility pass (lighter `accent-text` token so red text reaches 5:1 on dark, focus-visible ring, Escape closes the confirm dialog; muted text already 5.2:1 or better); Cloudflare Pages config (`public/_headers`) and `docs/deploy.md`. Tests (311) and build pass.
-- **Next session:** the Cloudflare Pages deploy is a user step (needs the user's Cloudflare account): follow `docs/deploy.md`. After that, the first real-device pass (iPhone): Strong import with the real file, offline, backup share sheet, photos. No further milestone is planned.
+- **Next session:** Milestone 9 (Strength redesign), then Milestone 10 (connector + sync, after the deploy). Before that: the Cloudflare Pages deploy is a user step (needs the user's Cloudflare account): follow `docs/deploy.md`. After that, the first real-device pass (iPhone): Strong import with the real file, offline, backup share sheet, photos. No further milestone is planned.
 - **Known issues:** see bottom.
 
 ## Decisions (defaults chosen; change by asking)
@@ -180,6 +180,34 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - [x] 8b: Performance (bundle split done; virtualization not needed at 30 rows)
 - [x] 8b: Install-to-home-screen help; offline check; real app icons
 - [~] 8b: Cloudflare Pages deploy (config + `docs/deploy.md` ready; connecting the repo is a user step)
+
+## Milestone 9 — Strength tab redesign (user request: cluttered, wants a per-exercise page, score/tiers feel off)
+Design (agreed in chat 2026-11-25):
+- Strength tab becomes ONE clean list of lifts: name, current e1RM, change over the last 4 weeks, last done date; search box; most recent first. Nothing else on the main screen.
+- Tapping a lift opens a per-exercise page (Strong/Hevy style): header with current best e1RM and PR badges; ONE chart (e1RM over time, range pills, formula named under it); segments below: History (workout by workout, working sets only, warm-ups folded), Records (best weight at 1, 3, 5, 8, 10 reps, with dates), Volume (per workout).
+- Score, tiers, body map, weekly sets per muscle, balance and plateau move off the main screen into an opt-in "Insights" screen (button in the header). Nothing is deleted. Score and tiers are hidden until the user sets them up. Note for the session: the tier thresholds are the app's own rough multiples, not from a dataset; say so on the screen and ask the user what felt off before changing the formulas.
+- Tasks:
+  - [ ] 9a: Strength list screen + per-exercise page (History, Records) reusing `domain/e1rm.ts`, `prs.ts`; pure helper for the 4-week change (tests)
+  - [ ] 9b: Volume segment; move the other panels into Insights; hide score/tiers until set up; remove dead code; update PROGRESS
+- Suggested model: Sonnet, medium effort. Verify on the phone: chart readability at iPhone width.
+
+## Milestone 10 — Claude connector + cloud sync (user chose this over an in-app chat; free, uses the Claude Pro plan)
+Goal: the Claude app on the phone (and web) can read ALL Forge data live and propose changes; the user approves in Forge. Principle 4 holds: Claude only proposes.
+Architecture (to confirm at the start of 10a):
+- One Cloudflare Worker + D1 database in the user's own free Cloudflare account. Rows already carry `id`, `updatedAt`, `deletedAt`, so sync is push/pull of rows changed since a cursor; conflict rule last-writer-wins by `updatedAt` (same rule as merge restore). Photos stay on the device. One user, no accounts: a long secret token.
+- The same Worker exposes a remote MCP server. Read tools: profile, workouts by date range, exercise history, PRs, weekly sets per muscle, active program, the Copy-for-Claude summary. Write tool: `propose_program` (and notes) that only creates an `AiDecision` with status `proposed`; the app pulls it and shows it in Coach for approval with the existing diff and approve flow.
+- The user adds the Worker URL in Claude → Settings → Connectors → Add custom connector. Check at the start that the Pro plan allows custom connectors and which auth the connector UI accepts (authless with an unguessable URL vs OAuth); decide and note it.
+- Needs new dependencies (wrangler, an MCP SDK): ASK before adding. Deploy steps need the user's Cloudflare account; write `docs/connector.md`.
+- Privacy: a copy of the training data lives in the user's own Cloudflare account. Say this plainly in the Settings screen.
+- Tasks:
+  - [ ] 10a: Worker + D1 schema, token auth, sync endpoints, tests (Vitest against the handler)
+  - [ ] 10b: App sync layer behind the repository interface (push/pull, status in Settings, offline-safe queue, manual "Sync now")
+  - [ ] 10c: MCP server on the Worker with read tools; docs/connector.md; user connects it in Claude
+  - [ ] 10d: `propose_program` write tool + Coach "Proposals from Claude" inbox using the existing approve flow
+- Suggested model: Opus, high effort (auth, sync conflicts). Prerequisite: the Cloudflare Pages deploy (docs/deploy.md) is done.
+
+## Ideas backlog (not scheduled)
+Auto warm-up ramp from the working weight; weekly volume landmarks per muscle; program library (5/3/1, linear progression) as importable JSON; muscle recovery view; Claude "what should I train today" proposals (after M10); beep-test and interval timers; light nutrition (daily calories and protein plus bodyweight trend to estimate maintenance); detailed set-by-set export for Claude (superseded by M10).
 
 ## Known issues
 - Settings (8a) has no plate or bar editor; those stay in Coach → Training profile (Settings points there). The pair-total toggle also remains on the Train home.
