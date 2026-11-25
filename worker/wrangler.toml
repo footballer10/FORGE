@@ -1,6 +1,7 @@
 name = "forge-sync"
 main = "src/index.ts"
 compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
 
 # Create the database once:  npx wrangler d1 create forge
 # then paste the database_id it prints below.

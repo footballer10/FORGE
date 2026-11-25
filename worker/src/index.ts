@@ -1,5 +1,8 @@
+import { handleMcp } from './mcp';
 import { handleRequest, type Env } from './sync';
 
 export default {
-  fetch: (request: Request, env: Env) => handleRequest(request, env),
+  async fetch(request: Request, env: Env): Promise<Response> {
+    return (await handleMcp(request, env)) ?? handleRequest(request, env);
+  },
 };
