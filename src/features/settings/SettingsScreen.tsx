@@ -5,6 +5,7 @@ import { E1RM_FORMULAS, formulaInfo } from '../../domain/e1rm';
 import { parseDays } from '../../domain/profileForm';
 import type { E1rmFormula, LengthUnit, Profile, WeightUnit } from '../../domain/types';
 import { MenuRow } from '../../components/SubScreen';
+import { SyncPanel } from './SyncPanel';
 import { useWorkout } from '../train/workoutStore';
 import { REST_ALERT_LABELS, getRestAlert, setRestAlert, testRestAudio, type RestAlert } from '../train/restAudio';
 
@@ -172,6 +173,8 @@ export function SettingsScreen() {
           </div>
         </div>
       </section>
+
+      <SyncPanel />
 
       <section className="rounded-card border border-line bg-surface px-4 py-3" aria-label="Install on iPhone">
         <h2 className="text-sm text-muted">Install on your iPhone</h2>
