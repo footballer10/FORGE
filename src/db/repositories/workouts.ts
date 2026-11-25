@@ -91,7 +91,8 @@ export const workoutRepo = {
         ...(re.notes ? { notes: re.notes } : {}),
         ...(re.restSec !== undefined ? { restSec: re.restSec } : {}),
         ...(re.targets.length > 0 ? { targets: re.targets } : {}),
-        ...(suggestion ? { progressionNote: `Suggested ${suggestion.summary}. ${suggestion.reason}` } : {}),
+        ...(suggestion ? { suggested: { weight: suggestion.weight, unit: suggestion.unit, ...(suggestion.reps !== undefined ? { reps: suggestion.reps } : {}) } } : {}),
+        ...(suggestion ? { progressionNote: suggestion.reason } : {}),
       });
       let drafts = draftsFromTargets(re.targets, last, fallbackUnit);
       if (suggestion) drafts = applySuggestion(drafts, re.targets.length > 0 ? re.targets : [{ type: 'working' }], suggestion);

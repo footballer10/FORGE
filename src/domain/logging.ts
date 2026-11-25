@@ -69,3 +69,8 @@ export function formatSet(set: DraftSource, loadModel: LoadModel, unit: WeightUn
 export function durationMinutes(startedAt: string, endedAt: string): number {
   return Math.max(0, Math.round((Date.parse(endedAt) - Date.parse(startedAt)) / 60000));
 }
+
+/** The set a "Suggested" chip fills: the first working set (not a warm-up) that is not done yet. */
+export function suggestionTarget<T extends Pick<SetEntry, 'type' | 'completedAt'>>(sets: readonly T[]): T | undefined {
+  return sets.find((s) => s.type !== 'warmup' && !s.completedAt);
+}

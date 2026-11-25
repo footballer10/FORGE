@@ -3,7 +3,7 @@ import { Keypad } from '../../components/Keypad';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { convertWeight } from '../../domain/units';
 import { displayWeight } from '../../domain/load';
-import { fieldsFor, type SetField } from '../../domain/logging';
+import { fieldsFor, suggestionTarget, type SetField } from '../../domain/logging';
 import { describeTargets } from '../../domain/routine';
 import { collapsedSummary, currentExerciseId, foldWarmups } from '../../domain/workoutView';
 import type { ID } from '../../domain/types';
@@ -43,7 +43,7 @@ function Elapsed({ startedAt }: { startedAt: string }) {
 /** The logging screen. No gamification here (CLAUDE.md). */
 export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
   const {
-    prSetIds, workout, rows, unit, updateSet, toggleComplete, addSet, removeSet, removeExercise, finish, discard,
+    prSetIds, workout, rows, unit, updateSet, toggleComplete, fillSuggested, addSet, removeSet, removeExercise, finish, discard,
     setWorkoutNotes, setExerciseNote, setStickyNote, moveExercise, toggleSuperset, showPairTotal, equipment,
   } = useWorkout();
   const [edit, setEdit] = useState<{ setId: ID; field: SetField } | null>(null);
@@ -133,7 +133,16 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
                 </button>
                 {row.exercise.stickyNote && <p className="whitespace-pre-line text-sm text-muted">{row.exercise.stickyNote}</p>}
                 {row.we.targets && <p className="num text-sm text-muted">Target {describeTargets(row.we.targets)}</p>}
-                {row.we.progressionNote && <p className="text-sm text-muted">{row.we.progressionNote}</p>}
+                {row.we.suggested && suggestionTarget(row.sets) ? (
+                  <div className="py-1">
+                    <button type="button" onClick={() => void fillSuggested(row.we.id)} className="num min-h-tap rounded-card border border-line bg-surface-2 px-3 text-sm text-fg">
+                      Suggested {row.we.suggested.weight} {row.we.suggested.unit}{row.we.suggested.reps !== undefined ? ` × ${row.we.suggested.reps}` : ''} · tap to fill
+                    </button>
+                    {row.we.progressionNote && <p className="text-sm text-muted">{row.we.progressionNote}</p>}
+                  </div>
+                ) : (
+                  row.we.progressionNote && <p className="text-sm text-muted">{row.we.progressionNote}</p>
+                )}
                 {row.we.notes && <p className="whitespace-pre-line text-sm text-fg">{row.we.notes}</p>}
               </div>
               {row.exercise.equipment === 'barbell' && row.exercise.loadModel === 'total' && (

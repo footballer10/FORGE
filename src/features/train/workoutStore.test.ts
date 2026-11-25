@@ -435,6 +435,19 @@ describe('progression on start', () => {
     });
     await useWorkout.getState().startFromRoutine(r.id);
     expect(sets().map((s) => [s.weight, s.reps])).toEqual([[140, 8], [100, 8]]); // fixed target weight wins
-    expect(useWorkout.getState().rows[0]!.we.progressionNote).toMatch(/Suggested 140 lb × 8\. All 1 set/);
+    const we = useWorkout.getState().rows[0]!.we;
+    expect(we.progressionNote).toMatch(/^All 1 set/);
+    expect(we.suggested).toEqual({ weight: 140, unit: 'lb', reps: 8 });
+  });
+
+  it('fillSuggested fills the next open working set only', async () => {
+    const bench = await exerciseRepo.create({ ...base, name: 'Bench' });
+    await useWorkout.getState().start();
+    await useWorkout.getState().addExercise(bench.id);
+    const st = useWorkout.getState();
+    const weId = st.rows[0]!.we.id;
+    useWorkout.setState({ rows: st.rows.map((r) => ({ ...r, we: { ...r.we, suggested: { weight: 150, unit: 'lb', reps: 6 } } })) });
+    await useWorkout.getState().fillSuggested(weId);
+    expect(sets().map((s) => [s.weight, s.reps])).toEqual([[150, 6]]);
   });
 });
