@@ -3,6 +3,7 @@ import type { FitnessTest, LengthUnit, TestMeasure, TestResult, TestScoring, Wei
 import { db } from '../schema';
 import { createRepo } from './base';
 import { profileRepo } from './profile';
+import { undoRepo } from './undo';
 
 const tests = createRepo(db.fitnessTests);
 const results = createRepo(db.testResults);
@@ -45,8 +46,11 @@ export const fitnessRepo = {
   },
   /** Soft-deletes the test and its results. */
   async removeTest(id: string): Promise<void> {
-    for (const r of await db.testResults.where('testId').equals(id).filter((r) => !r.deletedAt).toArray()) await results.softDelete(r.id);
-    await tests.softDelete(id);
+    const live = await db.testResults.where('testId').equals(id).filter((r) => !r.deletedAt).toArray();
+    await undoRepo.run('Deleted fitness test', { fitnessTests: [id], testResults: live.map((r) => r.id) }, async () => {
+      for (const r of live) await results.softDelete(r.id);
+      await tests.softDelete(id);
+    });
   },
   /** Set or clear (undefined) the user's target and test date. */
   async setGoal(id: string, goal: { targetValue?: number; testDate?: string }): Promise<void> {
@@ -59,6 +63,6 @@ export const fitnessRepo = {
     await results.update(id, patch);
   },
   async removeResult(id: string): Promise<void> {
-    await results.softDelete(id);
+    await undoRepo.run('Deleted test result', { testResults: [id] }, () => results.softDelete(id));
   },
 };

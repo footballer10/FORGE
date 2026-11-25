@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { trashRepo } from '../../db/repositories';
 import { TRASH_DAYS, trashDaysLeft } from '../../domain/safety';
-import type { Exercise, Workout } from '../../domain/types';
+import type { Exercise, Routine, Workout } from '../../domain/types';
 
 const dateFmt = new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 const btn = 'min-h-tap flex-1 rounded-card border border-line text-sm text-fg';
 
 /** Soft-deleted workouts and exercises. Items are removed for good after 30 days. */
 export function TrashScreen({ onBack }: { onBack: () => void }) {
-  const [data, setData] = useState<{ workouts: Workout[]; exercises: Exercise[] }>();
+  const [data, setData] = useState<{ workouts: Workout[]; exercises: Exercise[]; routines: Routine[] }>();
   const [confirm, setConfirm] = useState('');
   const [note, setNote] = useState('');
   const load = useCallback(() => void trashRepo.list().then(setData), []);
@@ -16,7 +16,7 @@ export function TrashScreen({ onBack }: { onBack: () => void }) {
   const now = new Date();
 
   const left = (d?: string) => (d ? `${trashDaysLeft(d, now)} days left` : '');
-  const empty = data && data.workouts.length === 0 && data.exercises.length === 0;
+  const empty = data && data.workouts.length === 0 && data.exercises.length === 0 && data.routines.length === 0;
 
   return (
     <div className="flex flex-col gap-4 pb-6">
@@ -51,6 +51,34 @@ export function TrashScreen({ onBack }: { onBack: () => void }) {
                     }}
                   >
                     {confirm === w.id ? 'Tap again to delete forever' : 'Delete forever'}
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {data && data.routines.length > 0 && (
+        <section>
+          <h2 className="pb-2 text-2xl uppercase">Routines</h2>
+          <ul className="flex flex-col gap-2">
+            {data.routines.map((r) => (
+              <li key={r.id} className="rounded-card border border-line bg-surface p-3">
+                <span className="text-base text-fg">{r.name}</span>
+                <p className="num text-sm text-muted">{left(r.deletedAt)}</p>
+                <div className="flex gap-2 pt-2">
+                  <button type="button" className={btn} onClick={() => void trashRepo.restoreRoutine(r.id).then(load)}>Restore</button>
+                  <button
+                    type="button"
+                    className={btn}
+                    onClick={() => {
+                      if (confirm !== r.id) return setConfirm(r.id);
+                      setConfirm('');
+                      void trashRepo.purgeRoutine(r.id).then(load);
+                    }}
+                  >
+                    {confirm === r.id ? 'Tap again to delete forever' : 'Delete forever'}
                   </button>
                 </div>
               </li>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
-import { fitnessRepo } from '../../db/repositories';
+import { fitnessRepo, UNDO_EVENT } from '../../db/repositories';
 import { localDateKey } from '../../domain/calendar';
 import { MEASURE_LABEL, changeIsImprovement, describeCountdown, editText, formatTime, formatValue, inputUnit, parseValue, summarizeTest, testCountdown } from '../../domain/fitness';
 import type { FitnessTest, LengthUnit, TestMeasure, TestResult, TestScoring, WeightUnit } from '../../domain/types';
@@ -202,6 +202,11 @@ export function FitnessPanel() {
     };
   }, [tick]);
   const refresh = () => setTick((t) => t + 1);
+  useEffect(() => {
+    const bump = () => setTick((t) => t + 1);
+    window.addEventListener(UNDO_EVENT, bump);
+    return () => window.removeEventListener(UNDO_EVENT, bump);
+  }, []);
   const today = localDateKey(new Date());
   const byTest = useMemo(() => {
     const m = new Map<string, TestResult[]>();

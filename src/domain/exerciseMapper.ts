@@ -1,7 +1,11 @@
 import type { Equipment, Exercise, LoadModel, Muscle, MovementPattern } from './types';
 
-/** Bump when the vendored dataset or the mapping rules change; seeding adds only missing exercises. */
-export const LIBRARY_VERSION = 1;
+/**
+ * Bump when the vendored dataset or the mapping rules change. Seeding adds missing exercises and, for installs
+ * seeded under an older version, re-applies pattern and load model to library exercises the user never edited.
+ * v2: classification fixes (squat before hinge, overhead curls/extensions, dips, push-ups on a ball).
+ */
+export const LIBRARY_VERSION = 2;
 
 /** One record of the vendored free-exercise-db subset. */
 export interface LibraryRecord {
@@ -52,10 +56,12 @@ export function inferPattern(r: LibraryRecord): MovementPattern {
   if (r.category === 'stretching') return 'other';
   if (has(n, /carry|farmer|suitcase|yoke/)) return 'carry';
   if (has(n, /lunge|split squat|step[- ]?up|bulgarian/)) return 'lunge';
+  if (has(n, /squat|leg press|hack/)) return 'squat'; // before hinge: "Front Squat (Clean Grip)" is a squat
   if (has(n, /deadlift|good morning|hip thrust|glute bridge|romanian|swing|back extension|hyperextension|pull[- ]?through|clean|snatch/)) return 'hinge';
-  if (has(n, /squat|leg press|hack/)) return 'squat';
   if (has(n, /pull[- ]?up|chin[- ]?up|pulldown|pull-down|muscle[- ]up/)) return 'verticalPull';
   if (has(n, /row|face pull|reverse fly|rear delt/)) return 'horizontalPull';
+  // Curls, raises and extensions are single-joint even when the name says overhead (Overhead Cable Curl).
+  if (p !== 'abdominals' && has(n, /curl|raise|extension/)) return 'isolation';
   if (has(n, /overhead|military|shoulder press|push press|arnold|handstand|jerk/)) return 'verticalPush';
   if (has(n, /bench|push[- ]?up|chest press|fly|flye|dip|pec deck|crossover/)) return 'horizontalPush';
   if (p === 'abdominals') return 'core';
@@ -75,9 +81,10 @@ export function inferLoadModel(r: LibraryRecord, equipment: Equipment): LoadMode
   if (has(n, /assisted/)) return 'assisted';
   if (equipment === 'dumbbell' || equipment === 'kettlebell') return 'perImplement';
   if (equipment === 'bodyweight') {
-    return has(n, /pull[- ]?up|chin[- ]?up|dip\b|muscle[- ]up/) ? 'bodyweightPlusAdded' : 'repsOnly';
+    return has(n, /pull[- ]?up|chin[- ]?up|dips?\b|muscle[- ]up/) ? 'bodyweightPlusAdded' : 'repsOnly';
   }
   if (r.category === 'plyometrics') return 'repsOnly';
+  if (has(n, /push[- ]?ups?/) && !['barbell', 'dumbbell', 'kettlebell', 'machine', 'cable'].includes(equipment)) return 'repsOnly';
   return 'total';
 }
 

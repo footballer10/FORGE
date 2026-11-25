@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useUi } from '../../app/uiStore';
 import { profileRepo } from '../../db/repositories';
+import { convertWeight } from '../../domain/units';
 import { E1RM_FORMULAS, formulaInfo } from '../../domain/e1rm';
-import { parseDays } from '../../domain/profileForm';
+import { defaultEquipment, parseDays, platesText, withBarAndPlates } from '../../domain/profileForm';
 import type { E1rmFormula, LengthUnit, Profile, WeightUnit } from '../../domain/types';
 import { MenuRow } from '../../components/SubScreen';
 import { SyncPanel } from './SyncPanel';
@@ -191,7 +192,38 @@ export function SettingsScreen() {
         <p className="mt-2 text-xs text-muted">Installing also stops Safari from clearing your data after a few weeks of inactivity. Your workouts live only on this device, so keep exporting backups from Train.</p>
       </section>
 
-      <p className="text-xs text-muted">Plate sizes, bar weight and equipment are in Coach → Training profile. Backup and restore are in Train.</p>
+      <BarAndPlates profile={p} onSave={save} />
+
+      <p className="text-xs text-muted">Other equipment (dumbbell limits, extra places) is in Coach → Training profile.</p>
     </div>
+  );
+}
+
+/** Bar weight and plate sizes for the plate calculator, stored on the default equipment profile (profile unit). */
+function BarAndPlates({ profile, onSave }: { profile: Profile; onSave: (patch: Partial<Profile>) => Promise<void> }) {
+  const eq = defaultEquipment(profile.equipmentProfiles, profile.defaultEquipmentProfileId);
+  const unit = profile.weightUnit;
+  const inUnit = (w?: { value: number; unit: WeightUnit }) => (w ? Math.round(convertWeight(w.value, w.unit, unit) * 100) / 100 : undefined);
+  const [bar, setBar] = useState(String(inUnit(eq?.barWeight) ?? ''));
+  const [plates, setPlates] = useState(platesText(eq?.plates?.map((x) => ({ value: inUnit(x)!, unit }))));
+  const [saved, setSaved] = useState(false);
+  async function save() {
+    await onSave(withBarAndPlates(profile.equipmentProfiles, profile.defaultEquipmentProfileId, bar, plates, unit, () => crypto.randomUUID()));
+    setSaved(true);
+  }
+  const box = 'min-h-tap w-full rounded-card border border-line bg-surface px-3 text-base';
+  return (
+    <section className="flex flex-col gap-2 rounded-card border border-line bg-surface p-4" aria-label="Bar and plates">
+      <h2 className="text-lg font-medium">Bar and plates</h2>
+      <p className="text-sm text-muted">Used by the plate calculator and warm-ups{eq ? ` (${eq.name})` : ''}. Empty falls back to a 45 lb bar and standard plates.</p>
+      <label className="text-sm text-muted">Bar ({unit})
+        <input className={`${box} num`} inputMode="decimal" value={bar} onChange={(e) => { setBar(e.target.value); setSaved(false); }} />
+      </label>
+      <label className="text-sm text-muted">Plates per side ({unit}, comma separated)
+        <input className={`${box} num`} value={plates} onChange={(e) => { setPlates(e.target.value); setSaved(false); }} />
+      </label>
+      <button type="button" onClick={() => void save()} className="min-h-tap rounded-card border border-line px-4">Save bar and plates</button>
+      {saved && <p role="status" className="text-sm text-muted">Saved.</p>}
+    </section>
   );
 }

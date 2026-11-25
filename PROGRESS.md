@@ -3,6 +3,15 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
+- **Done this session (rest of milestone 14; milestone 14 complete except drag-to-reorder):**
+  - **Units (a):** set weights show in the profile unit everywhere they are displayed (logging rows, previous-session hint, collapsed summary, suggested chip, pair total, History). `inUnit` in `domain/logging.ts` converts for display only (2 decimals); stored sets keep their unit. Editing a weight on the logging screen writes it back in the profile unit, so the set is normalised on first edit. Keypad step uses the profile unit.
+  - **Settings → Bar and plates:** edits the default equipment profile's bar and plates in the profile unit (`withBarAndPlates` in `domain/profileForm.ts`, tests); creates a "Gym" profile when none exists. The Coach profile editor still has the full equipment editor.
+  - **Focus trap:** `components/TrapFocus.tsx` / `useFocusTrap.ts` in the four modal dialogs (confirm, photo viewer, onboarding, workout summary): focus moves in, Tab wraps, focus returns on close.
+  - **Library classification:** mapper fixes (squat checked before hinge so "Front Squat (Clean Grip)" is a squat; curls, raises and extensions are isolation even when the name says overhead; "Dips" plural and push-ups on a ball; olympic lifts stay hinge/squat/push, none were conditioning). `LIBRARY_VERSION` is now 2: installs seeded earlier get pattern and load model re-applied ONLY on library exercises the user never edited (`updatedAt` equals `createdAt`); edited ones are untouched. Regression table in `exerciseMapper.test.ts`.
+  - **Trash and undo:** routines now appear in Trash (restore, delete forever, 30-day purge). Deleting a weigh-in, a test result or a whole fitness test is undoable from the undo bar.
+  - **Drag-to-reorder:** NOT done. It needs a new dependency and you have not approved one, so the up/down buttons stay (decision below).
+  Tests (423) and build pass. None of the UI was opened in a browser or on an iPhone.
+- **Next session:** milestone 14 is finished apart from the dependency question; there is no milestone 15 yet. Suggested next: the open real-device items (deploy the Worker, sync once, add the connector per docs/connector.md, Strong import with the real file, rest alarm on a locked iPhone) and tell me what breaks; then pick the next milestone from the Ideas backlog.
 - **Done this session (14, item 4, first half):** the exercise form's Increment now has a lb/kg choice (saved as the exercise's `incrementUnit`; the keypad and progression already convert it to the set's unit). Tests (410) and build pass; not opened in a browser. **Not done, needs your decision:** "units change converts displayed set weights". Sets keep the unit they were logged in (CLAUDE.md: convert only for display), so the choice is between (a) show every set in the profile unit by converting on display, or (b) rewrite stored sets to the new unit. I recommend (a): reversible, no stored data touched. Say "go with a" and it is the next session.
 - **Next session:** your answer on (a)/(b), then the Settings plate/bar editor and dialog focus trap, then the library classification review and Trash for routines / undo for weigh-ins and tests. Drag-to-reorder still needs your OK for a dependency.
 - **Done this session (14, item 3):** unsaved-draft protection. Shared hook `components/useLeaveGuard.tsx`: the draft counts as changed once its JSON differs from its first value; Cancel then asks "Discard changes?" (Keep editing is the default) and a reload or close shows the browser warning. Used in the routine and planned-session editor (`ExercisesEditor`) and the program editor. The Claude proposal paste box keeps its text in localStorage (`forge.proposalDraft`) so it survives leaving the Coach tab or closing the app; approve, reject or clearing the box removes it. Tests (410) and build pass; the hook has no unit test (React only, tests run in node) and was not clicked through in a browser.
@@ -35,6 +44,9 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - **Known issues:** see bottom.
 
 ## Decisions (defaults chosen; change by asking)
+- Unit display (14): sets are never rewritten by a units change; every screen converts for display with `inUnit`, and editing a weight saves it in the profile unit. Analytics already convert. The routine/program target editors still show targets in their own unit label (lb), see Known issues.
+- Library reclassification (14): `LIBRARY_VERSION` 2 re-applies pattern and load model only to untouched library exercises (never edited, never deleted). Anything the user edited keeps their values. Further mapper changes need another version bump.
+- Reorder (14): up/down buttons stay; drag-and-drop would need a dependency (not approved).
 - Fitness-test countdown (13): one target and one test date per test, stored on the test (target in base units, shown in the profile length unit). Gap = target − best (higher is better) or best − target (lower is better), floored at 0; measured against the BEST result, not the latest. A past date shows "N days ago". The Worker/connector does not expose targets yet (the Copy summary does).
 - Insights (12a): max 3 notes on Home, order missed week, imbalance, plateaus (longest first). Dismissed note ids live in localStorage, not the database (display preference; no sync or schema change). 'Missed' ignores long breaks (nothing the week before). Weekly review (12b) copies from Coach; the connector path is separate and unchanged.
 - Hosting: Cloudflare Pages, Vite `base: '/'`.
@@ -254,12 +266,12 @@ Architecture (to confirm at the start of 10a):
 ## Milestone 14 — Issue burn-down (small fixes, one sitting each)
 - [x] Imported exercises get muscles and movement pattern: infer from the matched library exercise or the name, with a bulk review screen (so they count in weekly sets and balance). (done as 14a inference + 14b review screen)
 - [x] Edit a past workout's name and start/end time.
-- [ ] Drag to reorder exercises (needs a dependency: ask first) or keep buttons.
+- [~] Drag to reorder: kept the up/down buttons (no dependency approved). Revisit only if you want drag and approve one.
 - [x] Unsaved-draft protection in the routine, program and proposal editors.
-- [~] kg increments in the exercise form (done); units changes convert displayed set weights (waiting for a decision, see Current).
-- [ ] Settings: plate and bar editor; keyboard focus trap in dialogs.
-- [ ] Library classification review (e.g. Olympic lifts classed as conditioning): fix the mapper heuristics and add tests for the most common lifts.
-- [ ] Trash entry for routines; undo for deleting weigh-ins and tests.
+- [x] kg increments in the exercise form; set weights shown in the profile unit.
+- [x] Settings: plate and bar editor; keyboard focus trap in dialogs.
+- [x] Library classification review: mapper heuristics fixed, regression tests, one-time reclassify of untouched exercises.
+- [x] Trash entry for routines; undo for deleting weigh-ins and tests.
 - Model: Sonnet, medium. Milestone 14 is a list of independent fixes: do one or two per session and tick them off (no further ID split needed).
 
 ## Ideas backlog (not scheduled)
@@ -268,16 +280,16 @@ Auto warm-up ramp from the working weight; weekly volume landmarks per muscle; p
 ## Known issues
 - Countdown (13): one date per test (no separate battery dates); the connector's MCP tools do not return targets or dates yet; not seen in a browser or on a phone. The date input is the native picker.
 - Exercise page (9b): typechecked, unit-tested and built, not opened in a browser or on an iPhone; check chart readability and the three segments at phone width. Records use exact rep counts only (a heavier 5 does not fill the 3-rep row). Badges show PRs from the last 30 days (constant). The Insights tier thresholds remain the app's own rough multiples: ask the user what felt off before changing them.
-- Settings (8a) has no plate or bar editor; those stay in Coach → Training profile (Settings points there). The pair-total toggle also remains on the Train home.
+- Settings has a bar and plates editor for the default equipment profile only; other profiles are in Coach → Training profile. The pair-total toggle lives in Settings.
 - Editing a past workout's times does not move its sets' completion times, and it does not re-evaluate a linked planned session or PR history beyond normal recompute.
 - Superset rounds are not enforced or visually sequenced; supersets only affect when the rest timer starts.
 - `navigator.vibrate` is unsupported on iOS Safari. The rest alarm is now an audio file (see Decisions) that should sound while locked, but this relies on iOS letting a home-screen app keep playing audio in the background: UNVERIFIED on a device. If it fails, the fallback is web push from the later Cloudflare Worker. While the alarm audio plays, iOS may show Forge on the lock screen's now-playing card.
 - Rest alarm: the silent switch mutes the default 'Sound' mode (use 'Loud' to override, which pauses music). A rest of 5 minutes builds a ~2.4 MB in-memory file per set; fine for a phone.
-- Reorder is up/down buttons, not drag-and-drop (no new dependency).
+- Reorder is up/down buttons, not drag-and-drop (no new dependency approved).
 - Finish drops unticked sets and exercises with no completed sets (documented behaviour); undo is available for 20 s after finishing (snackbar) or from Backup.
 - Discard soft-deletes the workout (goes to the Trash screen under Backup).
 - History list is read-only and loads the latest 30 workouts without virtualization.
-- Keypad ± for weight converts the exercise increment into the set's unit; weights are shown in the set's stored unit, not the profile unit, if they differ.
+- Routine and program target editors label weights in lb for every exercise and do not convert for a kg profile (only the logging screen and History convert for display).
 - Library pattern/loadModel/rest values are name-based heuristics (`exerciseMapper.ts`); some library entries will be mis-classified. Fix per exercise in the editor; bump `LIBRARY_VERSION` only to add missing exercises (existing ones are never overwritten).
 - Exercise library JSON (~790 KB, 150 KB gzip) is a lazy chunk, precached by the service worker; The size warning limit is raised to 800 kB for it and the Recharts chunk.
 - Library exercises (not just custom) can be deleted from the editor; deleted ones are not re-seeded.
@@ -299,7 +311,7 @@ Auto warm-up ramp from the working weight; weekly volume landmarks per muscle; p
 - Reminder snackbar/undo bar and trash were verified in headless Chromium only; not on a device.
 - Routine editor: weight targets are a plain number in the exercise's increment unit (lb shown for all); percent-of-e1RM targets exist in the type but have no editor until 3d. Progression rule on a routine exercise is not editable yet (3d).
 - Routine editor uses up/down buttons, no drag and drop. Leaving via Cancel asks first, but switching tabs with the bottom bar still drops the draft (the editor unmounts).
-- Trashed routines can only be restored through the undo bar (20 s / Backup screen latest entry); no Trash screen entry.
+- Trashed routines are now restorable from the Trash screen (30-day purge). Programs are soft-deleted with undo only, no Trash entry.
 - Routine screens were verified in headless Chromium only (create, start); not on a device.
 - Restoring a deleted workout from the Trash screen does not relink its planned session (undo does).
 - Planned sessions are linked only when the workout was started from the session; a workout logged freehand is never matched to a plan automatically.
@@ -319,7 +331,7 @@ Auto warm-up ramp from the working weight; weekly volume landmarks per muscle; p
 - Balance thresholds (1.5×) and window (4 weeks) are fixed constants with no setting; unilateral and carry patterns are not counted. The balance cards were typechecked and unit-tested, and the page rendered without errors, but I only inspected the body map visually.
 - Body map regions are tap-sized shapes with hover/long-press titles only; tapping a region does nothing yet.
 - Bodyweight panel (5a): weight-only (no body fat or measurements yet, though `BodyMetricKind` has them); range pills are 30 d / 90 d / 1 yr / All; the date field is the browser's native picker (not tested on iPhone Safari). Deleting a weigh-in has no undo.
-- Fitness tests (5b): no undo for deleting results or tests; a custom test's measure cannot be changed after creation; built-in tests cannot be renamed; results are not linked to conditioning workouts yet (`workoutId` unused); the date input is the native picker (not tested on iPhone Safari).
+- Fitness tests (5b): deleting results or tests is undoable (latest action only); a custom test's measure cannot be changed after creation; built-in tests cannot be renamed; results are not linked to conditioning workouts yet (`workoutId` unused); the date input is the native picker (not tested on iPhone Safari).
 - Conditioning (5c-i): the Panel was unit- and store-tested but not seen with real data in a browser (it only renders once a session exists). The exercise picker in a conditioning session is the normal one (not filtered to time/distance exercises); library cardio entries are classed as time/distance by name heuristics. Fitness test results are not linked to conditioning sessions. Rounds/intervals have no structure beyond one set per effort; rest between efforts uses the exercise's default rest timer.
 - Photos (5c-ii): not tested on a real iPhone (camera capture, HEIC pickup, share/save). iOS Safari can evict site data for PWAs that are not installed to the Home Screen; photos are in no backup, so the panel tells the user to keep copies. `clearAllData` (used in restore-replace tests) wipes photos too, but app restore never calls it. Full-size blobs are decoded for thumbnails (no separate thumbnail), fine for dozens of photos. The viewer is a simple overlay: no swipe between photos, no pinch zoom beyond the browser default.
 - Coach (6a): the summary and the profile editor were checked in headless Chromium only (not on an iPhone). Copy uses `navigator.clipboard`; if blocked, the text is selected and the user is told to copy by hand. The summary has no conditioning detail, readiness or photo info, and no per-session workout log; it is a rolled-up view, so Claude cannot see individual sets. Profile editor has no unsaved-changes prompt. The weight and length units and the e1RM formula are still not editable in any Settings screen.

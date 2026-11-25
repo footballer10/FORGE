@@ -71,7 +71,7 @@ describe('trashRepo', () => {
     const recent = await workoutWithSet(e.id);
     await db.workouts.update(old.w.id, { deletedAt: daysAgo(31) });
     await db.workouts.update(recent.w.id, { deletedAt: daysAgo(5) });
-    expect(await trashRepo.purgeExpired()).toEqual({ workouts: 1, exercises: 0 });
+    expect(await trashRepo.purgeExpired()).toEqual({ workouts: 1, exercises: 0, routines: 0 });
     expect(await db.workouts.get(old.w.id)).toBeUndefined();
     expect(await db.workouts.get(recent.w.id)).toBeDefined();
   });
@@ -82,7 +82,7 @@ describe('trashRepo', () => {
     const used = await exerciseRepo.create({ ...ex, name: 'Used' });
     await workoutWithSet(used.id);
     for (const x of [custom, lib, used]) await db.exercises.update(x.id, { deletedAt: daysAgo(40) });
-    expect(await trashRepo.purgeExpired()).toEqual({ workouts: 0, exercises: 1 });
+    expect(await trashRepo.purgeExpired()).toEqual({ workouts: 0, exercises: 1, routines: 0 });
     expect(await db.exercises.get(custom.id)).toBeUndefined();
     expect(await db.exercises.get(lib.id)).toBeDefined();
     expect(await db.exercises.get(used.id)).toBeDefined();

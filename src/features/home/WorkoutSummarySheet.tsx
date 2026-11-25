@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { TrapFocus } from '../../components/TrapFocus';
 import { achievementsRepo, type WorkoutSummary } from '../../db/repositories';
 import type { Achievement } from '../../domain/types';
 import { useWorkout } from '../train/workoutStore';
@@ -36,7 +37,7 @@ export function WorkoutSummarySheet() {
   };
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Workout summary" className="fixed inset-0 z-40 flex items-end bg-black/60">
+    <TrapFocus role="dialog" aria-modal="true" aria-label="Workout summary" className="fixed inset-0 z-40 flex items-end bg-black/60">
       <div className="pb-safe max-h-[85%] w-full overflow-y-auto rounded-t-card bg-surface p-4">
         <h2 className="font-display text-3xl">Workout done</h2>
         <p className="text-sm text-muted">
@@ -76,6 +77,6 @@ export function WorkoutSummarySheet() {
           Done
         </button>
       </div>
-    </div>
+    </TrapFocus>
   );
 }

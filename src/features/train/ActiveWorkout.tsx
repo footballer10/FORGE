@@ -3,7 +3,7 @@ import { Keypad } from '../../components/Keypad';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { convertWeight } from '../../domain/units';
 import { displayWeight } from '../../domain/load';
-import { fieldsFor, suggestionTarget, type SetField } from '../../domain/logging';
+import { fieldsFor, inUnit, suggestionTarget, type SetField } from '../../domain/logging';
 import { describeTargets } from '../../domain/routine';
 import { collapsedSummary, currentExerciseId, foldWarmups } from '../../domain/workoutView';
 import type { EquipmentProfile, ID } from '../../domain/types';
@@ -70,7 +70,7 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
   const menuRow = menuIndex >= 0 ? rows[menuIndex] : undefined;
 
   const stepFor = (row: ExerciseRow, field: SetField): number => {
-    if (field === 'weight') return Math.round(convertWeight(row.exercise.weightIncrement, row.exercise.incrementUnit, editSet?.unit ?? unit) * 100) / 100;
+    if (field === 'weight') return Math.round(convertWeight(row.exercise.weightIncrement, row.exercise.incrementUnit, unit) * 100) / 100;
     if (field === 'durationSec') return 5;
     if (field === 'distanceM') return 50;
     return 1;
@@ -121,7 +121,7 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
             <section key={id} className="mb-2 rounded-card border border-line bg-surface" aria-label={row.exercise.name}>
               <button type="button" onClick={toggleOpen} aria-expanded={false} className="flex min-h-[56px] w-full items-center justify-between gap-3 px-3 py-2 text-left">
                 <span className="text-2xl uppercase">{title}</span>
-                <span className="num text-sm text-muted">{collapsedSummary(row.sets, row.exercise.loadModel, unit)}</span>
+                <span className="num text-sm text-muted">{collapsedSummary(row.sets.map((x) => inUnit(x, unit)), row.exercise.loadModel, unit)}</span>
               </button>
             </section>
           );
@@ -138,7 +138,7 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
                 {row.we.suggested && suggestionTarget(row.sets) ? (
                   <div className="py-1">
                     <button type="button" onClick={() => void fillSuggested(row.we.id)} className="num min-h-tap rounded-card border border-line bg-surface-2 px-3 text-sm text-fg">
-                      Suggested {row.we.suggested.weight} {row.we.suggested.unit}{row.we.suggested.reps !== undefined ? ` × ${row.we.suggested.reps}` : ''} · tap to fill
+                      Suggested {Math.round(convertWeight(row.we.suggested.weight, row.we.suggested.unit, unit) * 100) / 100} {unit}{row.we.suggested.reps !== undefined ? ` × ${row.we.suggested.reps}` : ''} · tap to fill
                     </button>
                     {row.we.progressionNote && <p className="text-sm text-muted">{row.we.progressionNote}</p>}
                   </div>
@@ -184,16 +184,16 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
                 fold && x.type === 'warmup' ? null : (
                   <SetRow
                     key={x.id}
-                    set={x}
+                    set={inUnit(x, unit)}
                     index={i}
                     fields={fields}
                     loadModel={row.exercise.loadModel}
-                    previous={row.last[i]}
+                    previous={row.last[i] && inUnit(row.last[i]!, unit)}
                     editing={edit?.setId === x.id ? edit.field : undefined}
                     onEdit={(field) => setEdit({ setId: x.id, field })}
                     onOpenDetails={() => setDetails(x.id)}
                     pr={!!x.completedAt && prSetIds.includes(x.id)}
-                    pairTotal={showPairTotal && row.exercise.loadModel === 'perImplement' ? displayWeight(x, row.exercise, true, x.unit) : undefined}
+                    pairTotal={showPairTotal && row.exercise.loadModel === 'perImplement' ? displayWeight(x, row.exercise, true, unit) : undefined}
                     onToggle={() => {
                       setEdit(null);
                       void toggleComplete(x.id);
@@ -247,10 +247,10 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
         <Keypad
           key={`${edit.setId}:${edit.field}`}
           label={`${FIELD_LABEL[edit.field]} · ${editRow.exercise.name}`}
-          value={editSet[edit.field]}
+          value={inUnit(editSet, unit)[edit.field]}
           step={stepFor(editRow, edit.field)}
           allowDecimal={edit.field === 'weight'}
-          onChange={(v) => void updateSet(edit.setId, { [edit.field]: v })}
+          onChange={(v) => void updateSet(edit.setId, edit.field === 'weight' ? { weight: v, unit } : { [edit.field]: v })}
           nextLabel={nextField(fieldsFor(editRow.exercise.loadModel), edit.field) ? FIELD_LABEL[nextField(fieldsFor(editRow.exercise.loadModel), edit.field)!] : 'Done'}
           onNext={() => {
             const n = nextField(fieldsFor(editRow.exercise.loadModel), edit.field);

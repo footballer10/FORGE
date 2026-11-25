@@ -2,6 +2,7 @@ import type { BodyMetric, LengthUnit, WeightUnit } from '../../domain/types';
 import { db } from '../schema';
 import { createRepo } from './base';
 import { profileRepo } from './profile';
+import { undoRepo } from './undo';
 
 const metrics = createRepo(db.bodyMetrics);
 
@@ -18,7 +19,7 @@ export const bodyRepo = {
     await metrics.update(id, patch);
   },
   async remove(id: string): Promise<void> {
-    await metrics.softDelete(id);
+    await undoRepo.run('Deleted weigh-in', { bodyMetrics: [id] }, () => metrics.softDelete(id));
   },
   async restore(id: string): Promise<void> {
     await metrics.restore(id);

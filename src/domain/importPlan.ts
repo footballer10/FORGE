@@ -142,9 +142,9 @@ export function draftExercise(src: SourceExercise): ExerciseDraft {
     loadModel = 'perImplement';
   } else if (tag === undefined && !src.hasWeight) {
     equipment = 'bodyweight';
-    loadModel = /pull[- ]?up|chin[- ]?up|dip\b|muscle[- ]up/i.test(base) ? 'bodyweightPlusAdded' : 'repsOnly';
+    loadModel = /pull[- ]?up|chin[- ]?up|dips?\b|muscle[- ]up/i.test(base) ? 'bodyweightPlusAdded' : 'repsOnly';
   } else if (equipment === 'bodyweight') {
-    loadModel = src.hasWeight || /pull[- ]?up|chin[- ]?up|dip\b/i.test(base) ? 'bodyweightPlusAdded' : 'repsOnly';
+    loadModel = src.hasWeight || /pull[- ]?up|chin[- ]?up|dips?\b/i.test(base) ? 'bodyweightPlusAdded' : 'repsOnly';
   } else {
     loadModel = 'total';
   }

@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { LibraryRecord } from '../domain/exerciseMapper';
+import { db } from './schema';
 import { clearAllData, exerciseRepo, metaRepo } from './repositories';
 import { seedLibrary } from './seedLibrary';
 
@@ -45,5 +46,24 @@ describe('exerciseRepo.recentIds', () => {
     await workoutRepo.updateSet(s1.id, { completedAt: '2026-11-01T10:00:00.000Z' });
     await workoutRepo.updateSet(s2.id, { completedAt: '2026-11-02T10:00:00.000Z' });
     expect(await exerciseRepo.recentIds()).toEqual([b!.id, a!.id]);
+  });
+});
+
+describe('library version bump reclassifies untouched exercises only', () => {
+  it('fixes a stale pattern but keeps an exercise the user edited', async () => {
+    const a = { ...rec('a', 'Front Squat (Clean Grip)'), primaryMuscles: ['quadriceps' as const] };
+    const b = { ...rec('b', 'Overhead Cable Curl'), equipment: 'cable', primaryMuscles: ['biceps' as const] };
+    await seedLibrary([a, b]);
+    const list = await exerciseRepo.list();
+    const front = list.find((e) => e.sourceRef === 'a')!;
+    const curl = list.find((e) => e.sourceRef === 'b')!;
+    // Simulate the old mapping directly in the table (no timestamp change).
+    await db.exercises.update(front.id, { pattern: 'hinge' });
+    await db.exercises.update(curl.id, { pattern: 'verticalPush' });
+    await exerciseRepo.update(curl.id, { weightIncrement: 2.5 }); // the user edited this one
+    await metaRepo.set('librarySeedVersion', 1);
+    await seedLibrary([a, b]);
+    expect((await exerciseRepo.get(front.id))?.pattern).toBe('squat');
+    expect((await exerciseRepo.get(curl.id))?.pattern).toBe('verticalPush');
   });
 });

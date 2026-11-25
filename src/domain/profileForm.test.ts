@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseBirthYear, parseDays, parseLines, parsePlates, parsePositive, platesText } from './profileForm';
+import { parseBirthYear, parseDays, parseLines, parsePlates, parsePositive, platesText, withBarAndPlates } from './profileForm';
 
 describe('profile form helpers', () => {
   it('splits lines and drops blanks', () => {
@@ -24,5 +24,23 @@ describe('profile form helpers', () => {
     expect(parseDays('4')).toBe(4);
     expect(parseDays('8')).toBeUndefined();
     expect(parseDays('2.5')).toBeUndefined();
+  });
+});
+
+describe('withBarAndPlates', () => {
+  const gym = { id: 'g', name: 'Home', equipment: ['barbell' as const], barWeight: { value: 45, unit: 'lb' as const }, notes: 'garage' };
+  it('updates the default profile and keeps its other fields and the other profiles', () => {
+    const other = { id: 'o', name: 'Hotel', equipment: ['dumbbell' as const] };
+    const r = withBarAndPlates([gym, other], 'g', '20', '25, 20, 10, 5, 2.5, 1.25', 'kg', () => 'new');
+    expect(r.defaultEquipmentProfileId).toBe('g');
+    expect(r.equipmentProfiles[0]).toMatchObject({ notes: 'garage', barWeight: { value: 20, unit: 'kg' } });
+    expect(r.equipmentProfiles[0]!.plates!.map((p) => p.value)).toEqual([25, 20, 10, 5, 2.5, 1.25]);
+    expect(r.equipmentProfiles[1]).toBe(other);
+  });
+  it('creates a Gym profile when none exists and clears emptied fields', () => {
+    const r = withBarAndPlates([], undefined, '45', '', 'lb', () => 'new');
+    expect(r.equipmentProfiles).toEqual([{ id: 'new', name: 'Gym', equipment: ['barbell'], barWeight: { value: 45, unit: 'lb' } }]);
+    const cleared = withBarAndPlates(r.equipmentProfiles, 'new', '', '', 'lb', () => 'x');
+    expect(cleared.equipmentProfiles[0]!.barWeight).toBeUndefined();
   });
 });

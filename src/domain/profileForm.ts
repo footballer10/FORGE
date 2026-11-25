@@ -1,5 +1,5 @@
 /** Text ↔ value helpers for the training profile editor. Pure. */
-import type { Weight, WeightUnit } from './types';
+import type { Equipment, EquipmentProfile, Weight, WeightUnit } from './types';
 
 /** One item per non-empty line (commas are kept: a goal may contain one). */
 export const parseLines = (text: string): string[] =>
@@ -29,4 +29,33 @@ export function parseBirthYear(text: string, thisYear: number): number | undefin
 export function parseDays(text: string): number | undefined {
   const n = Number(text.trim());
   return Number.isInteger(n) && n >= 1 && n <= 7 ? n : undefined;
+}
+
+/** The equipment profile the plate calculator uses: the default one, else the first. */
+export function defaultEquipment(profiles: EquipmentProfile[], defaultId?: string): EquipmentProfile | undefined {
+  return profiles.find((e) => e.id === defaultId) ?? profiles[0];
+}
+
+/**
+ * Sets bar and plates (typed in `unit`) on the default equipment profile; creates a "Gym" profile when there is none.
+ * Empty text removes that field. Other profiles and fields are left alone.
+ */
+export function withBarAndPlates(
+  profiles: EquipmentProfile[],
+  defaultId: string | undefined,
+  barText: string,
+  platesInput: string,
+  unit: WeightUnit,
+  newId: () => string,
+): { equipmentProfiles: EquipmentProfile[]; defaultEquipmentProfileId: string } {
+  const target = defaultEquipment(profiles, defaultId) ?? { id: newId(), name: 'Gym', equipment: ['barbell'] as Equipment[] };
+  const bar = parsePositive(barText);
+  const plates = parsePlates(platesInput, unit);
+  const { barWeight: _b, plates: _p, ...rest } = target;
+  const updated: EquipmentProfile = { ...rest, ...(bar ? { barWeight: { value: bar, unit } } : {}), ...(plates.length ? { plates } : {}) };
+  const exists = profiles.some((e) => e.id === target.id);
+  return {
+    equipmentProfiles: exists ? profiles.map((e) => (e.id === target.id ? updated : e)) : [...profiles, updated],
+    defaultEquipmentProfileId: target.id,
+  };
 }

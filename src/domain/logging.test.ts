@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canComplete, durationMinutes, fieldsFor, formatSet, prefillDrafts, suggestionTarget } from './logging';
+import { inUnit, canComplete, durationMinutes, fieldsFor, formatSet, prefillDrafts, suggestionTarget } from './logging';
 
 describe('logging', () => {
   it('chooses fields by load model', () => {
@@ -41,5 +41,16 @@ describe('suggestionTarget', () => {
     const sets = [{ type: 'warmup' as const }, { type: 'working' as const, completedAt: 'x' }, { type: 'working' as const, id: 'n' }, { type: 'working' as const }];
     expect(suggestionTarget(sets)).toBe(sets[2]);
     expect(suggestionTarget([{ type: 'warmup' as const }])).toBeUndefined();
+  });
+});
+
+describe('inUnit', () => {
+  it('converts the weight for display and leaves same-unit and weightless sets alone', () => {
+    const kg = { type: 'working' as const, weight: 100, unit: 'kg' as const, reps: 5 };
+    expect(inUnit(kg, 'lb')).toMatchObject({ weight: 220.46, unit: 'lb', reps: 5 });
+    expect(inUnit(kg, 'kg')).toBe(kg);
+    const bare = { unit: 'kg' as const, reps: 8 };
+    expect(inUnit(bare, 'lb')).toBe(bare);
+    expect(inUnit({ weight: 225, unit: 'lb' as const }, 'kg').weight).toBe(102.06);
   });
 });

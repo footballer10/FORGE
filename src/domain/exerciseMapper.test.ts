@@ -43,6 +43,31 @@ describe('mapLibraryExercise', () => {
   });
 });
 
+describe('common lifts (regression table)', () => {
+  const lift = (name: string, equipment: string | null, category = 'strength', primary = 'chest') =>
+    mapLibraryExercise(rec({ name, equipment, category, primaryMuscles: [primary], mechanic: 'compound' }));
+  it('classifies squats, hinges, overhead movements and dips', () => {
+    expect(lift('Front Squat (Clean Grip)', 'barbell', 'strength', 'quadriceps').pattern).toBe('squat');
+    expect(lift('Overhead Squat', 'barbell', 'olympic weightlifting', 'quadriceps').pattern).toBe('squat');
+    expect(lift('Power Clean', 'barbell', 'olympic weightlifting', 'hamstrings').pattern).toBe('hinge');
+    expect(lift('Snatch', 'barbell', 'olympic weightlifting', 'quadriceps')).toMatchObject({ pattern: 'hinge', loadModel: 'total' });
+    expect(lift('Push Press', 'barbell', 'olympic weightlifting', 'shoulders').pattern).toBe('verticalPush');
+    expect(lift('Overhead Cable Curl', 'cable', 'strength', 'biceps').pattern).toBe('isolation');
+    expect(lift('Standing Overhead Barbell Triceps Extension', 'barbell', 'strength', 'triceps').pattern).toBe('isolation');
+    expect(lift('Hanging Leg Raise', 'body only', 'strength', 'abdominals').pattern).toBe('core');
+    expect(lift('Dips - Triceps Version', 'body only', 'strength', 'triceps').loadModel).toBe('bodyweightPlusAdded');
+  });
+  it('push-ups on a ball are reps only', () => {
+    expect(lift('Push-Ups With Feet On An Exercise Ball', 'exercise ball').loadModel).toBe('repsOnly');
+    expect(lift('Pushups', 'body only').loadModel).toBe('repsOnly');
+  });
+  it('olympic lifts are never conditioning', () => {
+    for (const n of ['Clean', 'Hang Clean', 'Power Snatch', 'Clean and Jerk']) {
+      expect(lift(n, 'barbell', 'olympic weightlifting', 'hamstrings').pattern).not.toBe('conditioning');
+    }
+  });
+});
+
 describe('vendored dataset', () => {
   it('maps every record without gaps', () => {
     const rows = data as LibraryRecord[];

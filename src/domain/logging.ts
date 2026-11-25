@@ -1,3 +1,4 @@
+import { convertWeight } from './units';
 import type { LoadModel, SetEntry, SetType, WeightUnit } from './types';
 
 export type SetField = 'weight' | 'reps' | 'durationSec' | 'distanceM';
@@ -63,6 +64,15 @@ export function formatSet(set: DraftSource, loadModel: LoadModel, unit: WeightUn
     default:
       return `${set.weight !== undefined ? `${num(set.weight)} ${unit}` : '—'} × ${set.reps ?? '—'}`;
   }
+}
+
+/**
+ * A set shown in `unit`: the weight is converted (2 decimals) for display only. Stored sets keep the unit they
+ * were logged in; editing a shown weight writes it back in `unit` (see the logging screen).
+ */
+export function inUnit<T extends { weight?: number; unit: WeightUnit }>(set: T, unit: WeightUnit): T {
+  if (set.unit === unit || set.weight === undefined) return set;
+  return { ...set, weight: Math.round(convertWeight(set.weight, set.unit, unit) * 100) / 100, unit };
 }
 
 /** Workout length in whole minutes. */
