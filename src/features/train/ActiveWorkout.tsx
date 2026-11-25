@@ -11,6 +11,7 @@ import { SetRow } from './SetRow';
 import { ExerciseSheet } from './ExerciseSheet';
 import { SetSheet } from './SetSheet';
 import { PlateSheet } from './PlateSheet';
+import { DetailsEditor } from './DetailsEditor';
 import { isEditingPast, useWorkout, type ExerciseRow } from './workoutStore';
 
 interface Props {
@@ -94,6 +95,7 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
         <h1 className="text-4xl uppercase">{workout.name}</h1>
         {editing ? <span className="text-sm text-muted">Editing · {new Date(workout.startedAt).toLocaleDateString()}</span> : <Elapsed startedAt={workout.startedAt} />}
       </div>
+      {editing && <DetailsEditor workout={workout} />}
 
       {rows.length === 0 && <p className="py-4 text-sm text-muted">Add your first exercise to start logging.</p>}
 

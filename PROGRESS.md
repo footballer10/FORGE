@@ -3,6 +3,8 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
+- **Done this session (14, item 2):** editing a past workout now has "Edit name and times" at the top of the logging screen (`features/train/DetailsEditor.tsx`): name plus start and end pickers, saved with one button after validation (`domain/workoutDetails.ts`: name required, end after start, end not in the future; times are local wall-clock). Writes through `workoutRepo.update` at once. Tests (410) and build pass. Not opened on an iPhone (native datetime-local picker).
+- **Next session:** milestone 14, next unticked item (drag to reorder: needs a dependency, ask first, or keep buttons; so start with unsaved-draft protection in the routine, program and proposal editors).
 - **Done this session (14a + 14b, first item of milestone 14):** imported exercises get muscles and movement pattern. Pure `domain/exerciseInference.ts` `inferTraits`: copies the closest library exercise (name similarity ≥ 0.75 with equipment words and the "(Tag)" ignored), else keyword rules on the name (squat, hinge, presses, rows, pulls, curls, core, carries; first match wins), else nothing. New imports now fill muscles, pattern and unilateral at creation (a file-based pattern such as time/distance wins). For exercises already imported: Settings → "Review exercise muscles" lists every exercise with no primary muscle, each with its suggestion and the reason, ticked by default; "Apply to N exercises" writes them (`exerciseRepo.traitSuggestions` / `applyTraits`). No suggestion = listed with a note to set it in the library. Tests (407) and build pass. Not opened in a browser or on an iPhone.
 - **Next session:** the next unticked item of milestone 14 (edit a past workout's name and times). Still open: deploy the Worker, sync once, add the connector (docs/connector.md) and report what happens.
 - **Done this session (13a + 13b, milestone 13 complete):** each fitness test can have a target and a test date, typed by the user (`FitnessTest.targetValue` in base units, `testDate`; optional fields, no schema bump). Progress > Fitness tests: under each test name a line like "target 15 reps, 6 reps to gain, test 2026-12-20 (in 25 days)" (or "target met"); open a test to edit the goal ("Save goal", clear both boxes to remove). Pure `testCountdown`, `describeCountdown`, `daysUntil` in `domain/fitness.ts`; `fitnessRepo.setGoal`. 13b: the Coach summary's Fitness tests section lists the goal per test (even with no results yet) and, when any test has a date, adds a line asking Claude to aim the plan at it and not change my targets. Tests (400) and build pass. Not opened in a browser or on an iPhone.
@@ -247,7 +249,7 @@ Architecture (to confirm at the start of 10a):
 
 ## Milestone 14 — Issue burn-down (small fixes, one sitting each)
 - [x] Imported exercises get muscles and movement pattern: infer from the matched library exercise or the name, with a bulk review screen (so they count in weekly sets and balance). (done as 14a inference + 14b review screen)
-- [ ] Edit a past workout's name and start/end time.
+- [x] Edit a past workout's name and start/end time.
 - [ ] Drag to reorder exercises (needs a dependency: ask first) or keep buttons.
 - [ ] Unsaved-draft protection in the routine, program and proposal editors.
 - [ ] kg increments in the exercise form; units changes convert displayed set weights.
@@ -263,7 +265,7 @@ Auto warm-up ramp from the working weight; weekly volume landmarks per muscle; p
 - Countdown (13): one date per test (no separate battery dates); the connector's MCP tools do not return targets or dates yet; not seen in a browser or on a phone. The date input is the native picker.
 - Exercise page (9b): typechecked, unit-tested and built, not opened in a browser or on an iPhone; check chart readability and the three segments at phone width. Records use exact rep counts only (a heavier 5 does not fill the 3-rep row). Badges show PRs from the last 30 days (constant). The Insights tier thresholds remain the app's own rough multiples: ask the user what felt off before changing them.
 - Settings (8a) has no plate or bar editor; those stay in Coach → Training profile (Settings points there). The pair-total toggle also remains on the Train home.
-- Editing a past workout changes its sets but not its start/end times or name (no editor for those yet).
+- Editing a past workout's times does not move its sets' completion times, and it does not re-evaluate a linked planned session or PR history beyond normal recompute.
 - Superset rounds are not enforced or visually sequenced; supersets only affect when the rest timer starts.
 - `navigator.vibrate` is unsupported on iOS Safari. The rest alarm is now an audio file (see Decisions) that should sound while locked, but this relies on iOS letting a home-screen app keep playing audio in the background: UNVERIFIED on a device. If it fails, the fallback is web push from the later Cloudflare Worker. While the alarm audio plays, iOS may show Forge on the lock screen's now-playing card.
 - Rest alarm: the silent switch mutes the default 'Sound' mode (use 'Loud' to override, which pauses music). A rest of 5 minutes builds a ~2.4 MB in-memory file per set; fine for a phone.
