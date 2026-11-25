@@ -1,0 +1,13 @@
+name = "forge-sync"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Create the database once:  npx wrangler d1 create forge
+# then paste the database_id it prints below.
+[[d1_databases]]
+binding = "DB"
+database_name = "forge"
+database_id = "REPLACE_WITH_ID_FROM_wrangler_d1_create"
+
+# Set the secret once:  npx wrangler secret put SYNC_TOKEN   (use a long random string)

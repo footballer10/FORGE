@@ -1,4 +1,7 @@
-import type { ID, SetEntry, Workout, WorkoutExercise } from '../../domain/types';
+import { applySuggestion, draftsFromTargets } from '../../domain/routine';
+import { summarizeSets, type PreviewLine } from '../../domain/nextUp';
+import { suggestProgression } from '../../domain/progression';
+import type { ID, RoutineExercise, SetEntry, Workout, WorkoutExercise, WeightUnit } from '../../domain/types';
 import { db } from '../schema';
 import { createRepo, nowIso, type NewEntity } from './base';
 import { undoRepo } from './undo';
@@ -27,11 +30,104 @@ export const workoutRepo = {
 
   /** Move a workout to the trash and record an undo entry. */
   async deleteUndoable(id: ID, label = 'Deleted workout'): Promise<void> {
-    await undoRepo.run(label, { workouts: [id] }, () => workoutBase.softDelete(id));
+    // A planned session linked to this workout goes back to "not done" (undo restores the link).
+    const linked = await db.plannedSessions.where('completedWorkoutId').equals(id).primaryKeys();
+    await undoRepo.run(label, { workouts: [id], plannedSessions: linked }, async () => {
+      await workoutBase.softDelete(id);
+      const t = nowIso();
+      for (const sid of linked) await db.plannedSessions.update(sid, { completedWorkoutId: undefined, updatedAt: t });
+    });
+  },
+
+  /** Finished workouts with their completed non-warm-up set count, for the calendar and heatmap. */
+  async dayStatsInput(sinceIso?: string): Promise<{ id: ID; startedAt: string; hardSets: number }[]> {
+    const workouts = await db.workouts
+      .filter((w) => !!w.endedAt && !w.deletedAt && (!sinceIso || w.startedAt >= sinceIso))
+      .toArray();
+    const ids = new Set(workouts.map((w) => w.id));
+    const counts = new Map<ID, number>();
+    await db.sets
+      .filter((s) => !s.deletedAt && !!s.completedAt && s.type !== 'warmup' && ids.has(s.workoutId))
+      .each((s) => counts.set(s.workoutId, (counts.get(s.workoutId) ?? 0) + 1));
+    return workouts.map((w) => ({ id: w.id, startedAt: w.startedAt, hardSets: counts.get(w.id) ?? 0 }));
   },
 
   start(input: Partial<NewEntity<Workout>> = {}): Promise<Workout> {
     return workoutBase.create({ name: 'Workout', kind: 'strength', startedAt: nowIso(), ...input });
+  },
+
+  /**
+   * New in-progress workout from a routine or planned session. Exercises deleted since are skipped. Each exercise gets
+   * sets built from its targets (weights from the last session where the target has none) and keeps
+   * the targets and rest override for display while logging.
+   */
+  async startFromPlan(
+    plan: { name: string; exercises: RoutineExercise[]; routineId?: ID; plannedSessionId?: ID },
+    fallbackUnit: WeightUnit,
+  ): Promise<Workout> {
+    const w = await workoutBase.create({
+      name: plan.name,
+      kind: 'strength',
+      startedAt: nowIso(),
+      ...(plan.routineId ? { routineId: plan.routineId } : {}),
+      ...(plan.plannedSessionId ? { plannedSessionId: plan.plannedSessionId } : {}),
+    });
+    const ordered = [...plan.exercises].sort((a, b) => a.order - b.order);
+    for (const re of ordered) {
+      const ex = await db.exercises.get(re.exerciseId);
+      if (!ex || ex.deletedAt) continue;
+      const last = await workoutRepo.lastSetsFor(re.exerciseId, w.id);
+      const firstWork = re.targets.find((t) => t.type !== 'warmup');
+      const suggestion = re.progression
+        ? suggestProgression({
+            rule: re.progression,
+            ...(firstWork?.reps !== undefined ? { targetReps: firstWork.reps } : {}),
+            last,
+            increment: { value: ex.weightIncrement, unit: ex.incrementUnit },
+          })
+        : undefined;
+      const we = await workoutRepo.addExercise(w.id, re.exerciseId, {
+        ...(re.supersetGroup ? { supersetGroup: re.supersetGroup } : {}),
+        ...(re.notes ? { notes: re.notes } : {}),
+        ...(re.restSec !== undefined ? { restSec: re.restSec } : {}),
+        ...(re.targets.length > 0 ? { targets: re.targets } : {}),
+        ...(suggestion ? { progressionNote: `Suggested ${suggestion.summary}. ${suggestion.reason}` } : {}),
+      });
+      let drafts = draftsFromTargets(re.targets, last, fallbackUnit);
+      if (suggestion) drafts = applySuggestion(drafts, re.targets.length > 0 ? re.targets : [{ type: 'working' }], suggestion);
+      for (const draft of drafts) await workoutRepo.addSet(we.id, draft);
+    }
+    return w;
+  },
+
+  /**
+   * What `startFromPlan` would create, without writing anything: one line per exercise with the
+   * sets and weights it would start with (same prefill and progression logic).
+   */
+  async previewPlan(exercises: RoutineExercise[], fallbackUnit: WeightUnit): Promise<PreviewLine[]> {
+    const out: PreviewLine[] = [];
+    for (const re of [...exercises].sort((a, b) => a.order - b.order)) {
+      const ex = await db.exercises.get(re.exerciseId);
+      if (!ex || ex.deletedAt) continue;
+      const last = await workoutRepo.lastSetsFor(re.exerciseId);
+      const firstWork = re.targets.find((t) => t.type !== 'warmup');
+      const suggestion = re.progression
+        ? suggestProgression({
+            rule: re.progression,
+            ...(firstWork?.reps !== undefined ? { targetReps: firstWork.reps } : {}),
+            last,
+            increment: { value: ex.weightIncrement, unit: ex.incrementUnit },
+          })
+        : undefined;
+      let drafts = draftsFromTargets(re.targets, last, fallbackUnit);
+      if (suggestion) drafts = applySuggestion(drafts, re.targets.length > 0 ? re.targets : [{ type: 'working' }], suggestion);
+      out.push({ exerciseId: ex.id, name: ex.name, summary: summarizeSets(drafts) });
+    }
+    return out;
+  },
+
+  startFromRoutine(routine: { id: ID; name: string; exercises: RoutineExercise[] }, fallbackUnit: WeightUnit): Promise<Workout> {
+    return workoutRepo.startFromPlan({ name: routine.name, exercises: routine.exercises, routineId: routine.id }, fallbackUnit);
   },
 
   finish(id: ID): Promise<Workout> {

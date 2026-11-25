@@ -1,17 +1,21 @@
-import { useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { TabBar } from './TabBar';
 import { useUi } from './uiStore';
 import { HomeScreen } from '../features/home/HomeScreen';
 import { TrainScreen } from '../features/train/TrainScreen';
-import { StrengthScreen } from '../features/strength/StrengthScreen';
-import { ProgressScreen } from '../features/progress/ProgressScreen';
-import { CoachScreen } from '../features/coach/CoachScreen';
+import { Onboarding } from '../features/settings/Onboarding';
+import { WorkoutSummarySheet } from '../features/home/WorkoutSummarySheet';
 import { UndoBar } from './UndoBar';
 import { trashRepo } from '../db/repositories';
 import { RestTimer } from '../features/train/RestTimer';
 import { useWakeLock } from '../features/train/useWakeLock';
 import { useWorkout } from '../features/train/workoutStore';
+import { syncRestAudio, unlockRestAudio } from '../features/train/restAudio';
 
+const StrengthScreen = lazy(() => import('../features/strength/StrengthScreen').then((m) => ({ default: m.StrengthScreen })));
+const ProgressScreen = lazy(() => import('../features/progress/ProgressScreen').then((m) => ({ default: m.ProgressScreen })));
+const CoachScreen = lazy(() => import('../features/coach/CoachScreen').then((m) => ({ default: m.CoachScreen })));
+const SettingsScreen = lazy(() => import('../features/settings/SettingsScreen').then((m) => ({ default: m.SettingsScreen })));
 const SCREENS = {
   home: HomeScreen,
   train: TrainScreen,
@@ -23,6 +27,7 @@ const SCREENS = {
 export function AppShell() {
   const tab = useUi((s) => s.tab);
   const theme = useUi((s) => s.theme);
+  const settingsOpen = useUi((s) => s.settingsOpen);
   const Screen = SCREENS[tab];
   const workoutActive = useWorkout((s) => !!s.workout);
 
@@ -43,6 +48,21 @@ export function AppShell() {
       });
   }, []);
 
+  // iOS only lets audio play after a tap: unlock on the first one, then resume a rest already running.
+  useEffect(() => {
+    const unlock = () => {
+      void unlockRestAudio().then(() => syncRestAudio(useWorkout.getState().restEndsAt));
+      window.removeEventListener('click', unlock, true);
+      window.removeEventListener('touchend', unlock, true);
+    };
+    window.addEventListener('click', unlock, true);
+    window.addEventListener('touchend', unlock, true);
+    return () => {
+      window.removeEventListener('click', unlock, true);
+      window.removeEventListener('touchend', unlock, true);
+    };
+  }, []);
+
   // Trash older than 30 days is removed for good on launch.
   useEffect(() => {
     void trashRepo.purgeExpired().catch(() => undefined);
@@ -51,8 +71,12 @@ export function AppShell() {
   return (
     <div className="flex h-full flex-col">
       <main className="pt-safe px-safe flex-1 overflow-y-auto overscroll-contain">
-        <Screen />
+        <Suspense fallback={<p className="py-6 text-sm text-muted" role="status">Loading…</p>}>
+          {settingsOpen ? <SettingsScreen /> : <Screen />}
+        </Suspense>
       </main>
+      <WorkoutSummarySheet />
+      <Onboarding />
       <UndoBar />
       <RestTimer />
       <TabBar />

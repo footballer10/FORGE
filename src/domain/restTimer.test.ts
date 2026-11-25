@@ -4,10 +4,13 @@ import { adjustRest, formatClock, isStale, remainingSec, restEndsAt, restSeconds
 const T0 = Date.parse('2026-01-05T10:00:00.000Z');
 
 describe('rest timer', () => {
-  it('uses the exercise rest, none for warm-ups', () => {
+  it('uses the exercise rest; warm-ups also rest, capped at 60 s', () => {
     expect(restSecondsFor({ defaultRestSec: 120 }, 'working')).toBe(120);
     expect(restSecondsFor({ defaultRestSec: 90 }, 'failure')).toBe(90);
-    expect(restSecondsFor({ defaultRestSec: 120 }, 'warmup')).toBe(0);
+    expect(restSecondsFor({ defaultRestSec: 120 }, 'warmup')).toBe(60);
+    expect(restSecondsFor({ defaultRestSec: 45 }, 'warmup')).toBe(45);
+    expect(restSecondsFor({ defaultRestSec: 0 }, 'warmup')).toBe(0);
+    expect(restSecondsFor({ defaultRestSec: 120 }, 'warmup', 30)).toBe(30);
   });
 
   it('computes remaining time from the absolute end, so it survives a lock', () => {

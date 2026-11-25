@@ -5,9 +5,16 @@ import type { Exercise, SetType } from './types';
  * survives screen lock, backgrounding and reloads: remaining time is always `endsAt - now`.
  */
 
-/** How long to rest after a completed set; 0 means no timer (warm-ups). */
-export function restSecondsFor(exercise: Pick<Exercise, 'defaultRestSec'>, setType: SetType): number {
-  return setType === 'warmup' ? 0 : Math.max(0, Math.round(exercise.defaultRestSec));
+/** Warm-up sets rest for at most this long (shorter exercise rests win). */
+export const WARMUP_REST_SEC = 60;
+
+/**
+ * How long to rest after a completed set. Every set starts a timer, warm-ups included;
+ * warm-ups use the exercise's rest capped at WARMUP_REST_SEC. 0 only when the exercise rest is 0.
+ */
+export function restSecondsFor(exercise: Pick<Exercise, 'defaultRestSec'>, setType: SetType, override?: number): number {
+  const base = Math.max(0, Math.round(override ?? exercise.defaultRestSec));
+  return setType === 'warmup' ? Math.min(base, WARMUP_REST_SEC) : base;
 }
 
 export function restEndsAt(nowMs: number, seconds: number): string {

@@ -10,6 +10,12 @@ interface UiState {
   /** Set by shortcuts (backup reminder) so the Train tab opens its Backup screen. */
   openBackup: boolean;
   setOpenBackup: (v: boolean) => void;
+  /** Set by Settings so the Train tab opens one of its utility screens. */
+  openTrain: 'library' | 'import' | 'data' | null;
+  setOpenTrain: (v: 'library' | 'import' | 'data' | null) => void;
+  /** Settings screen is shown over the current tab. */
+  settingsOpen: boolean;
+  setSettingsOpen: (v: boolean) => void;
   setTab: (tab: Tab) => void;
   setTheme: (theme: Theme) => void;
 }
@@ -28,6 +34,10 @@ export const useUi = create<UiState>((set) => ({
   tab: 'home',
   theme: initialTheme(),
   openBackup: false,
+  openTrain: null,
+  setOpenTrain: (openTrain) => set({ openTrain }),
+  settingsOpen: false,
+  setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
   setOpenBackup: (openBackup) => set({ openBackup }),
   setTab: (tab) => set({ tab }),
   setTheme: (theme) => {
