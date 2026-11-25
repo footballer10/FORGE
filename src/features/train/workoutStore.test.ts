@@ -440,6 +440,18 @@ describe('progression on start', () => {
     expect(we.suggested).toEqual({ weight: 140, unit: 'lb', reps: 8 });
   });
 
+  it('addWarmups puts the ramp before the working sets, once', async () => {
+    const sq = await exerciseRepo.create({ ...base, name: 'Squat' });
+    await useWorkout.getState().start();
+    await useWorkout.getState().addExercise(sq.id);
+    await useWorkout.getState().updateSet(sets()[0]!.id, { weight: 225, reps: 5 });
+    const weId = useWorkout.getState().rows[0]!.we.id;
+    await useWorkout.getState().addWarmups(weId, 45, [45, 35, 25, 10, 5, 2.5]);
+    expect(sets().map((s) => [s.type, s.weight, s.reps])).toEqual([['warmup', 45, 10], ['warmup', 110, 5], ['warmup', 155, 3], ['warmup', 190, 1], ['working', 225, 5]]);
+    await useWorkout.getState().addWarmups(weId, 45, [45, 35, 25, 10, 5, 2.5]);
+    expect(sets()).toHaveLength(5);
+  });
+
   it('fillSuggested fills the next open working set only', async () => {
     const bench = await exerciseRepo.create({ ...base, name: 'Bench' });
     await useWorkout.getState().start();
