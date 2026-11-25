@@ -32,7 +32,7 @@ After deploying and syncing from the app at least once:
 3. No sign-in is needed. Ask Claude something like "Look at my last 4 weeks of training in Forge".
 If the connector screen refuses the URL, tell me what it says; the fallback is OAuth, which is a bigger change.
 
-Read-only tools: `get_profile`, `list_exercises`, `list_workouts`, `get_exercise_history` (e1RM with formula and unit), `get_weekly_sets` (hard sets per muscle, primary 1 / secondary 0.5), `get_active_program`, `get_bodyweight`. `get_proposals` shows what Claude proposed before and what you decided.
+Read-only tools: `get_profile`, `list_exercises`, `list_workouts`, `get_exercise_history` (e1RM with formula and unit), `get_weekly_sets` (hard sets per muscle, primary 1 / secondary 0.5), `get_active_program`, `get_bodyweight`, `get_nutrition` (daily calories and protein with your typed targets), `get_fitness_tests` (academy test events with your target, test date and results). `get_proposals` shows what Claude proposed before and what you decided.
 
 ## Proposals from Claude (10d)
 The one write tool is `propose_program`. It validates the program with the same rules as the app (and checks every exercise name exists in your library), then stores a proposal with status `proposed`. It cannot create or change programs, workouts or any other data, and at most 5 proposals can wait at once. In the app: Coach → Program from Claude → Proposals waiting (tap Check for proposals to sync first), then Review to see the diff, and Approve or Reject. Approving uses the normal flow (new version of the active program, or a separate draft). Your decision syncs back, so Claude can see it with `get_proposals`. Dates and weeks use UTC, so a late-evening workout can show on the next day. Data is only as fresh as your last Sync now in the app.
@@ -40,3 +40,9 @@ The one write tool is `propose_program`. It validates the program with the same 
 ## Decisions
 - Auth: one long secret token, no accounts. App sync uses a Bearer header; the connector uses the token in the URL path (`/mcp/<token>`, Bearer also accepted). Not yet tried in the real Claude connector screen.
 - Dependencies added with the user's OK: wrangler, @modelcontextprotocol/sdk, zod (dev dependencies; the Worker is bundled by wrangler).
+
+## Updating the Worker
+Whenever the app gains new data (nutrition was added after the first deploy), redeploy the Worker so it accepts it: open the `worker` folder and run `npx wrangler deploy`. Until then, Settings shows "Your Worker is out of date" and syncing pauses; nothing is lost, and the next sync after the redeploy sends everything.
+
+## Sync happens by itself
+Once sync is set up, the app syncs a few seconds after any change, when it returns to the foreground, when the network comes back, and every 5 minutes while open. "Sync now" in Settings → Claude is only needed to force it. Proposals from Claude show up as a notice on Home and under Settings → Claude.

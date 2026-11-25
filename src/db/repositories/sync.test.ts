@@ -99,6 +99,15 @@ describe('syncRepo', () => {
     expect((await syncRepo.status()).lastError).toBeUndefined();
   });
 
+  it('tells the user to redeploy when the Worker does not know a table', async () => {
+    await exerciseRepo.create(ex);
+    await syncRepo.configure('https://w.test', 'secret-token-1234567');
+    const old = async () => new Response(JSON.stringify({ error: 'Unknown table: nutritionEntries' }), { status: 400 });
+    const r = await syncRepo.sync(old);
+    expect(r.error).toMatch(/npx wrangler deploy/);
+    expect((await syncRepo.status()).lastError).toMatch(/out of date/);
+  });
+
   it('reports a wrong token plainly', async () => {
     await syncRepo.configure('https://w.test', 'wrong-token-1234567890');
     await exerciseRepo.create(ex);

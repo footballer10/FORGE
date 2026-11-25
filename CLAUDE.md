@@ -10,7 +10,7 @@ Personal strength-training PWA, iPhone first, one user. Full product spec: `SPEC
 5. If a milestone is too big, split it in `PROGRESS.md` first.
 
 ## Rules
-- No new dependencies beyond the stack without asking the user.
+- New dependencies: the user has said to add them when needed (note each in PROGRESS Decisions).
 - No subagents unless the user asks.
 - Ask before hard-to-reverse decisions; otherwise pick a sensible default and note it in `PROGRESS.md` (Decisions).
 - Claude never changes training silently: program changes are proposals the user approves.
@@ -33,7 +33,7 @@ npm run typecheck  # tsc --noEmit
 ```
 src/
   app/            AppShell, TabBar, ui store (current tab, theme)
-  features/       one folder per tab/feature: home, train, strength, progress, coach
+  features/       one folder per tab/feature: home, train, strength, progress, nutrition (Claude settings live under features/coach)
   components/     shared UI (Keypad, Button, ...)
   domain/         types.ts (all entities), pure functions: units, load, e1rm, prs, volume, import
                   *.test.ts next to the code
