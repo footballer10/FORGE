@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { UNDO_EVENT, exerciseRepo, routineRepo, workoutRepo, type FullWorkout } from '../../db/repositories';
 import { useWorkout } from './workoutStore';
-import { durationMinutes, formatSet } from '../../domain/logging';
+import { durationMinutes, formatSet, inUnit } from '../../domain/logging';
 import { targetsFromSets } from '../../domain/routine';
 import { bestWorkingSet, setProgress } from '../../domain/workoutView';
 import type { Exercise } from '../../domain/types';
@@ -15,6 +15,7 @@ const PREVIEW = 3;
  * Tap a row to open it: every working set and the actions. Warm-ups are only counted, never listed.
  */
 export function HistoryList() {
+  const unit = useWorkout((s) => s.unit);
   const openPast = useWorkout((s) => s.openPast);
   const duplicate = useWorkout((s) => s.duplicate);
   const [items, setItems] = useState<FullWorkout[] | null>(null);
@@ -88,7 +89,7 @@ export function HistoryList() {
                       return (
                         <span key={e.id} className="flex justify-between gap-2">
                           <span className="truncate">{ex?.name ?? 'Exercise'}</span>
-                          <span className="num shrink-0 text-muted">{best && ex ? formatSet(best, ex.loadModel, best.unit) : ''}</span>
+                          <span className="num shrink-0 text-muted">{best && ex ? formatSet(inUnit(best, unit), ex.loadModel, unit) : ''}</span>
                         </span>
                       );
                     })}
@@ -107,7 +108,7 @@ export function HistoryList() {
                         <li key={e.id}>
                           <span className="block font-medium">{ex?.name ?? 'Exercise'}</span>
                           <span className="num block text-muted">
-                            {ex ? working.map((s) => formatSet(s, ex.loadModel, s.unit)).join(' · ') : ''}
+                            {ex ? working.map((s) => formatSet(inUnit(s, unit), ex.loadModel, unit)).join(' · ') : ''}
                             {p.warmupsDone > 0 ? ` (+${p.warmupsDone} warm-up)` : ''}
                           </span>
                         </li>
