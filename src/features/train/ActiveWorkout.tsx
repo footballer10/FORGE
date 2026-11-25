@@ -6,7 +6,7 @@ import { displayWeight } from '../../domain/load';
 import { fieldsFor, suggestionTarget, type SetField } from '../../domain/logging';
 import { describeTargets } from '../../domain/routine';
 import { collapsedSummary, currentExerciseId, foldWarmups } from '../../domain/workoutView';
-import type { ID } from '../../domain/types';
+import type { EquipmentProfile, ID } from '../../domain/types';
 import { SetRow } from './SetRow';
 import { ExerciseSheet } from './ExerciseSheet';
 import { SetSheet } from './SetSheet';
@@ -43,7 +43,7 @@ function Elapsed({ startedAt }: { startedAt: string }) {
 /** The logging screen. No gamification here (CLAUDE.md). */
 export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
   const {
-    prSetIds, workout, rows, unit, updateSet, toggleComplete, fillSuggested, addSet, removeSet, removeExercise, finish, discard,
+    prSetIds, workout, rows, unit, updateSet, toggleComplete, fillSuggested, addWarmups, addSet, removeSet, removeExercise, finish, discard,
     setWorkoutNotes, setExerciseNote, setStickyNote, moveExercise, toggleSuperset, showPairTotal, equipment,
   } = useWorkout();
   const [edit, setEdit] = useState<{ setId: ID; field: SetField } | null>(null);
@@ -200,9 +200,16 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
                 ),
               )}
             </div>
-            <button type="button" onClick={() => void addSet(row.we.id)} className="mt-2 min-h-tap w-full rounded-card border border-line text-sm text-muted">
-              + Add set
-            </button>
+            <div className="mt-2 flex gap-2">
+              <button type="button" onClick={() => void addSet(row.we.id)} className="min-h-tap flex-1 rounded-card border border-line text-sm text-muted">
+                + Add set
+              </button>
+              {row.exercise.equipment === 'barbell' && row.exercise.loadModel === 'total' && !row.sets.some((x) => x.type === 'warmup') && row.sets.some((x) => x.weight) && (
+                <button type="button" onClick={() => void addWarmups(row.we.id, barFor(row, equipment, unit), platesFor(equipment, unit))} className="min-h-tap flex-1 rounded-card border border-line text-sm text-muted">
+                  + Warm-ups
+                </button>
+              )}
+            </div>
           </section>
         );
       })}
@@ -277,8 +284,8 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
           exerciseName={plateRow.exercise.name}
           unit={unit}
           initialTarget={plateTarget(plateRow, unit)}
-          bar={convertWeight(plateRow.exercise.barWeight?.value ?? equipment?.barWeight?.value ?? 45, plateRow.exercise.barWeight?.unit ?? equipment?.barWeight?.unit ?? 'lb', unit)}
-          plates={(equipment?.plates ?? [45, 35, 25, 10, 5, 2.5].map((value) => ({ value, unit: 'lb' as const }))).map((p) => Math.round(convertWeight(p.value, p.unit, unit) * 100) / 100)}
+          bar={barFor(plateRow, equipment, unit)}
+          plates={platesFor(equipment, unit)}
           onClose={() => setPlates(null)}
         />
       )}
@@ -335,4 +342,16 @@ function nextField(fields: SetField[], current: SetField): SetField | undefined 
 function plateTarget(row: ExerciseRow, unit: 'lb' | 'kg'): number {
   const s = row.sets.find((x) => !x.completedAt && x.weight !== undefined) ?? [...row.sets].reverse().find((x) => x.weight !== undefined);
   return s?.weight === undefined ? 0 : Math.round(convertWeight(s.weight, s.unit, unit) * 100) / 100;
+}
+
+/** Bar weight for a barbell exercise in `unit`: the exercise's own bar, else the equipment profile's, else 45 lb. */
+function barFor(row: ExerciseRow, equipment: EquipmentProfile | undefined, unit: 'lb' | 'kg'): number {
+  const b = row.exercise.barWeight ?? equipment?.barWeight ?? { value: 45, unit: 'lb' as const };
+  return convertWeight(b.value, b.unit, unit);
+}
+
+/** Plates per side in `unit`: the equipment profile's, else a standard lb set. */
+function platesFor(equipment: EquipmentProfile | undefined, unit: 'lb' | 'kg'): number[] {
+  const list = equipment?.plates ?? [45, 35, 25, 10, 5, 2.5].map((value) => ({ value, unit: 'lb' as const }));
+  return list.map((p) => Math.round(convertWeight(p.value, p.unit, unit) * 100) / 100);
 }

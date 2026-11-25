@@ -1,5 +1,7 @@
 import { create } from 'zustand';
 import { achievementsRepo, exerciseRepo, metaRepo, nowIso, plannedSessionRepo, profileRepo, routineRepo, undoRepo, workoutRepo } from '../../db/repositories';
+import { convertWeight } from '../../domain/units';
+import { buildWarmups } from '../../domain/warmup';
 import { canComplete, prefillDrafts, suggestionTarget } from '../../domain/logging';
 import { moveItem } from '../../domain/order';
 import { restAfterExercise, toggleSupersetLink } from '../../domain/superset';
@@ -45,6 +47,8 @@ interface State {
   updateSet: (setId: ID, patch: Partial<SetEntry>) => Promise<void>;
   /** Fill the next open working set of an exercise with its suggested weight (and reps). */
   fillSuggested: (workoutExerciseId: ID) => Promise<void>;
+  /** Put warm-up sets before the working sets (bar, 50%, 70%, 85% of the first working weight). */
+  addWarmups: (workoutExerciseId: ID, bar: number, plates: number[]) => Promise<void>;
   /** Tick a set done (needs reps / time) or un-tick it. Returns false when it cannot complete yet. */
   toggleComplete: (setId: ID) => Promise<boolean>;
   removeSet: (setId: ID) => Promise<void>;
@@ -213,6 +217,20 @@ export const useWorkout = create<State>((set, get) => {
     async updateSet(setId, patch) {
       patchLocal(setId, patch);
       await workoutRepo.updateSet(setId, patch);
+    },
+
+    async addWarmups(workoutExerciseId, bar, plates) {
+      const w = get().workout;
+      const row = get().rows.find((r) => r.we.id === workoutExerciseId);
+      if (!w || !row || row.sets.some((s) => s.type === 'warmup')) return;
+      const first = row.sets.find((s) => s.type !== 'warmup' && s.weight !== undefined && s.weight > 0);
+      if (!first || first.weight === undefined) return;
+      const unit = get().unit;
+      const work = convertWeight(first.weight, first.unit, unit);
+      const drafts = buildWarmups(work, bar, plates).map((s) => ({ weight: s.weight, reps: s.reps, unit }));
+      if (drafts.length === 0) return;
+      await workoutRepo.insertWarmups(workoutExerciseId, drafts);
+      await refresh(w.id);
     },
 
     async fillSuggested(workoutExerciseId) {

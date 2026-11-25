@@ -243,6 +243,13 @@ export const workoutRepo = {
     });
   },
 
+  /** Insert warm-up sets before all existing sets of an exercise (existing sets shift down). */
+  async insertWarmups(workoutExerciseId: ID, drafts: { weight: number; reps: number; unit: WeightUnit }[]): Promise<void> {
+    const existing = await db.sets.where('workoutExerciseId').equals(workoutExerciseId).filter((s) => !s.deletedAt).toArray();
+    for (const s of existing) await setBase.update(s.id, { order: s.order + drafts.length });
+    for (const [i, d] of drafts.entries()) await workoutRepo.addSet(workoutExerciseId, { ...d, type: 'warmup', order: i });
+  },
+
   updateSet: setBase.update,
   removeSet: setBase.softDelete,
 
