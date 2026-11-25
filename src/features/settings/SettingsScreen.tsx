@@ -6,7 +6,8 @@ import { E1RM_FORMULAS, formulaInfo } from '../../domain/e1rm';
 import { defaultEquipment, parseDays, platesText, withBarAndPlates } from '../../domain/profileForm';
 import type { E1rmFormula, LengthUnit, Profile, WeightUnit } from '../../domain/types';
 import { MenuRow } from '../../components/SubScreen';
-import { SyncPanel } from './SyncPanel';
+import { ClaudeScreen } from '../coach/ClaudeScreen';
+import { coachRepo } from '../../db/repositories';
 import { useWorkout } from '../train/workoutStore';
 import { REST_ALERT_LABELS, getRestAlert, setRestAlert, testRestAudio, type RestAlert } from '../train/restAudio';
 
@@ -24,6 +25,12 @@ export function SettingsScreen() {
   const theme = useUi((s) => s.theme);
   const setTheme = useUi((s) => s.setTheme);
   const [alert, setAlert] = useState<RestAlert>(getRestAlert);
+  const [page, setPage] = useState<'main' | 'claude'>(() => {
+    const want = useUi.getState().settingsPage;
+    if (want) useUi.getState().setSettingsPage(null);
+    return want ?? 'main';
+  });
+  const [waiting, setWaiting] = useState(0);
 
   useEffect(() => {
     void profileRepo.get().then((x) => {
@@ -32,7 +39,12 @@ export function SettingsScreen() {
     });
   }, []);
 
+  useEffect(() => {
+    if (page === 'main') void coachRepo.pendingProposals().then((x) => setWaiting(x.length)).catch(() => undefined);
+  }, [page]);
+
   if (!p) return null;
+  if (page === 'claude') return <ClaudeScreen onBack={() => setPage('main')} />;
 
   async function save(patch: Partial<Profile>) {
     const next = await profileRepo.update(patch);
@@ -52,6 +64,7 @@ export function SettingsScreen() {
       </div>
 
       <section className="flex flex-col gap-2" aria-label="Library and data">
+        <MenuRow title="Claude" detail={waiting ? `${waiting} ${waiting === 1 ? 'proposal' : 'proposals'} waiting for you` : 'Connection, proposals, training profile'} onClick={() => setPage('claude')} />
         {([
           ['library', 'Exercise library', 'Browse, edit or add exercises'],
           ['review', 'Review exercise muscles', 'Fill in muscles for imported exercises'],
@@ -175,8 +188,6 @@ export function SettingsScreen() {
           </div>
         </div>
       </section>
-
-      <SyncPanel />
 
       <section className="rounded-card border border-line bg-surface px-4 py-3" aria-label="Install on iPhone">
         <h2 className="text-sm text-muted">Install on your iPhone</h2>

@@ -5,7 +5,7 @@ const LABELS: Record<Tab, string> = {
   train: 'Train',
   strength: 'Strength',
   progress: 'Progress',
-  coach: 'Coach',
+  nutrition: 'Nutrition',
 };
 
 // Simple 24px stroke icons, inline to avoid an icon dependency.
@@ -14,7 +14,7 @@ const ICONS: Record<Tab, JSX.Element> = {
   train: <path d="M2 12h3M19 12h3M5 8v8M19 8v8M8 6v12M16 6v12M8 12h8" />,
   strength: <path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
   progress: <path d="M3 17l6-6 4 4 8-8M15 7h6v6" />,
-  coach: <path d="M4 5h16v11H9l-5 4zM8 10h8M8 13h5" />,
+  nutrition: <path d="M7 3v7a3 3 0 0 0 3 3v8M7 3v4M10 3v4M17 3c-2 2-3.5 5-3.5 8H17v10" />,
 };
 
 export function TabBar() {

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export const TABS = ['home', 'train', 'strength', 'progress', 'coach'] as const;
+export const TABS = ['home', 'train', 'strength', 'progress', 'nutrition'] as const;
 export type Tab = (typeof TABS)[number];
 export type Theme = 'dark' | 'light';
 
@@ -10,6 +10,9 @@ interface UiState {
   /** Set by shortcuts (backup reminder) so the Train tab opens its Backup screen. */
   openBackup: boolean;
   setOpenBackup: (v: boolean) => void;
+  /** Open Settings straight to a sub-page (Home notice for a waiting proposal). */
+  settingsPage: 'claude' | null;
+  setSettingsPage: (v: 'claude' | null) => void;
   /** Set by Settings so the Train tab opens one of its utility screens. */
   openTrain: 'library' | 'import' | 'data' | 'review' | null;
   setOpenTrain: (v: 'library' | 'import' | 'data' | 'review' | null) => void;
@@ -35,6 +38,8 @@ export const useUi = create<UiState>((set) => ({
   theme: initialTheme(),
   openBackup: false,
   openTrain: null,
+  settingsPage: null,
+  setSettingsPage: (settingsPage) => set({ settingsPage }),
   setOpenTrain: (openTrain) => set({ openTrain }),
   settingsOpen: false,
   setSettingsOpen: (settingsOpen) => set({ settingsOpen }),

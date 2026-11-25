@@ -25,6 +25,12 @@ export interface Repository<T extends BaseEntity> {
   hardDelete(id: ID): Promise<void>;
 }
 
+/** Fired after any repository write; auto-sync listens (debounced) so Claude's view stays fresh. */
+export const CHANGED_EVENT = 'forge:data-changed';
+const changed = () => {
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event(CHANGED_EVENT));
+};
+
 export function createRepo<T extends BaseEntity>(table: Table<T, string>): Repository<T> {
   return {
     get: (id) => table.get(id),
@@ -34,6 +40,7 @@ export function createRepo<T extends BaseEntity>(table: Table<T, string>): Repos
       const t = nowIso();
       const row = { ...input, id: input.id ?? newId(), createdAt: t, updatedAt: t } as T;
       await table.add(row);
+      changed();
       return row;
     },
     async update(id, patch) {
@@ -41,20 +48,24 @@ export function createRepo<T extends BaseEntity>(table: Table<T, string>): Repos
       if (!existing) throw new Error(`Not found: ${table.name}/${id}`);
       const row = { ...existing, ...patch, id, updatedAt: nowIso() } as T;
       await table.put(row);
+      changed();
       return row;
     },
     async put(row, keepTimestamps = false) {
       await table.put(keepTimestamps ? row : { ...row, updatedAt: nowIso() });
+      changed();
     },
     async softDelete(id) {
       const t = nowIso();
       await table.update(id, { deletedAt: t, updatedAt: t } as never);
+      changed();
     },
     async restore(id) {
       const existing = await table.get(id);
       if (!existing) return;
       const { deletedAt: _removed, ...rest } = existing;
       await table.put({ ...rest, updatedAt: nowIso() } as T);
+      changed();
     },
     hardDelete: (id) => table.delete(id),
   };
