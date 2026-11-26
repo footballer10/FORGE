@@ -1,4 +1,4 @@
-import { E1RM_MAX_REPS, estimate1rm } from './e1rm';
+import { e1rmCandidates, estimate1rm } from './e1rm';
 import { bodyweightOn, effectiveLoad, isAnalyticSet } from './load';
 import type { BodyMetric, E1rmFormula, Exercise, ID, SetEntry, Weight, WeightUnit, Workout } from './types';
 
@@ -46,19 +46,28 @@ export interface E1rmPoint {
   /** The set the estimate came from. */
   load: number;
   reps: number;
+  /** Estimated from a 13–20-rep set because the workout had nothing lighter on reps. */
+  rough?: boolean;
 }
 
-/** Best e1RM per workout (sets above `E1RM_MAX_REPS` are ignored), oldest first. */
+/**
+ * Best e1RM per workout, oldest first. Each workout uses its sets of 1–12 reps when it has any; a workout
+ * with only 13–20-rep sets gets a rough estimate (`rough: true`). Sets above `E1RM_MAX_REPS` never count.
+ */
 export function e1rmSeries(sets: readonly LiftSet[], formula: E1rmFormula): E1rmPoint[] {
-  const best = new Map<ID, E1rmPoint>();
-  for (const s of sets) {
-    if (s.reps > E1RM_MAX_REPS) continue;
-    const e = estimate1rm(formula, s.load, s.reps);
-    if (!(e > 0)) continue;
-    const cur = best.get(s.workoutId);
-    if (!cur || e > cur.e1rm) best.set(s.workoutId, { date: s.date, workoutId: s.workoutId, e1rm: e, load: s.load, reps: s.reps });
+  const byWorkout = new Map<ID, LiftSet[]>();
+  for (const s of sets) byWorkout.set(s.workoutId, [...(byWorkout.get(s.workoutId) ?? []), s]);
+  const out: E1rmPoint[] = [];
+  for (const list of byWorkout.values()) {
+    const { sets: use, rough } = e1rmCandidates(list);
+    let best: E1rmPoint | undefined;
+    for (const s of use) {
+      const e = estimate1rm(formula, s.load, s.reps);
+      if (e > 0 && (!best || e > best.e1rm)) best = { date: s.date, workoutId: s.workoutId, e1rm: e, load: s.load, reps: s.reps, ...(rough ? { rough: true } : {}) };
+    }
+    if (best) out.push(best);
   }
-  return [...best.values()].sort((a, b) => a.date.localeCompare(b.date));
+  return out.sort((a, b) => a.date.localeCompare(b.date));
 }
 
 export type PrKind = 'rep' | 'e1rm' | 'volume';
@@ -80,7 +89,7 @@ export const PR_REP_RANGE = [1, 2, 3, 4, 5, 6, 8, 10, 12] as const;
  * Personal records in time order, workout by workout. A record needs an earlier value to beat,
  * so the very first value of each kind is a baseline, not a PR. Ties are not PRs.
  * - rep: heaviest load at exactly N reps (N in `PR_REP_RANGE`).
- * - e1rm: highest estimate with `formula` (reps ≤ `E1RM_MAX_REPS`).
+ * - e1rm: highest estimate with `formula` (same set choice as `e1rmSeries`).
  * - volume: total load × reps of the exercise in one workout.
  */
 export function detectPrs(sets: readonly LiftSet[], formula: E1rmFormula): PrEvent[] {

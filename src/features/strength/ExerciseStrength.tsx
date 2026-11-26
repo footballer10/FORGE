@@ -148,7 +148,7 @@ export function ExerciseStrength({ exerciseId, onBack }: { exerciseId: string; o
             ))}
           </div>
           <p className="mt-2 text-xs text-muted">
-            {info.name}: e1RM = {info.formula}. One point per workout: its best set of 1–{E1RM_MAX_REPS} reps. Warm-ups excluded.{' '}
+            {info.name}: e1RM = {info.formula}. One point per workout: its best set of 1–12 reps, or, when it had only 13–{E1RM_MAX_REPS}-rep sets, a rough estimate from those. Warm-ups excluded.{' '}
             <label className="whitespace-nowrap">
               Formula{' '}
               <select

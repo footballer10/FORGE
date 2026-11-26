@@ -2,11 +2,24 @@ import type { E1rmFormula } from './types';
 
 /**
  * Estimated one-rep max formulas. A single (reps = 1) is its own max in every formula.
- * Estimates get unreliable above ~12 reps; callers decide the cap (see `E1RM_MAX_REPS`).
+ * Estimates get less reliable above ~12 reps. Sessions with sets of 1–12 reps use only those; a session
+ * whose working sets are all 13–20 reps (for example 15-rep accessories) still gets a rough estimate.
  */
 
-/** Sets above this many reps are not used for e1RM (formulas drift). */
-export const E1RM_MAX_REPS = 12;
+/** Sets up to this many reps give a normal e1RM. */
+export const E1RM_RELIABLE_REPS = 12;
+/** Sets above this many reps are never used for e1RM. 13 to this value count only as a rough fallback. */
+export const E1RM_MAX_REPS = 20;
+
+/**
+ * Which sets of ONE session feed its e1RM: those of 1–12 reps when there are any, else those of 13–20 reps
+ * (flagged rough). Warm-ups must already be excluded by the caller.
+ */
+export function e1rmCandidates<T extends { reps: number }>(sets: readonly T[]): { sets: T[]; rough: boolean } {
+  const reliable = sets.filter((s) => s.reps >= 1 && s.reps <= E1RM_RELIABLE_REPS);
+  if (reliable.length) return { sets: reliable, rough: false };
+  return { sets: sets.filter((s) => s.reps > E1RM_RELIABLE_REPS && s.reps <= E1RM_MAX_REPS), rough: true };
+}
 
 export interface E1rmFormulaInfo {
   id: E1rmFormula;

@@ -81,3 +81,21 @@ describe('liftSets', () => {
     expect(liftSets([set({ weight: 0, reps: 5 })], { loadModel: 'bodyweightPlusAdded' }, w, [], 'lb')[0]!.load).toBe(170);
   });
 });
+
+describe('e1RM for high-rep work', () => {
+  const ls = (workoutId: string, date: string, load: number, reps: number) => ({ setId: `${workoutId}-${load}-${reps}`, workoutId, date, load, reps });
+  it('gives 15-rep-only sessions a rough estimate', () => {
+    const pts = e1rmSeries([ls('a', '2026-11-20T10:00:00Z', 10, 15), ls('a', '2026-11-20T10:05:00Z', 10, 15)], 'epley');
+    expect(pts).toHaveLength(1);
+    expect(pts[0]).toMatchObject({ reps: 15, rough: true });
+    expect(pts[0]!.e1rm).toBeCloseTo(15, 5); // 10 × (1 + 15/30)
+  });
+  it('ignores 13–20-rep sets when the session has a set of 12 or fewer', () => {
+    const pts = e1rmSeries([ls('b', '2026-11-21T10:00:00Z', 100, 5), ls('b', '2026-11-21T10:05:00Z', 90, 20)], 'epley');
+    expect(pts[0]).toMatchObject({ reps: 5 });
+    expect(pts[0]!.rough).toBeUndefined();
+  });
+  it('never uses sets above 20 reps', () => {
+    expect(e1rmSeries([ls('c', '2026-11-22T10:00:00Z', 50, 25)], 'epley')).toEqual([]);
+  });
+});
