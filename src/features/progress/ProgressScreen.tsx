@@ -6,8 +6,9 @@ import { ConditioningPanel } from './ConditioningPanel';
 import { FitnessPanel } from './FitnessPanel';
 import { PhotosPanel } from './PhotosPanel';
 import { ReadinessPanel } from '../readiness/ReadinessPanel';
+import { YearReviewPanel } from './YearReviewPanel';
 
-type Page = 'bodyweight' | 'readiness' | 'tests' | 'conditioning' | 'photos';
+type Page = 'bodyweight' | 'readiness' | 'tests' | 'conditioning' | 'photos' | 'year';
 
 const PAGES: { id: Page; title: string; detail: string }[] = [
   { id: 'bodyweight', title: 'Bodyweight', detail: 'Weigh-ins and trend' },
@@ -15,6 +16,7 @@ const PAGES: { id: Page; title: string; detail: string }[] = [
   { id: 'tests', title: 'Fitness tests', detail: 'Air Force Academy PFT and AFT, plus your own tests' },
   { id: 'conditioning', title: 'Conditioning', detail: 'Runs, sprints and intervals' },
   { id: 'photos', title: 'Progress photos', detail: 'Kept on this device only' },
+  { id: 'year', title: 'Year in review', detail: 'Total lifted, biggest gains, longest streak' },
 ];
 
 /** Progress = a short menu (like Measure in Strong); each item opens on its own screen. */
@@ -29,6 +31,7 @@ export function ProgressScreen() {
         {page === 'tests' && <FitnessPanel />}
         {page === 'conditioning' && <ConditioningPanel />}
         {page === 'photos' && <PhotosPanel />}
+        {page === 'year' && <YearReviewPanel />}
       </SubScreen>
     );
   }

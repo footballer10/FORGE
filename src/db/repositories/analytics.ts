@@ -2,6 +2,7 @@ import { E1RM_FORMULA } from '../../domain/e1rm';
 import { e1rmSeries, liftSets, type E1rmPoint } from '../../domain/prs';
 import type { Profile, BodyMetric, Exercise, ID, SetEntry, WeightUnit, Workout } from '../../domain/types';
 import { db } from '../schema';
+import type { ReviewLift } from '../../domain/yearReview';
 import { createRepo } from './base';
 import { profileRepo } from './profile';
 
@@ -48,6 +49,23 @@ export const analyticsRepo = {
       if (series.length) out.push({ exercise, series });
     }
     return out.sort((a, b) => b.series.at(-1)!.date.localeCompare(a.series.at(-1)!.date));
+  },
+
+  /** Inputs for the year in review: finished workouts and every lift's analytic sets (all time, for baselines). */
+  async yearReviewData(): Promise<{ workouts: { id: ID; startedAt: string; endedAt?: string }[]; lifts: ReviewLift[]; weeklyTarget: number; unit: WeightUnit }> {
+    const t = await this.trainingData();
+    const profile = await profileRepo.get();
+    const byEx = new Map<ID, SetEntry[]>();
+    for (const s of t.sets) byEx.set(s.exerciseId, [...(byEx.get(s.exerciseId) ?? []), s]);
+    const lifts: ReviewLift[] = [];
+    for (const [id, sets] of byEx) {
+      const exercise = t.exercises.get(id);
+      if (!exercise) continue;
+      const ls = liftSets(sets, exercise, t.workouts, t.metrics, t.unit);
+      if (ls.length) lifts.push({ exerciseId: id, name: exercise.name, sets: ls });
+    }
+    const workouts = [...t.workouts.values()].map((w) => ({ id: w.id, startedAt: w.startedAt, ...(w.endedAt ? { endedAt: w.endedAt } : {}) }));
+    return { workouts, lifts, weeklyTarget: profile.plannedDaysPerWeek, unit: t.unit };
   },
 
   /** Exercises with at least one completed non-warm-up set, most recently trained first. */
