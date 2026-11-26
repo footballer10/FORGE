@@ -355,10 +355,14 @@ Goal: pick a food from a list, set the amount with a slider, see calories/protei
 - [x] (done) UI: search → list → sheet with a slider snapping to portions or 5–10 g steps, live macros, Add. Keep typed entry and quick foods. Keep the main screen uncluttered.
 - Model: Sonnet, high effort.
 
-## Milestone 19 — More foods, restaurant items and sodas
-- [ ] Curated restaurant/branded file (e.g. `src/data/restaurantFoods.json`): brand, item, serving, kcal/protein/carbs/fat, official source URL and date checked. Chipotle ingredients + "burrito: white rice, black beans, steak, fresh tomato salsa"; In-N-Out Double-Double and fries; Chick-fil-A chicken sandwich; sodas (Coke, Diet Coke, Coke Zero, Sprite, Dr Pepper, Pepsi, Mountain Dew, Fanta Orange, root beer, ginger ale) as 12 oz can and 20 oz bottle. Numbers only from the brands' official nutrition pages fetched in-session; missing pages are listed, never guessed.
-- [ ] Widen USDA selection in `scripts/build-foods.mjs` to ~1500 foods (incl. "Fast foods, …" and carbonated beverages).
-- [ ] Search shows brand, defaults restaurant items to "1 item"; tests for sources, values and queries ("double double", "chipotle", "dr pepper", "chick-fil-a").
+## Milestone 19 — More foods, units, recipes, search at the top (split 19a / 19b)
+User additions (2026-11-26): a much longer food list with lots of basics; units that are easy to estimate after eating (ml, cups, tablespoons, fl oz, pieces, not only grams); save compound foods (recipes, e.g. a burrito built from its parts) and custom foods for parts that do not exist; the food search is a search bar at the top of the Nutrition tab, not behind a button.
+- 19a (this part, no brand data needed):
+  - [ ] Data: widen `scripts/build-foods.mjs`: more staples and variants from Foundation + SR Legacy, SR "Fast foods" and generic "Restaurant" items, carbonated drinks, and the USDA Survey (FNDDS) set (mixed dishes, burritos, sandwiches, pizza, soft drinks). Keep the IDs of the existing 776 foods. Keep volume portions so ml/cups can be derived.
+  - [ ] Pure code: portion parsing, density from a plain volume portion, unit list per food (g, oz, ml, fl oz, tsp, tbsp, cup, USDA portions), fraction input, search aliases; tests.
+  - [ ] Saved foods: `SavedFood` gains optional `servingLabel`, `ingredients`, `servings` (recipes; no new table, so sync and backup are unchanged); pure recipe maths; repository.
+  - [ ] UI: search bar at the top of the Nutrition tab with inline results (mine first), amount sheet with quantity and unit chips, custom food form, recipe builder, "My foods" manager.
+- 19b (next): curated brand/restaurant file (`src/data/restaurantFoods.json`) from the brands' official nutrition pages fetched in-session (Chipotle ingredients and the burrito "white rice, black beans, steak, fresh tomato salsa", In-N-Out Double-Double and fries, Chick-fil-A chicken sandwich, sodas as 12 oz can and 20 oz bottle), source URL and date per row; brand shown in search; defaults restaurant items to "1 item"; tests for sources, values and queries. Needs the brand hosts allowed in the cloud environment (the sandbox blocks them). Numbers only from official pages; pages that cannot be fetched are listed, never guessed.
 - Model: Sonnet, high effort.
 
 ## Ideas backlog (not scheduled)
