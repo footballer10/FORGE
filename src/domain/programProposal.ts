@@ -247,19 +247,54 @@ export function proposalToDraft(
   return { draft, missing: [...missing] };
 }
 
+const sessionKey = (s: { name: string }) => s.name.trim().toLowerCase();
+
 /**
- * Keep completed / skipped history where the plan still has the same session in the same place
- * (same week and day position and the same name).
+ * Pair the sessions of one week by NAME (each used once, in order), so inserting or moving a session does
+ * not mark every later day as changed. Leftovers pair up in order as renames; the rest are added or removed.
+ * Returns [oldIndex, newIndex] pairs in new-plan order, then removed ones.
+ */
+export function matchSessions(old: readonly { name: string }[], next: readonly { name: string }[]): [number | undefined, number | undefined][] {
+  const used = new Set<number>();
+  const pairOf = new Map<number, number>();
+  next.forEach((n, ni) => {
+    const oi = old.findIndex((o, k) => !used.has(k) && sessionKey(o) === sessionKey(n));
+    if (oi >= 0) {
+      used.add(oi);
+      pairOf.set(ni, oi);
+    }
+  });
+  const leftoverOld = old.map((_, k) => k).filter((k) => !used.has(k));
+  const out: [number | undefined, number | undefined][] = [];
+  next.forEach((_, ni) => {
+    let oi = pairOf.get(ni);
+    if (oi === undefined && leftoverOld.length) oi = leftoverOld.shift();
+    if (oi !== undefined) used.add(oi);
+    out.push([oi, ni]);
+  });
+  for (const k of leftoverOld) out.push([k, undefined]);
+  return out;
+}
+
+/**
+ * Keep completed / skipped history where the plan still has a session with the same name in the same
+ * week (wherever it moved within the week).
  */
 export function carryOverHistory(next: DraftWeek[], old: DraftWeek[]): DraftWeek[] {
-  return next.map((w, wi) => ({
-    ...w,
-    sessions: w.sessions.map((s, si) => {
-      const o = old[wi]?.sessions[si];
-      if (!o || o.name.trim().toLowerCase() !== s.name.trim().toLowerCase()) return s;
-      return { ...s, ...(o.completedWorkoutId ? { completedWorkoutId: o.completedWorkoutId } : {}), ...(o.skipped ? { skipped: true } : {}) };
-    }),
-  }));
+  return next.map((w, wi) => {
+    const prev = old[wi]?.sessions ?? [];
+    const used = new Set<number>();
+    return {
+      ...w,
+      sessions: w.sessions.map((s) => {
+        const oi = prev.findIndex((o, k) => !used.has(k) && sessionKey(o) === sessionKey(s));
+        if (oi < 0) return s;
+        used.add(oi);
+        const o = prev[oi]!;
+        return { ...s, ...(o.completedWorkoutId ? { completedWorkoutId: o.completedWorkoutId } : {}), ...(o.skipped ? { skipped: true } : {}) };
+      }),
+    };
+  });
 }
 
 export interface DiffLine { kind: 'added' | 'removed' | 'changed'; text: string }
@@ -281,14 +316,15 @@ export function diffDrafts(old: DraftWeek[], next: DraftWeek[], names: ReadonlyM
     if (!ow || !nw) continue;
     if ((ow.phase ?? '') !== (nw.phase ?? '') || !!ow.isDeload !== !!nw.isDeload)
       out.push({ kind: 'changed', text: `${label}: phase ${ow.phase ?? 'none'}${ow.isDeload ? ' (deload)' : ''} → ${nw.phase ?? 'none'}${nw.isDeload ? ' (deload)' : ''}` });
-    const sc = Math.max(ow.sessions.length, nw.sessions.length);
-    for (let si = 0; si < sc; si++) {
-      const os = ow.sessions[si], ns = nw.sessions[si];
-      const sl = `${label} day ${si + 1}`;
+    for (const [oi, ni] of matchSessions(ow.sessions, nw.sessions)) {
+      const os = oi === undefined ? undefined : ow.sessions[oi];
+      const ns = ni === undefined ? undefined : nw.sessions[ni];
+      const sl = `${label} day ${(ni ?? oi ?? 0) + 1}`;
       if (!os && ns) { out.push({ kind: 'added', text: `${sl} "${ns.name}": ${ns.exercises.map(exLine).join('; ')}` }); continue; }
-      if (os && !ns) { out.push({ kind: 'removed', text: `${sl} "${os.name}"` }); continue; }
+      if (os && !ns) { out.push({ kind: 'removed', text: `${label} day ${(oi ?? 0) + 1} "${os.name}"` }); continue; }
       if (!os || !ns) continue;
       if (os.name !== ns.name) out.push({ kind: 'changed', text: `${sl}: renamed "${os.name}" → "${ns.name}"` });
+      if (oi !== ni && os.name === ns.name) out.push({ kind: 'changed', text: `${sl}: "${ns.name}" moved from day ${(oi ?? 0) + 1}` });
       const oldBy = new Map(os.exercises.map((e) => [e.exerciseId, e]));
       const newBy = new Map(ns.exercises.map((e) => [e.exerciseId, e]));
       for (const e of ns.exercises) {
@@ -296,8 +332,10 @@ export function diffDrafts(old: DraftWeek[], next: DraftWeek[], names: ReadonlyM
         if (!o) out.push({ kind: 'added', text: `${sl}: ${exLine(e)}` });
         else {
           const a = formatTargets(o.targets, unit), b = formatTargets(e.targets, unit);
+          const restsA = o.targets.map((t) => t.restSec ?? '').join(','), restsB = e.targets.map((t) => t.restSec ?? '').join(',');
           if (a !== b) out.push({ kind: 'changed', text: `${sl}: ${nm(e.exerciseId)} ${a} → ${b}` });
           else if ((o.restSec ?? -1) !== (e.restSec ?? -1)) out.push({ kind: 'changed', text: `${sl}: ${nm(e.exerciseId)} rest ${o.restSec ?? 'default'} → ${e.restSec ?? 'default'} s` });
+          else if (restsA !== restsB) out.push({ kind: 'changed', text: `${sl}: ${nm(e.exerciseId)} set rest times changed` });
         }
       }
       for (const e of os.exercises) if (!newBy.has(e.exerciseId)) out.push({ kind: 'removed', text: `${sl}: ${nm(e.exerciseId)}` });

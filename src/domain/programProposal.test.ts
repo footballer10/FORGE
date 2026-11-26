@@ -112,3 +112,25 @@ describe('diffDrafts and carryOverHistory', () => {
     expect(carryOverHistory(renamed, old)[0]!.sessions[0]!.completedWorkoutId).toBeUndefined();
   });
 });
+
+describe('diff matches sessions by name', () => {
+  const sess = (name: string, ids: string[] = ['sq']) => ({ key: name, name, exercises: ids.map((exerciseId, order) => ({ exerciseId, order, targets: [{ type: 'working' as const, reps: 5 }] })) });
+  const names = new Map([['sq', 'Squat'], ['bp', 'Bench']]);
+  it('inserting a session early in a week shows one added session, not changes to every later day', () => {
+    const old = [{ key: 'w', sessions: [sess('A Day'), sess('B Day'), sess('C Day')] }];
+    const next = [{ key: 'w', sessions: [sess('Speed'), sess('A Day'), sess('B Day'), sess('C Day')] }];
+    const d = diffDrafts(old, next, names, 'lb');
+    expect(d.filter((l) => l.kind === 'added')).toHaveLength(1);
+    expect(d.filter((l) => l.kind === 'removed')).toHaveLength(0);
+    expect(d.some((l) => l.text.includes('renamed'))).toBe(false);
+  });
+  it('a renamed session still pairs up and only reports the rename', () => {
+    const d = diffDrafts([{ key: 'w', sessions: [sess('A Day')] }], [{ key: 'w', sessions: [sess('Lower A')] }], names, 'lb');
+    expect(d.map((l) => l.text)).toEqual(['Week 1 day 1: renamed "A Day" → "Lower A"']);
+  });
+  it('keeps done history on a session that moved within its week', () => {
+    const old = [{ key: 'w', sessions: [{ ...sess('A Day'), completedWorkoutId: 'w1' }, sess('B Day')] }];
+    const next = [{ key: 'w', sessions: [sess('New'), sess('A Day'), sess('B Day')] }];
+    expect(carryOverHistory(next, old)[0]!.sessions.map((s) => s.completedWorkoutId)).toEqual([undefined, 'w1', undefined]);
+  });
+});
