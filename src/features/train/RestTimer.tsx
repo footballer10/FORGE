@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { formatClock, isStale, remainingSec } from '../../domain/restTimer';
-import { syncRestAudio } from './restAudio';
+import { ringIfSilent, syncRestAudio } from './restAudio';
 import { useWorkout } from './workoutStore';
 
 const BUZZ = [200, 100, 200];
@@ -37,7 +37,10 @@ export function RestTimer() {
   // Finished: buzz (only if it just ended, not when waking up long after) and clear.
   useEffect(() => {
     if (!endsAt || now < Date.parse(endsAt)) return;
-    if (!isStale(endsAt, now)) navigator.vibrate?.(BUZZ);
+    if (!isStale(endsAt, now)) {
+      navigator.vibrate?.(BUZZ);
+      if (document.visibilityState === 'visible') ringIfSilent();
+    }
     void skipRest();
   }, [now, endsAt, skipRest]);
 

@@ -1,4 +1,4 @@
-import { buildRestWav, buildSilentWav } from '../../domain/restAudio';
+import { buildBellWav, buildRestWav, buildSilentWav } from '../../domain/restAudio';
 
 /**
  * Browser side of the rest alarm. One persistent <audio> element plays a generated file that is
@@ -12,8 +12,8 @@ const KEY = 'forge.restAlert';
 
 export const REST_ALERT_LABELS: Record<RestAlert, string> = {
   off: 'Off',
-  mix: 'Sound (plays over your music)',
-  priority: 'Loud (pauses music, ignores the silent switch)',
+  mix: 'Sound (over your music, while the screen is on)',
+  priority: 'Loud (also when locked; pauses music)',
 };
 
 export function getRestAlert(): RestAlert {
@@ -35,6 +35,9 @@ export function setRestAlert(v: RestAlert): void {
 }
 
 let el: HTMLAudioElement | null = null;
+/** Separate element for the plain bell, rung when the app is open and the long file did not play. */
+let bellEl: HTMLAudioElement | null = null;
+let bellUrl: string | null = null;
 let url: string | null = null;
 let endMs = 0;
 let unlocked = false;
@@ -75,6 +78,15 @@ export async function unlockRestAudio(): Promise<void> {
     setSession(getRestAlert());
     load(buildSilentWav());
     await element().play();
+    // Unlock the bell element with the same tap, and preload the bell.
+    bellEl ??= new Audio();
+    bellUrl ??= URL.createObjectURL(new Blob([buildBellWav() as BlobPart], { type: 'audio/wav' }));
+    bellEl.src = bellUrl;
+    bellEl.muted = true;
+    await bellEl.play().catch(() => undefined);
+    bellEl.pause();
+    bellEl.muted = false;
+    bellEl.currentTime = 0;
   } catch {
     unlocked = false; // try again on the next tap
   }
@@ -117,4 +129,21 @@ export function testRestAudio(delaySec = 10): void {
   if (mode === 'off') return;
   void unlockRestAudio();
   syncRestAudio(new Date(Date.now() + delaySec * 1000).toISOString());
+}
+
+/**
+ * Called by the on-screen timer when a rest ends while the app is visible. If the long file is playing
+ * its bell right now, do nothing (no double ring); otherwise ring the bell directly. This covers the
+ * cases where iOS stopped or never started the long file.
+ */
+export function ringIfSilent(): void {
+  if (getRestAlert() === 'off' || !bellEl) return;
+  const longPlaying = !!el && !el.paused && !el.ended && el.currentTime > 0;
+  if (longPlaying) return;
+  try {
+    bellEl.currentTime = 0;
+    void bellEl.play().catch(() => undefined);
+  } catch {
+    /* nothing more to try */
+  }
 }

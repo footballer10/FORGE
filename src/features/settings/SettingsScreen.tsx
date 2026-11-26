@@ -180,9 +180,9 @@ export function SettingsScreen() {
           </select>
         </label>
         <button type="button" disabled={alert === 'off'} onClick={() => testRestAudio(10)} className="mt-2 min-h-tap rounded-card border border-line px-4 text-sm text-fg disabled:opacity-50">
-          Test: three beeps in 10 seconds
+          Test: bell in 10 seconds
         </button>
-        <p className="mt-2 text-xs text-muted">Lock your phone after tapping Test to check it sounds with the screen off. Needs the app installed to the Home Screen. Three beeps play when a rest ends, after every set including warm-ups.</p>
+        <p className="mt-2 text-xs text-muted">A boxing bell rings when every rest ends while Forge is open. With the screen locked, iPhone silences "Sound" mode; "Loud" keeps ringing when locked but pauses your music during rests. Reliable alerts with the app closed need lock-screen notifications (planned).</p>
       </section>
 
       <section className="rounded-card border border-line bg-surface px-4" aria-label="Appearance">
