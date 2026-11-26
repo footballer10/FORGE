@@ -99,3 +99,25 @@ describe('e1RM for high-rep work', () => {
     expect(e1rmSeries([ls('c', '2026-11-22T10:00:00Z', 50, 25)], 'epley')).toEqual([]);
   });
 });
+
+describe('rep records count for every rep count at or below what was done', () => {
+  const ls = (workoutId: string, date: string, load: number, reps: number) => ({ setId: `${workoutId}-${load}x${reps}`, workoutId, date, load, reps });
+  const sets = [
+    ls('w1', '2026-01-01T10:00:00Z', 200, 3),
+    ls('w1', '2026-01-01T10:10:00Z', 180, 7),
+    ls('w2', '2026-01-08T10:00:00Z', 210, 5), // heavier 5: beats the 3-rep (and 1-2) best quietly, and is a new 5-rep best
+  ];
+  it('reports only the rep count actually done, and tracks 7 reps too', () => {
+    const reps = detectPrs(sets, 'epley').filter((e) => e.kind === 'rep');
+    expect(reps.map((e) => e.reps)).toEqual([5]);
+    expect(reps[0]).toMatchObject({ value: 210, previous: 180 }); // the old 5-rep best was the 180 × 7
+  });
+  it('saves the lower counts as implied records, not shown as PRs', () => {
+    const all = detectPrs(sets, 'epley', { includeImplied: true }).filter((e) => e.kind === 'rep');
+    expect(all.filter((e) => e.implied).map((e) => e.reps)).toEqual([1, 2, 3, 4]);
+  });
+  it('a lighter set at fewer reps than an earlier heavier set is not a PR', () => {
+    const r = detectPrs([ls('a', '2026-01-01T10:00:00Z', 225, 5), ls('b', '2026-01-08T10:00:00Z', 220, 3)], 'epley').filter((e) => e.kind === 'rep');
+    expect(r).toEqual([]);
+  });
+});

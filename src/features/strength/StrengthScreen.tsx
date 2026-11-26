@@ -12,7 +12,8 @@ import { InsightsScreen } from './InsightsScreen';
 import { StrengthChart } from './StrengthChart';
 
 /** Weeks without an e1RM gain before a lift is flagged. */
-export const PLATEAU_WEEKS = 6;
+export { PLATEAU_WEEKS } from '../../domain/volume';
+import { PLATEAU_WEEKS } from '../../domain/volume';
 
 const n0 = (n: number) => String(Math.round(n));
 
@@ -87,7 +88,7 @@ export function StrengthScreen() {
             })}
           </ul>
           <p className="mt-3 text-xs text-muted">
-            Number = best estimated 1RM in the last 4 weeks, change vs the 4 weeks before. Plateau = no gain in {PLATEAU_WEEKS} weeks.
+            Number = best estimated 1RM in the last 4 weeks, change vs the 4 weeks before. Plateau = no workout in the last {PLATEAU_WEEKS} weeks beat the first one in those weeks (older history is ignored).
           </p>
         </>
       )}

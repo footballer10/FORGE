@@ -31,7 +31,7 @@ export interface ProposalPreview {
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 const MAX_LIFTS = 15;
-const PLATEAU_WEEKS = 6;
+const PLATEAU_WEEKS = 4;
 
 /** Gathers the summary numbers from storage (all via existing pure analytics) and renders them as text. */
 export const coachRepo = {

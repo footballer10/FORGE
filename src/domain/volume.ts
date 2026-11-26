@@ -160,34 +160,35 @@ export interface PlateauResult {
   since?: string;
 }
 
+/** Weeks a plateau is judged over. Older history is ignored, so coming back after a lay-off is not a plateau. */
+export const PLATEAU_WEEKS = 4;
+
 /**
- * Plateau: no e1RM gain in the last `weeks` weeks. Needs a best value from before the window and at
- * least `minSessions` sessions inside it (a lay-off is not a plateau). Gain = the window's best strictly beats the earlier best.
+ * Plateau: within the last `weeks` weeks only, no session beat the first session in that window
+ * (needs at least `minSessions` sessions in the window). Anything before the window is ignored.
+ * `bestBefore` = the first session's e1RM in the window, `since` its date; `bestRecent` = the best after it.
  */
 export function detectPlateau(
   series: readonly { date: string; e1rm: number }[],
   today: string,
-  weeks: number,
+  weeks: number = PLATEAU_WEEKS,
   minSessions = 3,
 ): PlateauResult {
   const cutoff = addDays(today, -7 * weeks);
-  let bestBefore = 0;
-  let since: string | undefined;
-  let bestRecent = 0;
-  let sessions = 0;
-  for (const p of series) {
-    const day = localDateKey(p.date);
-    if (day < cutoff) {
-      if (p.e1rm > bestBefore) {
-        bestBefore = p.e1rm;
-        since = day;
-      }
-    } else {
-      sessions += 1;
-      bestRecent = Math.max(bestRecent, p.e1rm);
-    }
-  }
-  return { plateau: bestBefore > 0 && sessions >= minSessions && bestRecent <= bestBefore, bestBefore, bestRecent, sessionsInWindow: sessions, since };
+  const inWindow = series
+    .map((p) => ({ day: localDateKey(p.date), e1rm: p.e1rm }))
+    .filter((p) => p.day >= cutoff && p.day <= today)
+    .sort((x, y) => x.day.localeCompare(y.day));
+  const first = inWindow[0];
+  const later = inWindow.slice(1);
+  const bestRecent = later.length ? Math.max(...later.map((p) => p.e1rm)) : 0;
+  return {
+    plateau: !!first && inWindow.length >= minSessions && bestRecent <= first.e1rm,
+    bestBefore: first?.e1rm ?? 0,
+    bestRecent,
+    sessionsInWindow: inWindow.length,
+    since: first?.day,
+  };
 }
 
 export interface BalanceCheck {
