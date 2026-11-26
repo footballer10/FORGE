@@ -12,6 +12,12 @@ export const E1RM_RELIABLE_REPS = 12;
 export const E1RM_MAX_REPS = 20;
 
 /**
+ * The one formula the app uses (no setting): Epley, weight × (1 + reps ÷ 30). The most widely used, and it
+ * stays sensible for the 13–20-rep fallback where Brzycki climbs steeply.
+ */
+export const E1RM_FORMULA = 'epley' as const;
+
+/**
  * Which sets of ONE session feed its e1RM: those of 1–12 reps when there are any, else those of 13–20 reps
  * (flagged rough). Warm-ups must already be excluded by the caller.
  */

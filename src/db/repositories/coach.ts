@@ -1,3 +1,4 @@
+import { E1RM_FORMULA } from '../../domain/e1rm';
 import { addDays, localDateKey } from '../../domain/calendar';
 import { buildCoachSummary, formatTargets, type CoachSummaryInput, type SummaryLift, type SummaryPr } from '../../domain/coachSummary';
 import { E1RM_MAX_REPS } from '../../domain/e1rm';
@@ -76,7 +77,7 @@ export const coachRepo = {
       const ls: LiftSet[] = liftSets(sets, ex, data.workouts, data.metrics, unit);
       const inWindow = ls.filter((s) => localDateKey(s.date) >= from && localDateKey(s.date) < to);
       if (!inWindow.length) continue;
-      const series = e1rmSeries(ls, profile.e1rmFormula);
+      const series = e1rmSeries(ls, E1RM_FORMULA);
       const before = series.filter((p) => localDateKey(p.date) < from);
       const now = series.filter((p) => localDateKey(p.date) >= from && localDateKey(p.date) < to);
       const top = inWindow.reduce((m, s) => (s.load * Math.min(s.reps, E1RM_MAX_REPS) > m.load * Math.min(m.reps, E1RM_MAX_REPS) ? s : m), inWindow[0]!);
@@ -88,7 +89,7 @@ export const coachRepo = {
         topSet: `${round1(top.load)} × ${top.reps}`,
         plateau: detectPlateau(series, today, PLATEAU_WEEKS).plateau,
       });
-      for (const e of detectPrs(ls, profile.e1rmFormula)) {
+      for (const e of detectPrs(ls, E1RM_FORMULA)) {
         const day = localDateKey(e.date);
         if (day >= from && day < to) prs.push({ name: ex.name, date: day, kind: e.kind, ...(e.reps ? { reps: e.reps } : {}), value: round1(e.value), previous: round1(e.previous) });
       }
@@ -137,7 +138,7 @@ export const coachRepo = {
     const dflt = profile.defaultEquipmentProfileId;
     const w = (x?: { value: number; unit: string }) => (x ? `${x.value} ${x.unit}` : undefined);
     return {
-      today, from, days, unit, formula: profile.e1rmFormula,
+      today, from, days, unit, formula: E1RM_FORMULA,
       profile: {
         ...(profile.birthYear ? { age: new Date().getFullYear() - profile.birthYear } : {}),
         ...(profile.sex ? { sex: profile.sex } : {}),

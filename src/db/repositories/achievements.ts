@@ -1,3 +1,4 @@
+import { E1RM_FORMULA } from '../../domain/e1rm';
 import { evaluateAchievements, newAchievements, type AchievementLift } from '../../domain/achievements';
 import { localDateKey } from '../../domain/calendar';
 import { liftSets, detectPrs, e1rmSeries, type PrEvent } from '../../domain/prs';
@@ -32,7 +33,6 @@ export async function weeklyTarget(): Promise<number> {
 
 async function allPrs(): Promise<{ prs: NamedPr[]; weeks: WeekResult[]; summary?: StreakSummary; trainingData: Awaited<ReturnType<typeof analyticsRepo.trainingData>> }> {
   const data = await analyticsRepo.trainingData();
-  const profile = await profileRepo.get();
   const byExercise = new Map<ID, SetEntry[]>();
   for (const s of data.sets) {
     const arr = byExercise.get(s.exerciseId);
@@ -44,7 +44,7 @@ async function allPrs(): Promise<{ prs: NamedPr[]; weeks: WeekResult[]; summary?
     const exercise = data.exercises.get(exerciseId);
     if (!exercise) continue;
     const ls = liftSets(sets, exercise, data.workouts, data.metrics, data.unit);
-    for (const p of detectPrs(ls, profile.e1rmFormula)) prs.push({ ...p, exerciseId, exerciseName: exercise.name });
+    for (const p of detectPrs(ls, E1RM_FORMULA)) prs.push({ ...p, exerciseId, exerciseName: exercise.name });
   }
   prs.sort((a, b) => b.date.localeCompare(a.date));
   const target = await weeklyTarget();
@@ -91,11 +91,10 @@ export const achievementsRepo = {
     if (!input || !current) return false;
     const workouts = new Map(input.workouts);
     workouts.set(current.id, current);
-    const profile = await profileRepo.get();
     const ls = liftSets(input.sets, input.exercise, workouts, input.metrics, await analyticsRepo.weightUnit());
     const mine = ls.find((l) => l.setId === setId);
     if (!mine) return false;
-    return detectPrs(ls, profile.e1rmFormula).some((e) => e.kind === 'rep' && e.workoutId === current.id && e.reps === mine.reps && e.value === mine.load);
+    return detectPrs(ls, E1RM_FORMULA).some((e) => e.kind === 'rep' && e.workoutId === current.id && e.reps === mine.reps && e.value === mine.load);
   },
 
   /** Earned achievements, newest first. */
@@ -136,8 +135,8 @@ export const achievementsRepo = {
       const exercise = data.exercises.get(exerciseId);
       if (!exercise) continue;
       const ls = liftSets(sets, exercise, data.workouts, data.metrics, data.unit);
-      for (const p of detectPrs(ls, profile.e1rmFormula)) prs.push({ date: p.date, workoutId: p.workoutId });
-      if (chosen.has(exerciseId)) lifts.push({ exerciseId, name: exercise.name, points: e1rmSeries(ls, profile.e1rmFormula) });
+      for (const p of detectPrs(ls, E1RM_FORMULA)) prs.push({ date: p.date, workoutId: p.workoutId });
+      if (chosen.has(exerciseId)) lifts.push({ exerciseId, name: exercise.name, points: e1rmSeries(ls, E1RM_FORMULA) });
     }
     const target = await weeklyTarget();
     const weeks = weeklyResults(workouts.map((w) => ({ id: w.id, startedAt: w.date })), target, localDateKey(new Date()));

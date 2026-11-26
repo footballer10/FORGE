@@ -23,7 +23,7 @@ export { coachRepo, type ProposalPreview } from './coach';
 export { syncRepo, normalizeUrl, type SyncStatus } from './sync';
 export { insightsRepo } from './insights';
 export { achievementsRepo, type NamedPr, type WorkoutSummary } from './achievements';
-export { analyticsRepo, type LiftedExercise, type ExerciseAnalyticsInput, type TrainingData } from './analytics';
+export { analyticsRepo, type LiftedExercise, type ExerciseAnalyticsInput, type TrainingData, type StrengthLift } from './analytics';
 export { newId, nowIso, type NewEntity, type Repository } from './base';
 
 export const exerciseRepo = {

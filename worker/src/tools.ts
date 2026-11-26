@@ -3,7 +3,7 @@
  * already read from D1, so they can be tested without a server. Every result states its units
  * and, for e1RM, the formula and inputs.
  */
-import { e1rmCandidates, estimate1rm, formulaInfo } from '../../src/domain/e1rm';
+import { E1RM_FORMULA, e1rmCandidates, estimate1rm, formulaInfo } from '../../src/domain/e1rm';
 import { effectiveLoad, isAnalyticSet } from '../../src/domain/load';
 import { volumeSets, weeklyTotals } from '../../src/domain/volume';
 import { extractJson, proposalExerciseNames, validateProposal } from '../../src/domain/programProposal';
@@ -95,7 +95,7 @@ export function getExerciseHistory(d: Data, name: string, limit = 10) {
     d.exercises.find((e) => !e.deletedAt && (e.name.toLowerCase().includes(q) || e.aliases.some((a) => a.toLowerCase() === q)));
   if (!exercise) return { error: `No exercise matches "${name}". Use list_exercises to find the name.` };
   const unit = d.profile?.weightUnit ?? 'lb';
-  const formula = d.profile?.e1rmFormula ?? 'epley';
+  const formula = E1RM_FORMULA;
   const wk = new Map(d.workouts.filter(finished).map((w) => [w.id, w]));
   const sets = d.sets.filter((s) => s.exerciseId === exercise.id && !s.deletedAt && isAnalyticSet(s) && wk.has(s.workoutId));
   const groups = new Map<string, SetEntry[]>();

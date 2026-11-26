@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { analyticsRepo, type ExerciseAnalyticsInput } from '../../db/repositories';
 import { localDateKey } from '../../domain/calendar';
-import { E1RM_FORMULAS, E1RM_MAX_REPS, formulaInfo } from '../../domain/e1rm';
+import { E1RM_FORMULA, E1RM_MAX_REPS } from '../../domain/e1rm';
 import { CHART_RANGES, bestPoint, exerciseHistory, inRange, recentPrBadges, repRecords, type ChartRange, type HistoryWorkout } from '../../domain/exerciseHistory';
 import { detectPrs, e1rmSeries, liftSets } from '../../domain/prs';
 import { convertWeight } from '../../domain/units';
-import type { E1rmFormula, LoadModel, WeightUnit } from '../../domain/types';
+import type { LoadModel, WeightUnit } from '../../domain/types';
 
 const round = (n: number) => Math.round(n * 10) / 10;
 const day = (iso: string) => new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: '2-digit' });
@@ -31,18 +31,17 @@ function weightText(w: HistoryWorkout['working'][number], unit: WeightUnit, mode
 export function ExerciseStrength({ exerciseId, onBack }: { exerciseId: string; onBack: () => void }) {
   const [input, setInput] = useState<ExerciseAnalyticsInput | null>(null);
   const [unit, setUnit] = useState<WeightUnit>('lb');
-  const [formula, setFormula] = useState<E1rmFormula>('epley');
+  const formula = E1RM_FORMULA;
   const [range, setRange] = useState<ChartRange>('6m');
   const [segment, setSegment] = useState<Segment>('history');
   const [shown, setShown] = useState(10);
 
   useEffect(() => {
     let live = true;
-    void Promise.all([analyticsRepo.exerciseInput(exerciseId), analyticsRepo.weightUnit(), analyticsRepo.e1rmFormula()]).then(([i, u, f]) => {
+    void Promise.all([analyticsRepo.exerciseInput(exerciseId), analyticsRepo.weightUnit()]).then(([i, u]) => {
       if (!live) return;
       setInput(i ?? null);
       setUnit(u);
-      setFormula(f);
     });
     return () => {
       live = false;
@@ -67,13 +66,7 @@ export function ExerciseStrength({ exerciseId, onBack }: { exerciseId: string; o
     [input, lifts],
   );
   const best = bestPoint(series);
-  const info = formulaInfo(formula);
   const names = input ? new Map([...input.workouts].map(([id, w]) => [id, w.name])) : new Map<string, string>();
-
-  const pick = (f: E1rmFormula) => {
-    setFormula(f);
-    void analyticsRepo.setE1rmFormula(f);
-  };
 
   return (
     <div className="pb-6">
@@ -148,19 +141,7 @@ export function ExerciseStrength({ exerciseId, onBack }: { exerciseId: string; o
             ))}
           </div>
           <p className="mt-2 text-xs text-muted">
-            {info.name}: e1RM = {info.formula}. One point per workout: its best set of 1–12 reps, or, when it had only 13–{E1RM_MAX_REPS}-rep sets, a rough estimate from those. Warm-ups excluded.{' '}
-            <label className="whitespace-nowrap">
-              Formula{' '}
-              <select
-                value={formula}
-                onChange={(e) => pick(e.target.value as E1rmFormula)}
-                className="min-h-tap rounded border border-line bg-surface px-2 text-base text-fg"
-              >
-                {E1RM_FORMULAS.map((f) => (
-                  <option key={f.id} value={f.id}>{f.name}</option>
-                ))}
-              </select>
-            </label>
+            Estimated 1RM = weight × (1 + reps ÷ 30). One point per workout: its best set of 1–12 reps, or, when it had only 13–{E1RM_MAX_REPS}-rep sets, a rough estimate from those. Warm-ups excluded.
           </p>
 
           <div role="tablist" aria-label="Exercise detail" className="mt-5 grid grid-cols-3 border-b border-line">

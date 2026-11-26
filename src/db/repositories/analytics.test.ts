@@ -37,9 +37,20 @@ describe('analyticsRepo', () => {
     expect(prs.map((p) => p.kind).sort()).toEqual(['e1rm', 'rep', 'volume']);
   });
 
-  it('stores the chosen formula in the profile', async () => {
+  it('always uses the one app formula, whatever an old profile says', async () => {
     await analyticsRepo.setE1rmFormula('brzycki');
-    expect(await analyticsRepo.e1rmFormula()).toBe('brzycki');
+    expect(await analyticsRepo.e1rmFormula()).toBe('epley');
+  });
+
+  it('lists lifts with an estimated 1RM, including 15-rep-only work', async () => {
+    const e = await exerciseRepo.create(ex);
+    const w = await workoutRepo.start({ name: 'A' });
+    const we = await workoutRepo.addExercise(w.id, e.id);
+    await workoutRepo.addSet(we.id, { weight: 20, reps: 15, unit: 'lb', completedAt: new Date().toISOString() });
+    await workoutRepo.finish(w.id);
+    const lifts = await analyticsRepo.strengthLifts();
+    expect(lifts).toHaveLength(1);
+    expect(lifts[0]!.series[0]).toMatchObject({ reps: 15, rough: true });
   });
 });
 
