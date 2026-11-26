@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { Keypad } from '../../components/Keypad';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { convertWeight, metresTo, toMetres } from '../../domain/units';
@@ -7,7 +7,7 @@ import { displayWeight } from '../../domain/load';
 import { fieldsFor, inUnit, suggestionTarget, type SetField } from '../../domain/logging';
 import { describeTargets } from '../../domain/routine';
 import { collapsedSummary, currentExerciseId, foldWarmups } from '../../domain/workoutView';
-import type { EquipmentProfile, ID } from '../../domain/types';
+import type { EquipmentProfile, ID, SetEntry } from '../../domain/types';
 import { SetRow } from './SetRow';
 import { ExerciseSheet } from './ExerciseSheet';
 import { SetSheet } from './SetSheet';
@@ -186,8 +186,8 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
               )}
               {row.sets.map((x, i) =>
                 fold && x.type === 'warmup' ? null : (
+                  <Fragment key={x.id}>
                   <SetRow
-                    key={x.id}
                     set={inUnit(x, unit)}
                     index={i}
                     ordinal={row.sets.slice(0, i).filter((s) => s.type !== 'warmup').length + 1}
@@ -206,6 +206,20 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
                       void toggleComplete(x.id);
                     }}
                   />
+                  {x.id === nextSetId(row, currentId) && fields.includes('weight') && (
+                    <QuickStrip
+                      last={lastDoneBefore(row, i)}
+                      step={stepFor(row, 'weight')}
+                      unit={unit}
+                      onSame={(l) => void updateSet(x.id, { ...(l.weight !== undefined ? { weight: l.weight, unit: l.unit } : {}), ...(l.reps !== undefined ? { reps: l.reps } : {}) })}
+                      onStep={(d) => {
+                        const base = inUnit(x, unit).weight ?? (() => { const l = lastDoneBefore(row, i); return l ? inUnit(l, unit).weight : undefined; })();
+                        if (base === undefined) return;
+                        void updateSet(x.id, { weight: Math.max(0, Math.round((base + d) * 100) / 100), unit });
+                      }}
+                    />
+                  )}
+                  </Fragment>
                 ),
               )}
             </div>
@@ -356,6 +370,33 @@ function nextField(fields: SetField[], current: SetField): SetField | undefined 
 function plateTarget(row: ExerciseRow, unit: 'lb' | 'kg'): number {
   const s = row.sets.find((x) => !x.completedAt && x.weight !== undefined) ?? [...row.sets].reverse().find((x) => x.weight !== undefined);
   return s?.weight === undefined ? 0 : Math.round(convertWeight(s.weight, s.unit, unit) * 100) / 100;
+}
+
+/** The set you are about to do: the first unfinished set of the current exercise. */
+function nextSetId(row: ExerciseRow, currentId: ID | undefined): ID | undefined {
+  return row.we.id === currentId ? row.sets.find((s) => !s.completedAt)?.id : undefined;
+}
+
+/** Last completed set before index `i`, same kind (warm-up or working) when there is one. */
+function lastDoneBefore(row: ExerciseRow, i: number): SetEntry | undefined {
+  const done = row.sets.slice(0, i).filter((s) => s.completedAt && (s.weight !== undefined || s.reps !== undefined));
+  const warm = row.sets[i]?.type === 'warmup';
+  return [...done].reverse().find((s) => (s.type === 'warmup') === warm) ?? done[done.length - 1];
+}
+
+/** One-tap adjustments for the next set only: copy the last set, or step the weight by the exercise increment. */
+function QuickStrip({ last, step, unit, onSame, onStep }: { last?: SetEntry; step: number; unit: 'lb' | 'kg'; onSame: (l: SetEntry) => void; onStep: (d: number) => void }) {
+  const btn = 'min-h-tap rounded-card border border-line px-3 text-sm text-muted';
+  const shown = last ? inUnit(last, unit) : undefined;
+  return (
+    <div className="flex gap-2 pl-[52px] pr-[56px]">
+      <button type="button" className={`${btn} num flex-1 truncate`} disabled={!last} onClick={() => last && onSame(last)} aria-label="Same as last set">
+        {shown ? `Same as last · ${shown.weight ?? '—'} × ${shown.reps ?? '—'}` : 'Same as last'}
+      </button>
+      <button type="button" className={`${btn} num`} onClick={() => onStep(-step)} aria-label={`Minus ${step} ${unit}`}>−{step}</button>
+      <button type="button" className={`${btn} num`} onClick={() => onStep(step)} aria-label={`Plus ${step} ${unit}`}>+{step}</button>
+    </div>
+  );
 }
 
 const isPlateLoaded = (row: ExerciseRow) => row.exercise.equipment === 'barbell' && row.exercise.loadModel === 'total';
