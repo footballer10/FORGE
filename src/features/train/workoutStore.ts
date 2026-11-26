@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { achievementsRepo, exerciseRepo, metaRepo, nowIso, plannedSessionRepo, profileRepo, routineRepo, undoRepo, workoutRepo } from '../../db/repositories';
-import { convertWeight } from '../../domain/units';
+import { convertWeight, distanceUnitFor, type DistanceUnit } from '../../domain/units';
 import { autoWarmupWeights, buildWarmups, warmupKitFor } from '../../domain/warmup';
 import type { ConditioningExerciseName, ConditioningPreset } from '../../domain/conditioningPresets';
 import { triageOpenWorkouts } from '../../domain/openWorkouts';
@@ -23,7 +23,12 @@ interface State {
   workout?: Workout;
   rows: ExerciseRow[];
   unit: WeightUnit;
+  /** Set distances are shown and typed in this unit (stored in metres). */
+  distUnit: DistanceUnit;
   showPairTotal: boolean;
+  /** Per-side plate list under barbell weights (Settings). */
+  platesInline: boolean;
+  setPlatesInline: (on: boolean) => Promise<void>;
   /** Equipment profile used for the plate calculator. */
   equipment?: EquipmentProfile;
   /** Absolute end of the running rest timer (ISO), if any. Persisted on the workout. */
@@ -158,7 +163,9 @@ export const useWorkout = create<State>((set, get) => {
     clearFinished: () => set({ finishedId: undefined }),
     rows: [],
     unit: 'lb',
+    distUnit: 'yd',
     showPairTotal: false,
+    platesInline: true,
 
     async load() {
       const [profile, open] = await Promise.all([profileRepo.get(), workoutRepo.openWorkouts()]);
@@ -178,7 +185,7 @@ export const useWorkout = create<State>((set, get) => {
           : undefined,
       });
       const equipment = profile.equipmentProfiles.find((e) => e.id === profile.defaultEquipmentProfileId);
-      set({ unit: profile.weightUnit, showPairTotal: profile.showDumbbellPairTotal, autoWarmup: profile.autoWarmups !== false, manualWarmups: [], ...(equipment ? { equipment } : {}), rows: [], restEndsAt: undefined, restTotalSec: undefined });
+      set({ unit: profile.weightUnit, distUnit: distanceUnitFor(profile.lengthUnit), platesInline: profile.showPlatesInline !== false, showPairTotal: profile.showDumbbellPairTotal, autoWarmup: profile.autoWarmups !== false, manualWarmups: [], ...(equipment ? { equipment } : {}), rows: [], restEndsAt: undefined, restTotalSec: undefined });
       if (active) {
         await refresh(active.id);
         const ends = active.restTimerEndsAt;
@@ -450,6 +457,11 @@ export const useWorkout = create<State>((set, get) => {
         if (groups[it.id] !== it.supersetGroup) await workoutRepo.updateExercise(it.id, { supersetGroup: groups[it.id] });
       }
       await refresh(w.id);
+    },
+
+    async setPlatesInline(on) {
+      set({ platesInline: on });
+      await profileRepo.update({ showPlatesInline: on });
     },
 
     async setShowPairTotal(show) {

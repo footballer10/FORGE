@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Keypad } from '../../components/Keypad';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
-import { convertWeight } from '../../domain/units';
+import { convertWeight, metresTo, toMetres } from '../../domain/units';
+import { plateLine } from '../../domain/plates';
 import { displayWeight } from '../../domain/load';
 import { fieldsFor, inUnit, suggestionTarget, type SetField } from '../../domain/logging';
 import { describeTargets } from '../../domain/routine';
@@ -46,7 +47,7 @@ function Elapsed({ startedAt }: { startedAt: string }) {
 export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
   const {
     prSetIds, workout, rows, unit, updateSet, toggleComplete, fillSuggested, addWarmups, addSet, removeSet, removeExercise, finish, discard,
-    setWorkoutNotes, setExerciseNote, setStickyNote, setExerciseOrder, toggleSuperset, showPairTotal, equipment,
+    setWorkoutNotes, setExerciseNote, setStickyNote, setExerciseOrder, toggleSuperset, showPairTotal, equipment, distUnit, platesInline,
   } = useWorkout();
   const [edit, setEdit] = useState<{ setId: ID; field: SetField } | null>(null);
   const [details, setDetails] = useState<ID | null>(null);
@@ -71,10 +72,11 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
   const plateRow = plates ? rows.find((r) => r.we.id === plates) : undefined;
   const menuRow = menuIndex >= 0 ? rows[menuIndex] : undefined;
 
+  const fieldLabel = (f: SetField) => (f === 'distanceM' && distUnit === 'yd' ? 'Yards' : FIELD_LABEL[f]);
   const stepFor = (row: ExerciseRow, field: SetField): number => {
     if (field === 'weight') return Math.round(convertWeight(row.exercise.weightIncrement, row.exercise.incrementUnit, unit) * 100) / 100;
     if (field === 'durationSec') return 5;
-    if (field === 'distanceM') return 50;
+    if (field === 'distanceM') return distUnit === 'yd' ? 10 : 50;
     return 1;
   };
 
@@ -167,7 +169,7 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
               <span className="min-w-tap text-center">Set</span>
               <span className="w-20 shrink-0">Previous</span>
               {fields.map((f) => (
-                <span key={f} className="flex-1 text-center">{f === 'weight' ? `${WEIGHT_HEADER[row.exercise.loadModel] ?? 'Weight'} (${unit})` : FIELD_LABEL[f]}</span>
+                <span key={f} className="flex-1 text-center">{f === 'weight' ? `${WEIGHT_HEADER[row.exercise.loadModel] ?? 'Weight'} (${unit})` : fieldLabel(f)}</span>
               ))}
               <span className="min-w-[48px]" />
             </div>
@@ -196,6 +198,8 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
                     onEdit={(field) => setEdit({ setId: x.id, field })}
                     onOpenDetails={() => setDetails(x.id)}
                     pr={!!x.completedAt && prSetIds.includes(x.id)}
+                    distUnit={distUnit}
+                    {...(platesInline && isPlateLoaded(row) && x.weight ? { plates: plateLine(inUnit(x, unit).weight!, barFor(row, equipment, unit), platesFor(equipment, unit)) } : {})}
                     pairTotal={showPairTotal && row.exercise.loadModel === 'perImplement' ? displayWeight(x, row.exercise, true, unit) : undefined}
                     onToggle={() => {
                       setEdit(null);
@@ -249,12 +253,12 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
       {edit && editRow && editSet && (
         <Keypad
           key={`${edit.setId}:${edit.field}`}
-          label={`${FIELD_LABEL[edit.field]} · ${editRow.exercise.name}`}
-          value={inUnit(editSet, unit)[edit.field]}
+          label={`${fieldLabel(edit.field)} · ${editRow.exercise.name}`}
+          value={edit.field === 'distanceM' && editSet.distanceM !== undefined ? Math.round(metresTo(editSet.distanceM, distUnit) * 10) / 10 : inUnit(editSet, unit)[edit.field]}
           step={stepFor(editRow, edit.field)}
           allowDecimal={edit.field === 'weight'}
-          onChange={(v) => void updateSet(edit.setId, edit.field === 'weight' ? { weight: v, unit } : { [edit.field]: v })}
-          nextLabel={nextField(fieldsFor(editRow.exercise.loadModel), edit.field) ? FIELD_LABEL[nextField(fieldsFor(editRow.exercise.loadModel), edit.field)!] : 'Done'}
+          onChange={(v) => void updateSet(edit.setId, edit.field === 'weight' ? { weight: v, unit } : edit.field === 'distanceM' ? { distanceM: v === undefined ? v : toMetres(v, distUnit) } : { [edit.field]: v })}
+          nextLabel={nextField(fieldsFor(editRow.exercise.loadModel), edit.field) ? fieldLabel(nextField(fieldsFor(editRow.exercise.loadModel), edit.field)!) : 'Done'}
           onNext={() => {
             const n = nextField(fieldsFor(editRow.exercise.loadModel), edit.field);
             setEdit(n ? { setId: edit.setId, field: n } : null);
@@ -353,6 +357,8 @@ function plateTarget(row: ExerciseRow, unit: 'lb' | 'kg'): number {
   const s = row.sets.find((x) => !x.completedAt && x.weight !== undefined) ?? [...row.sets].reverse().find((x) => x.weight !== undefined);
   return s?.weight === undefined ? 0 : Math.round(convertWeight(s.weight, s.unit, unit) * 100) / 100;
 }
+
+const isPlateLoaded = (row: ExerciseRow) => row.exercise.equipment === 'barbell' && row.exercise.loadModel === 'total';
 
 /** Bar weight for a barbell exercise in `unit`: the exercise's own bar, else the equipment profile's, else 45 lb. */
 function barFor(row: ExerciseRow, equipment: EquipmentProfile | undefined, unit: 'lb' | 'kg'): number {

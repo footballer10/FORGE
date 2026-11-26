@@ -1,4 +1,4 @@
-import { convertWeight } from './units';
+import { convertWeight, metresTo, type DistanceUnit } from './units';
 import type { LoadModel, SetEntry, SetType, WeightUnit } from './types';
 
 export type SetField = 'weight' | 'reps' | 'durationSec' | 'distanceM';
@@ -53,10 +53,10 @@ export function formatDuration(sec: number): string {
 const num = (n: number) => String(Math.round(n * 100) / 100);
 
 /** Compact text for a set: "135 × 5", "× 8", "1:30 · 400 m". */
-export function formatSet(set: DraftSource, loadModel: LoadModel, unit: WeightUnit): string {
+export function formatSet(set: DraftSource, loadModel: LoadModel, unit: WeightUnit, dist: DistanceUnit = 'm'): string {
   switch (fieldsFor(loadModel).join()) {
     case 'durationSec,distanceM': {
-      const parts = [set.durationSec !== undefined ? formatDuration(set.durationSec) : '', set.distanceM !== undefined ? `${num(set.distanceM)} m` : ''];
+      const parts = [set.durationSec !== undefined ? formatDuration(set.durationSec) : '', set.distanceM !== undefined ? `${num(Math.round(metresTo(set.distanceM, dist) * 10) / 10)} ${dist}` : ''];
       return parts.filter(Boolean).join(' · ') || '—';
     }
     case 'reps':

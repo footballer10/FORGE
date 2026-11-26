@@ -141,6 +141,11 @@ export function SettingsScreen() {
         </label>
         <p className="pb-3 text-xs text-muted">Weeks start on Monday. Pair total is a display line only; dumbbells are stored per implement.</p>
         <label className={`${row} border-t border-line`}>
+          <span>Show plates under barbell weights</span>
+          <input type="checkbox" className="h-6 w-6" checked={p.showPlatesInline !== false} onChange={(e) => { void useWorkout.getState().setPlatesInline(e.target.checked); setP({ ...p, showPlatesInline: e.target.checked }); }} />
+        </label>
+        <p className="pb-3 text-xs text-muted">A small per-side list (e.g. 45×2 10) under each barbell weight while you log. Uses your equipment profile's bar and plates.</p>
+        <label className={`${row} border-t border-line`}>
           <span>Fill warm-up weights automatically</span>
           <input type="checkbox" className="h-6 w-6" checked={p.autoWarmups !== false} onChange={(e) => { void useWorkout.getState().setAutoWarmup(e.target.checked); setP({ ...p, autoWarmups: e.target.checked }); }} />
         </label>
