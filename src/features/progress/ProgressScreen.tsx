@@ -5,11 +5,13 @@ import { BodyweightPanel } from './BodyweightPanel';
 import { ConditioningPanel } from './ConditioningPanel';
 import { FitnessPanel } from './FitnessPanel';
 import { PhotosPanel } from './PhotosPanel';
+import { ReadinessPanel } from '../readiness/ReadinessPanel';
 
-type Page = 'bodyweight' | 'tests' | 'conditioning' | 'photos';
+type Page = 'bodyweight' | 'readiness' | 'tests' | 'conditioning' | 'photos';
 
 const PAGES: { id: Page; title: string; detail: string }[] = [
   { id: 'bodyweight', title: 'Bodyweight', detail: 'Weigh-ins and trend' },
+  { id: 'readiness', title: 'Readiness', detail: 'Sleep, soreness and energy check-ins' },
   { id: 'tests', title: 'Fitness tests', detail: 'Air Force Academy PFT and AFT, plus your own tests' },
   { id: 'conditioning', title: 'Conditioning', detail: 'Runs, sprints and intervals' },
   { id: 'photos', title: 'Progress photos', detail: 'Kept on this device only' },
@@ -23,6 +25,7 @@ export function ProgressScreen() {
     return (
       <SubScreen title={p.title} onBack={() => setPage(null)} backLabel="Progress">
         {page === 'bodyweight' && <BodyweightPanel />}
+        {page === 'readiness' && <ReadinessPanel />}
         {page === 'tests' && <FitnessPanel />}
         {page === 'conditioning' && <ConditioningPanel />}
         {page === 'photos' && <PhotosPanel />}

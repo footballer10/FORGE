@@ -57,7 +57,7 @@ describe('MCP endpoint', () => {
       if (t.name !== 'propose_program') expect(t.annotations.readOnlyHint).toBe(true);
       return t.name;
     });
-    expect(names.filter((n: string) => n !== 'propose_program')).toEqual(['get_profile', 'list_exercises', 'list_workouts', 'get_exercise_history', 'get_weekly_sets', 'get_active_program', 'get_bodyweight', 'get_nutrition', 'get_fitness_tests', 'get_proposals']);
+    expect(names.filter((n: string) => n !== 'propose_program')).toEqual(['get_profile', 'list_exercises', 'list_workouts', 'get_exercise_history', 'get_weekly_sets', 'get_active_program', 'get_bodyweight', 'get_nutrition', 'get_readiness', 'get_fitness_tests', 'get_proposals']);
   });
 
   it('the only write tool is propose_program', async () => {
@@ -94,6 +94,7 @@ describe('tools over MCP', () => {
   it('get_active_program and get_bodyweight handle empty data', async () => {
     expect((await callTool('get_active_program')).note).toMatch(/No active/);
     expect((await callTool('get_bodyweight')).entries).toEqual([]);
+    expect((await callTool('get_readiness')).days).toEqual([]);
   });
   it('list_exercises searches by name', async () => {
     const out = await callTool('list_exercises', { query: 'bench' });

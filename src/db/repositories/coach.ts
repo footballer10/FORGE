@@ -12,7 +12,8 @@ import { analyticsRepo } from './analytics';
 import { fitnessRepo } from './fitness';
 import { nowIso } from './base';
 import { profileRepo } from './profile';
-import { aiDecisionRepo, exerciseRepo, programRepo } from './index';
+import { aiDecisionRepo, exerciseRepo, programRepo, readinessRepo } from './index';
+import { readinessTrend } from '../../domain/readiness';
 import { treeToDraft, type DraftWeek } from '../../domain/program';
 import { carryOverHistory, diffDrafts, extractJson, proposalToDraft, validateProposal, type DiffLine, type Proposal } from '../../domain/programProposal';
 import type { Program } from '../../domain/types';
@@ -150,6 +151,11 @@ export const coachRepo = {
           maxDumbbell: w(e.maxDumbbell), bar: w(e.barWeight), plates: e.plates?.map((p) => p.value).join(', '), notes: e.notes,
         })),
       },
+      ...(await (async () => {
+        const t = readinessTrend(await readinessRepo.list(), today, days);
+        const l = t.points[t.points.length - 1];
+        return t.points.length ? { readiness: { checkIns: t.points.length, ...(t.avg7 !== undefined ? { avg7: t.avg7 } : {}), ...(t.avgWindow !== undefined ? { avgWindow: t.avgWindow } : {}), ...(t.avgSleepHours !== undefined ? { avgSleepHours: t.avgSleepHours } : {}), ...(l ? { latest: l } : {}) } } : {};
+      })()),
       ...(last ? { bodyweight: { latest: round1(last.value), latestDate: last.date, trend: round1(last.trend), ...(change ? { change28: round1(change.delta) } : {}) } } : {}),
       sessions, conditioningSessions, hardSets: totals.sets, volume: totals.volume,
       muscleSetsPerWeek, unassignedSets: totals.unassigned, balance,

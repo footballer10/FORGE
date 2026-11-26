@@ -6,9 +6,10 @@
 import { E1RM_FORMULA, e1rmCandidates, estimate1rm, formulaInfo } from '../../src/domain/e1rm';
 import { effectiveLoad, isAnalyticSet } from '../../src/domain/load';
 import { volumeSets, weeklyTotals } from '../../src/domain/volume';
+import { READINESS_FORMULA, readinessTrend } from '../../src/domain/readiness';
 import { extractJson, proposalExerciseNames, validateProposal } from '../../src/domain/programProposal';
 import type {
-  AiDecision, BodyMetric, Exercise, FitnessTest, NutritionEntry, PlannedSession, TestResult, Profile, Program, ProgramWeek, SetEntry, Workout, WorkoutExercise,
+  AiDecision, BodyMetric, Exercise, FitnessTest, NutritionEntry, PlannedSession, ReadinessCheckIn, TestResult, Profile, Program, ProgramWeek, SetEntry, Workout, WorkoutExercise,
 } from '../../src/domain/types';
 
 export interface Data {
@@ -25,6 +26,8 @@ export interface Data {
   nutritionEntries: NutritionEntry[];
   fitnessTests: FitnessTest[];
   testResults: TestResult[];
+  /** Optional so older test fixtures and callers without the table still work. */
+  readiness?: ReadinessCheckIn[];
 }
 
 const day = (iso: string) => iso.slice(0, 10); // UTC day: the Worker has no time zone
@@ -173,6 +176,20 @@ export function getBodyweight(d: Data, limit = 30) {
       .sort((a, b) => (a.date < b.date ? 1 : -1))
       .slice(0, Math.min(Math.max(limit, 1), 200))
       .map((m) => ({ date: m.date, value: m.value, unit: m.unit })),
+  };
+}
+
+/** Readiness check-ins for the last `days` days (UTC today), newest first, with scores and averages. */
+export function getReadiness(d: Data, days = 28, today = new Date().toISOString().slice(0, 10)) {
+  const t = readinessTrend(d.readiness ?? [], today, Math.min(Math.max(days, 1), 180));
+  return {
+    formula: READINESS_FORMULA,
+    scales: 'soreness 1 = none, 5 = very sore; energy 1 = drained, 5 = great',
+    checkIns: t.points.length,
+    averageLast7Days: t.avg7,
+    averageWindow: t.avgWindow,
+    averageSleepHours: t.avgSleepHours,
+    days: [...t.points].reverse(),
   };
 }
 

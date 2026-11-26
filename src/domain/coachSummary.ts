@@ -78,6 +78,8 @@ export interface CoachSummaryInput {
   formula: E1rmFormula;
   profile: SummaryProfile;
   bodyweight?: { latest: number; latestDate: string; trend: number; change28?: number };
+  /** Readiness check-ins in the window (see domain/readiness). */
+  readiness?: { checkIns: number; avg7?: number; avgWindow?: number; avgSleepHours?: number; latest?: { date: string; score: number; sleepHours?: number; soreness?: number; energy?: number } };
   sessions: number;
   conditioningSessions: number;
   hardSets: number;
@@ -182,6 +184,18 @@ export function buildCoachSummary(i: CoachSummaryInput): string {
     const b = i.bodyweight;
     out.push(`- Bodyweight: ${num(b.latest)} ${u} on ${b.latestDate}; trend ${num(b.trend)} ${u} (EWMA, α 0.1 per day)${b.change28 !== undefined ? `; ${b.change28 >= 0 ? '+' : ''}${num(b.change28)} ${u} over 28 days` : ''}`);
   } else out.push(`- no weigh-ins`);
+  if (i.readiness && i.readiness.checkIns) {
+    const r = i.readiness;
+    const l = r.latest;
+    const parts = [
+      `${r.checkIns} check-ins`,
+      r.avg7 !== undefined ? `last 7 days ${num(r.avg7)}/5` : '',
+      r.avgWindow !== undefined ? `window ${num(r.avgWindow)}/5` : '',
+      r.avgSleepHours !== undefined ? `avg sleep ${num(r.avgSleepHours)} h` : '',
+    ].filter(Boolean);
+    out.push(`- Readiness (avg of sleep points = hours − 4 capped 1–5, 6 − soreness, energy; 1–5): ${parts.join('; ')}`);
+    if (l) out.push(`- Latest check-in ${l.date}: ${[l.sleepHours !== undefined && `${l.sleepHours} h sleep`, l.soreness !== undefined && `soreness ${l.soreness}/5`, l.energy !== undefined && `energy ${l.energy}/5`].filter(Boolean).join(', ')} → ${num(l.score)}/5`);
+  } else out.push(`- no readiness check-ins`);
 
   out.push(``, `## Fitness tests`);
   if (i.tests.length) for (const t of i.tests) out.push(`- ${[`${t.name}: ${t.latest ? `latest ${t.latest} (${t.latestDate}); best ${t.best}` : 'no results yet'}`, t.goal && `goal: ${t.goal}`].filter(Boolean).join('; ')}`);
