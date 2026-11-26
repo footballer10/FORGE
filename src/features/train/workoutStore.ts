@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { achievementsRepo, exerciseRepo, metaRepo, nowIso, plannedSessionRepo, profileRepo, routineRepo, undoRepo, workoutRepo } from '../../db/repositories';
 import { convertWeight } from '../../domain/units';
-import { buildWarmups } from '../../domain/warmup';
+import { autoWarmupWeights, buildWarmups, warmupKitFor } from '../../domain/warmup';
+import type { ConditioningExerciseName, ConditioningPreset } from '../../domain/conditioningPresets';
 import { canComplete, prefillDrafts, suggestionTarget } from '../../domain/logging';
 import { moveItem } from '../../domain/order';
 import { restAfterExercise, toggleSupersetLink } from '../../domain/superset';
@@ -28,6 +29,15 @@ interface State {
   restEndsAt?: string;
   /** Length the current rest started with, for the progress bar only. */
   restTotalSec?: number;
+  /** Fill warm-up weights from the first working weight (Settings). */
+  autoWarmup: boolean;
+  /** Warm-up sets whose weight the user typed this session: auto-fill leaves them alone. */
+  manualWarmups: ID[];
+  /** Recompute warm-up weights for one exercise, or all of them. Completed and hand-typed warm-ups are kept. */
+  autoFillWarmups: (workoutExerciseId?: ID) => Promise<void>;
+  setAutoWarmup: (on: boolean) => Promise<void>;
+  /** Start a conditioning session from a preset (sprints, intervals, test runs). False if a workout is already open. */
+  startConditioningPreset: (preset: ConditioningPreset) => Promise<boolean>;
   /** Sets that just set a rep PR (brief highlight; memory only). */
   prSetIds: ID[];
   /** Workout just finished (not an edit): the summary sheet shows it. */
@@ -82,6 +92,18 @@ interface State {
 /** meta key holding the ID of a finished workout that is being edited (survives reload). */
 const EDITING_KEY = 'editingWorkoutId';
 
+/** The time/distance exercise a preset logs to; created once as a custom exercise if the library has none by that name. */
+async function ensureConditioningExercise(name: ConditioningExerciseName): Promise<ID> {
+  const found = await exerciseRepo.findByName(name);
+  if (found && found.loadModel === 'timeDistance') return found.id;
+  const created = await exerciseRepo.create({
+    name: found ? `${name} (time/distance)` : name,
+    aliases: [], equipment: 'bodyweight', primaryMuscles: ['quadriceps', 'hamstrings', 'calves'], secondaryMuscles: ['glutes'],
+    pattern: 'conditioning', unilateral: false, defaultRestSec: 90, weightIncrement: 5, incrementUnit: 'lb', loadModel: 'timeDistance', source: 'custom',
+  });
+  return created.id;
+}
+
 /** True when the open workout is a finished one being edited. */
 export const isEditingPast = (w?: Workout) => !!w?.endedAt;
 
@@ -124,6 +146,8 @@ export const useWorkout = create<State>((set, get) => {
 
   return {
     loaded: false,
+    autoWarmup: true,
+    manualWarmups: [],
     prSetIds: [],
     clearFinished: () => set({ finishedId: undefined }),
     rows: [],
@@ -140,7 +164,7 @@ export const useWorkout = create<State>((set, get) => {
         else if (editingId) await metaRepo.set(EDITING_KEY, null);
       }
       const equipment = profile.equipmentProfiles.find((e) => e.id === profile.defaultEquipmentProfileId);
-      set({ unit: profile.weightUnit, showPairTotal: profile.showDumbbellPairTotal, ...(equipment ? { equipment } : {}), rows: [], restEndsAt: undefined, restTotalSec: undefined });
+      set({ unit: profile.weightUnit, showPairTotal: profile.showDumbbellPairTotal, autoWarmup: profile.autoWarmups !== false, manualWarmups: [], ...(equipment ? { equipment } : {}), rows: [], restEndsAt: undefined, restTotalSec: undefined });
       if (active) {
         await refresh(active.id);
         const ends = active.restTimerEndsAt;
@@ -162,8 +186,9 @@ export const useWorkout = create<State>((set, get) => {
       const routine = await routineRepo.get(routineId);
       if (!routine || routine.deletedAt) return false;
       const w = await workoutRepo.startFromRoutine(routine, get().unit);
-      set({ rows: [] });
+      set({ rows: [], manualWarmups: [] });
       await refresh(w.id);
+      await get().autoFillWarmups();
       return true;
     },
 
@@ -172,8 +197,9 @@ export const useWorkout = create<State>((set, get) => {
       const ps = await plannedSessionRepo.get(plannedSessionId);
       if (!ps || ps.deletedAt) return false;
       const w = await workoutRepo.startFromPlan({ name: ps.name, exercises: ps.exercises, plannedSessionId: ps.id }, get().unit);
-      set({ rows: [] });
+      set({ rows: [], manualWarmups: [] });
       await refresh(w.id);
+      await get().autoFillWarmups();
       return true;
     },
 
@@ -191,6 +217,7 @@ export const useWorkout = create<State>((set, get) => {
       const exercise = await exerciseRepo.get(exerciseId);
       if (exercise) set((st) => ({ rows: [...st.rows, { we, exercise, sets: [], last }] }));
       await refresh(w.id);
+      await get().autoFillWarmups(we.id);
     },
 
     async removeExercise(workoutExerciseId) {
@@ -221,6 +248,56 @@ export const useWorkout = create<State>((set, get) => {
     async updateSet(setId, patch) {
       patchLocal(setId, patch);
       await workoutRepo.updateSet(setId, patch);
+      const found = findSet(setId);
+      if (!found || isEditingPast(get().workout)) return;
+      if (found.set.type === 'warmup' && patch.weight !== undefined && patch.type === undefined) {
+        // The user chose this warm-up weight: auto-fill must not overwrite it.
+        set((st) => ({ manualWarmups: st.manualWarmups.includes(setId) ? st.manualWarmups : [...st.manualWarmups, setId] }));
+        return;
+      }
+      const firstWork = found.row.sets.find((s) => s.type !== 'warmup');
+      if (patch.type !== undefined || (patch.weight !== undefined && firstWork?.id === setId)) await get().autoFillWarmups(found.row.we.id);
+    },
+
+    async autoFillWarmups(workoutExerciseId) {
+      const { autoWarmup, equipment, unit, manualWarmups } = get();
+      if (!autoWarmup || isEditingPast(get().workout)) return;
+      for (const row of get().rows) {
+        if (workoutExerciseId && row.we.id !== workoutExerciseId) continue;
+        const warm = row.sets.filter((s) => s.type === 'warmup');
+        const first = row.sets.find((s) => s.type !== 'warmup' && s.weight !== undefined && s.weight > 0);
+        const kit = warmupKitFor(row.exercise, equipment, unit);
+        if (!warm.length || !first || first.weight === undefined || !kit) continue;
+        const plan = autoWarmupWeights(convertWeight(first.weight, first.unit, unit), warm.length, kit);
+        for (const [i, s] of warm.entries()) {
+          const step = plan[i];
+          if (!step || s.completedAt || manualWarmups.includes(s.id)) continue;
+          const reps = s.reps ?? step.reps;
+          if (s.weight === step.weight && s.unit === unit && s.reps === reps) continue;
+          const p = { weight: step.weight, unit, reps };
+          patchLocal(s.id, p);
+          await workoutRepo.updateSet(s.id, p);
+        }
+      }
+    },
+
+    async startConditioningPreset(preset) {
+      if (get().workout) return false;
+      const exerciseId = await ensureConditioningExercise(preset.exercise);
+      const w = await workoutRepo.startFromPlan(
+        { name: preset.name, exercises: [{ exerciseId, order: 0, targets: Array.from({ length: preset.count }, () => ({ type: 'working' as const, distanceM: preset.distanceM, restSec: preset.restSec })) }] },
+        get().unit,
+      );
+      await workoutRepo.update(w.id, { kind: 'conditioning' });
+      set({ rows: [], manualWarmups: [] });
+      await refresh(w.id);
+      return true;
+    },
+
+    async setAutoWarmup(on) {
+      set({ autoWarmup: on });
+      await profileRepo.update({ autoWarmups: on });
+      if (on) await get().autoFillWarmups();
     },
 
     async addWarmups(workoutExerciseId, bar, plates) {
@@ -235,6 +312,7 @@ export const useWorkout = create<State>((set, get) => {
       if (drafts.length === 0) return;
       await workoutRepo.insertWarmups(workoutExerciseId, drafts);
       await refresh(w.id);
+      await get().autoFillWarmups(workoutExerciseId);
     },
 
     async fillSuggested(workoutExerciseId) {
@@ -321,8 +399,9 @@ export const useWorkout = create<State>((set, get) => {
       if (get().workout) return false;
       const w = await workoutRepo.duplicate(workoutId);
       if (!w) return false;
-      set({ rows: [] });
+      set({ rows: [], manualWarmups: [] });
       await refresh(w.id);
+      await get().autoFillWarmups();
       return true;
     },
 
@@ -425,6 +504,7 @@ export const useWorkout = create<State>((set, get) => {
         await workoutRepo.addSet(workoutExerciseId, { ...draft, unit: last[0]?.unit ?? get().unit });
       }
       await refresh(w.id);
+      await get().autoFillWarmups(workoutExerciseId);
       return true;
     },
   };

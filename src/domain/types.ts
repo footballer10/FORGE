@@ -430,6 +430,8 @@ export interface Profile extends BaseEntity {
   theme: 'dark' | 'light';
   /** Show dumbbell weights as pair total (display only; storage stays per implement). */
   showDumbbellPairTotal: boolean;
+  /** Fill warm-up set weights from the first working weight (default on when absent). */
+  autoWarmups?: boolean;
   e1rmFormula: E1rmFormula;
   /** Planned training days per week for weekly streaks. */
   plannedDaysPerWeek: number;

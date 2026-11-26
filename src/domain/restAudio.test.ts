@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BEEP_TOTAL_SEC, WAV_RATE, buildRestWav, buildSilentWav, wavDurationSec } from './restAudio';
+import { BEEP_TOTAL_SEC, BELL_GAP_SEC, BELL_STRIKES, BELL_TOTAL_SEC, WAV_RATE, buildBellWav, buildRestWav, buildSilentWav, wavDurationSec } from './restAudio';
 
 const text = (b: Uint8Array, at: number, n: number) => String.fromCharCode(...b.slice(at, at + n));
 
@@ -19,24 +19,18 @@ describe('rest alarm audio', () => {
     expect(v.getUint32(4, true)).toBe(w.length - 8);
   });
 
-  it('is silent for the rest, then beeps right at the end', () => {
+  it('is silent for the rest, then rings a three-strike bell right at the end', () => {
     const w = buildRestWav(90);
-    expect(wavDurationSec(w)).toBeCloseTo(90 + BEEP_TOTAL_SEC, 3);
+    expect(wavDurationSec(w)).toBeCloseTo(90 + BEEP_TOTAL_SEC, 2);
     const pcm = w.slice(44);
-    const beepStart = 90 * WAV_RATE;
-    expect(pcm.slice(0, beepStart).every((x) => x === 128)).toBe(true);
-    const burst = pcm.slice(beepStart);
-    expect(burst.some((x) => Math.abs(x - 128) > 100)).toBe(true); // loud
-    // three separate beeps: count silent gaps between sound
-    let runs = 0;
-    let inSound = false;
-    for (const x of burst) {
-      const loud = Math.abs(x - 128) > 20;
-      if (loud && !inSound) runs++;
-      if (loud) inSound = true;
-      else if (Math.abs(x - 128) === 0) inSound = false;
-    }
-    expect(runs).toBeGreaterThanOrEqual(3);
+    const start = 90 * WAV_RATE;
+    expect(pcm.slice(0, start).every((x) => x === 128)).toBe(true);
+    const loudAround = (sec: number) => pcm.slice(start + Math.round(sec * WAV_RATE), start + Math.round((sec + 0.03) * WAV_RATE)).some((x) => Math.abs(x - 128) > 90);
+    for (let k = 0; k < BELL_STRIKES; k++) expect(loudAround(k * BELL_GAP_SEC)).toBe(true);
+    // and it decays: the last 50 ms are much quieter than a strike
+    const tail = pcm.slice(pcm.length - Math.round(0.05 * WAV_RATE));
+    expect(tail.every((x) => Math.abs(x - 128) < 40)).toBe(true);
+    expect(wavDurationSec(buildBellWav())).toBeCloseTo(BELL_TOTAL_SEC, 2);
   });
 
   it('handles tiny and fractional rests and a silent unlock file', () => {

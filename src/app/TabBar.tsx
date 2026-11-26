@@ -33,7 +33,10 @@ export function TabBar() {
             <li key={t} className="flex-1">
               <button
                 type="button"
-                onClick={() => setTab(t)}
+                onClick={() => {
+                  useUi.getState().setSettingsOpen(false);
+                  setTab(t);
+                }}
                 aria-current={active ? 'page' : undefined}
                 className={`flex h-full min-h-tap w-full flex-col items-center justify-center gap-0.5 transition-colors duration-quick ${
                   active ? 'text-fg' : 'text-muted'

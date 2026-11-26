@@ -29,6 +29,7 @@ async function deliver(name: string, text: string): Promise<void> {
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
 }
 
+/** Where each exported exercise name came from. */
 const SOURCE_NOTE: Record<StrongName['source'], string> = {
   set: 'Name you set',
   import: 'From your Strong import',
@@ -98,10 +99,11 @@ export function StrongExportScreen({ onBack }: { onBack: () => void }) {
   }
 
   return (
-    <SubScreen title="Export to Strong" onBack={onBack} backLabel="Backup">
+    <SubScreen title="Export CSV" onBack={onBack} backLabel="Backup">
       <p className="pb-3 text-sm text-muted">
-        Choose the workouts to send. The file uses Strong's format and exercise names, marks warm-ups, and writes dumbbells as pair totals, so
-        once it is imported the workouts look like you logged them in Strong. Your Forge data stays here too.
+        Strong cannot import files from any app, so nothing can be sent back into Strong. This file uses Strong's export format and
+        exercise names (warm-ups marked, dumbbells as pair totals), which Hevy and several other trackers can import and any spreadsheet
+        can open. Hevy asks for weights in kg. For a complete copy of everything, use the JSON backup.
       </p>
 
       <div className="flex items-center justify-between pb-2">
@@ -142,7 +144,7 @@ export function StrongExportScreen({ onBack }: { onBack: () => void }) {
           <summary className="min-h-tap cursor-pointer py-2 text-base">
             Exercise names in Strong ({names.length}){unsure.length > 0 && <span className="ml-2 text-sm text-accent-text">{unsure.length} to check</span>}
           </summary>
-          <p className="pb-2 text-sm text-muted">Strong matches exercises by exact name. Names marked "check" are guesses: type the name exactly as it appears in Strong, or Strong will add a new exercise.</p>
+          <p className="pb-2 text-sm text-muted">Importers match exercises by exact name, using Strong's names. Names marked "check" are guesses: type the Strong name if you know it.</p>
           <ul className="flex flex-col gap-3">
             {names.map((n) => (
               <li key={n.exerciseId}>
