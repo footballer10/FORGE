@@ -11,3 +11,14 @@ database_name = "forge"
 database_id = "REPLACE_WITH_ID_FROM_wrangler_d1_create"
 
 # Set the secret once:  npx wrangler secret put SYNC_TOKEN   (use a long random string)
+
+# Lock-screen rest alerts (milestone 17): one Durable Object holds the push subscription and fires the alarm.
+# Generate the keys with  node scripts/vapid-keys.mjs  and set VAPID_PUBLIC and VAPID_PRIVATE as secrets.
+# Optional: set VAPID_SUBJECT (a mailto: or https: contact) as a var; by default the Worker's own address is used.
+[[durable_objects.bindings]]
+name = "REST"
+class_name = "RestAlarm"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RestAlarm"]

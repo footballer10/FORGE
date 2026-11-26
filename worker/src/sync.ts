@@ -22,6 +22,11 @@ export interface D1Like {
 export interface Env {
   DB: D1Like;
   SYNC_TOKEN: string;
+  /** Lock-screen rest alerts (milestone 17). All optional: without them the push routes answer 503. */
+  REST?: import('./restAlarm').DurableObjectNamespaceLike;
+  VAPID_PUBLIC?: string;
+  VAPID_PRIVATE?: string;
+  VAPID_SUBJECT?: string;
 }
 
 /** Tables that sync. Photos (large blobs), the undo stack, meta and raw import rows stay on the device. */
@@ -71,10 +76,10 @@ export interface PullResponse {
   more: boolean;
 }
 
-const CORS = {
+export const CORS = {
   'access-control-allow-origin': '*',
   'access-control-allow-headers': 'authorization, content-type',
-  'access-control-allow-methods': 'GET, POST, OPTIONS',
+  'access-control-allow-methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'access-control-max-age': '86400',
 };
 
