@@ -107,8 +107,9 @@ describe('slider', () => {
     expect(snapGrams(oats, 0)).toBe(5);
     expect(snapGrams(oats, 9999)).toBe(500);
   });
-  it('starts at the first portion, else 100 g', () => {
+  it('starts at the portion closest to 100 g, else 100 g', () => {
     expect(defaultGrams(banana)).toBe(118);
+    expect(defaultGrams(food(8, 'Rice', { portions: [{ label: '1 cup', grams: 158 }, { label: '1 tbsp', grams: 10 }, { label: '1/2 cup', grams: 79 }] }))).toBe(79);
     expect(defaultGrams(oats)).toBe(100);
   });
 });

@@ -146,9 +146,11 @@ export function portionAt(food: Food, grams: number): FoodPortion | undefined {
   return food.portions.find((p) => Math.abs(p.grams - grams) < 0.05);
 }
 
-/** Starting amount: the first household portion, else 100 g. */
+/** Starting amount: the household portion closest to 100 g (first wins a tie), else 100 g. */
 export function defaultGrams(food: Food): number {
-  return food.portions[0]?.grams ?? 100;
+  let best: FoodPortion | undefined;
+  for (const p of food.portions) if (!best || Math.abs(p.grams - 100) < Math.abs(best.grams - 100)) best = p;
+  return best?.grams ?? 100;
 }
 
 /** Entry name as shown in the day list: "Bananas, raw · 118 g (1 medium)". */

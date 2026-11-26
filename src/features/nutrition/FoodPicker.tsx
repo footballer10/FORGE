@@ -55,7 +55,7 @@ function Amount({ food, onBack, onAdd }: { food: Food; onBack: () => void; onAdd
           <input
             type="range"
             aria-label="Amount in grams"
-            className="h-11 min-w-0 flex-1 accent-[var(--accent)]"
+            className="h-11 min-w-0 flex-1 accent-accent"
             min={spec.min}
             max={spec.max}
             step={1}

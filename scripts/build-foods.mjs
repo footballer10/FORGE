@@ -107,9 +107,10 @@ function portions(food) {
     if (seen.has(key)) continue;
     seen.add(key);
     out.push([label, round1(p.gramWeight)]);
-    if (out.length >= 4) break;
+    if (out.length >= 6) break;
   }
-  return out;
+  // Smallest first, so the chips read small to large.
+  return out.sort((a, b) => a[1] - b[1]);
 }
 
 function candidate(food) {
