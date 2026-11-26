@@ -7,7 +7,7 @@ import { undoRepo } from './undo';
 const entries = createRepo(db.nutritionEntries);
 const foods = createRepo(db.savedFoods);
 
-export type FoodInput = { name?: string; calories: number; proteinG?: number; carbsG?: number; fatG?: number };
+export type FoodInput = { name?: string; calories: number; proteinG?: number; carbsG?: number; fatG?: number; foodId?: string; grams?: number };
 
 export interface NutritionData {
   entries: NutritionEntry[];

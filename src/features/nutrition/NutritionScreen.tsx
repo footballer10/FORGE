@@ -4,6 +4,7 @@ import { MenuRow } from '../../components/SubScreen';
 import { UNDO_EVENT, nutritionRepo, type FoodInput, type NutritionData } from '../../db/repositories';
 import { addDays, localDateKey } from '../../domain/calendar';
 import { dayTotals } from '../../domain/nutrition';
+import { FoodPicker } from './FoodPicker';
 import { NutritionTrends } from './NutritionTrends';
 
 const field = 'min-h-tap rounded-card border border-line bg-surface px-3 text-base text-fg placeholder:text-muted';
@@ -42,6 +43,7 @@ export function NutritionScreen() {
   const [data, setData] = useState<NutritionData | null>(null);
   const [trends, setTrends] = useState(false);
   const [editFoods, setEditFoods] = useState(false);
+  const [picker, setPicker] = useState(false);
   const [name, setName] = useState('');
   const [cal, setCal] = useState('');
   const [protein, setProtein] = useState('');
@@ -129,6 +131,14 @@ export function NutritionScreen() {
 
       <section className="mt-4" aria-label="Add food">
         <h2 className="pb-2 text-xl uppercase">Add food</h2>
+        <button type="button" onClick={() => setPicker(true)} className="mb-3 flex min-h-[56px] w-full items-center justify-between rounded-card border border-line bg-surface px-4 text-left">
+          <span>
+            <span className="block text-base font-medium">Search the food list</span>
+            <span className="block text-sm text-muted">Pick a food, slide the amount, see the macros</span>
+          </span>
+          <span aria-hidden="true" className="text-muted">›</span>
+        </button>
+        <p className="pb-2 text-sm text-muted">Or type it in:</p>
         <div className="flex flex-wrap gap-2">
           <input className={`${field} w-28`} inputMode="numeric" placeholder="Calories" aria-label="Calories" value={cal} onChange={(e) => setCal(e.target.value)} />
           <input className={`${field} w-28`} inputMode="decimal" placeholder="Protein g" aria-label="Protein in grams" value={protein} onChange={(e) => setProtein(e.target.value)} />
@@ -165,6 +175,7 @@ export function NutritionScreen() {
       <div className="mt-4">
         <MenuRow title="Trends and targets" detail="Averages, maintenance estimate, your targets" onClick={() => setTrends(true)} />
       </div>
+      {picker && <FoodPicker entries={data.entries} onAdd={(food) => add(food)} onClose={() => setPicker(false)} />}
     </div>
   );
 }
