@@ -37,6 +37,15 @@ Read-only tools: `get_profile`, `list_exercises`, `list_workouts`, `get_exercise
 ## Proposals from Claude (10d)
 The one write tool is `propose_program`. It validates the program with the same rules as the app (and checks every exercise name exists in your library), then stores a proposal with status `proposed`. It cannot create or change programs, workouts or any other data, and at most 5 proposals can wait at once. In the app: Coach → Program from Claude → Proposals waiting (tap Check for proposals to sync first), then Review to see the diff, and Approve or Reject. Approving uses the normal flow (new version of the active program, or a separate draft). Your decision syncs back, so Claude can see it with `get_proposals`. Dates and weeks use UTC, so a late-evening workout can show on the next day. Data is only as fresh as your last Sync now in the app.
 
+## Lock-screen rest alerts (milestone 17)
+Makes the rest timer notify you with Forge closed or the phone locked, using Web Push sent by your own Worker. One-time setup, from the repo root unless noted:
+1. `node scripts/vapid-keys.mjs` prints a key pair and the two commands to store it.
+2. In `worker/`: `npx wrangler secret put VAPID_PUBLIC` and `npx wrangler secret put VAPID_PRIVATE`, pasting the printed values. Keep the private value out of the repo and chat.
+3. Optional: add `[vars]` `VAPID_SUBJECT = "mailto:you@example.com"` to `wrangler.toml` (push services may use it to contact you); by default the Worker's own address is used.
+4. `npx wrangler deploy` in `worker/`. The first deploy after this change also creates the `RestAlarm` Durable Object (SQLite-backed, on the free plan) through the `[[migrations]]` block.
+5. On the iPhone: Forge must be installed on the Home Screen (iOS 16.4 or later). Open it from there, Settings → Lock-screen rest alerts → On, allow notifications, then "Test: alert in 10 seconds" and lock the phone.
+Routes (all need the Bearer token): `GET /api/push/key`, `POST /api/push/subscribe`, `POST /api/push/unsubscribe`, `PUT /api/rest {endsAt}`, `DELETE /api/rest`. The Worker sends an empty push at `endsAt`; the service worker shows "Rest over". iPhone plays its standard notification sound; a custom bell is not possible. If the phone reports the subscription gone (404/410), the Worker forgets it and you turn the setting off and on again.
+
 ## Decisions
 - Auth: one long secret token, no accounts. App sync uses a Bearer header; the connector uses the token in the URL path (`/mcp/<token>`, Bearer also accepted). Not yet tried in the real Claude connector screen.
 - Dependencies added with the user's OK: wrangler, @modelcontextprotocol/sdk, zod (dev dependencies; the Worker is bundled by wrangler).

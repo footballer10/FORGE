@@ -9,6 +9,7 @@ import { MenuRow } from '../../components/SubScreen';
 import { ClaudeScreen } from '../coach/ClaudeScreen';
 import { coachRepo } from '../../db/repositories';
 import { useWorkout } from '../train/workoutStore';
+import { disablePushAlerts, enablePushAlerts, pushAlertsOn, scheduleRestPush } from '../train/restPush';
 import { REST_ALERT_LABELS, getRestAlert, setRestAlert, testRestAudio, type RestAlert } from '../train/restAudio';
 
 const isInstalled = (): boolean =>
@@ -25,6 +26,9 @@ export function SettingsScreen() {
   const theme = useUi((s) => s.theme);
   const setTheme = useUi((s) => s.setTheme);
   const [alert, setAlert] = useState<RestAlert>(getRestAlert);
+  const [pushOn, setPushOn] = useState(pushAlertsOn);
+  const [pushNote, setPushNote] = useState('');
+  const [pushBusy, setPushBusy] = useState(false);
   const [page, setPage] = useState<'main' | 'claude'>(() => {
     const want = useUi.getState().settingsPage;
     if (want) useUi.getState().setSettingsPage(null);
@@ -182,7 +186,39 @@ export function SettingsScreen() {
         <button type="button" disabled={alert === 'off'} onClick={() => testRestAudio(10)} className="mt-2 min-h-tap rounded-card border border-line px-4 text-sm text-fg disabled:opacity-50">
           Test: bell in 10 seconds
         </button>
-        <p className="mt-2 text-xs text-muted">A boxing bell rings when every rest ends while Forge is open. With the screen locked, iPhone silences "Sound" mode; "Loud" keeps ringing when locked but pauses your music during rests. Reliable alerts with the app closed need lock-screen notifications (planned).</p>
+        <p className="mt-2 text-xs text-muted">A boxing bell rings when every rest ends while Forge is open. With the screen locked, iPhone silences "Sound" mode; "Loud" keeps ringing when locked but pauses your music during rests. For alerts with Forge closed or the phone locked, turn on lock-screen alerts below.</p>
+      </section>
+
+      <section className="rounded-card border border-line bg-surface px-4 py-3" aria-label="Lock-screen rest alerts">
+        <div className="flex items-center justify-between gap-3 text-sm">
+          <span>Lock-screen rest alerts</span>
+          <button
+            type="button"
+            aria-pressed={pushOn}
+            disabled={pushBusy}
+            className={seg(pushOn)}
+            onClick={async () => {
+              setPushBusy(true);
+              setPushNote('');
+              if (pushOn) {
+                await disablePushAlerts();
+                setPushOn(false);
+              } else {
+                const r = await enablePushAlerts();
+                setPushOn(r.ok);
+                setPushNote(r.message);
+              }
+              setPushBusy(false);
+            }}
+          >
+            {pushOn ? 'On' : 'Off'}
+          </button>
+        </div>
+        {pushNote && <p role="status" className="mt-2 text-sm">{pushNote}</p>}
+        <button type="button" disabled={!pushOn} onClick={() => { void scheduleRestPush(new Date(Date.now() + 10_000).toISOString()); setPushNote('Sent. Lock your phone now; a notification should arrive in about 10 seconds.'); }} className="mt-2 min-h-tap rounded-card border border-line px-4 text-sm text-fg disabled:opacity-50">
+          Test: alert in 10 seconds
+        </button>
+        <p className="mt-2 text-xs text-muted">Your own Cloudflare Worker sends a notification when the rest ends, even with Forge closed. It needs Cloud sync, the Worker set up for alerts (docs/connector.md) and Forge installed on the Home Screen. The notification uses the iPhone's standard sound, not the bell.</p>
       </section>
 
       <section className="rounded-card border border-line bg-surface px-4" aria-label="Appearance">

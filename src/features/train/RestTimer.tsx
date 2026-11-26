@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { formatClock, isStale, remainingSec } from '../../domain/restTimer';
 import { ringIfSilent, syncRestAudio } from './restAudio';
+import { cancelRestPush, scheduleRestPush } from './restPush';
 import { useWorkout } from './workoutStore';
 
 const BUZZ = [200, 100, 200];
@@ -32,6 +33,16 @@ export function RestTimer() {
   // Keep the alarm audio in step with the timer (new rest, ±15 s, skip). It beeps even with the screen locked.
   useEffect(() => {
     syncRestAudio(endsAt);
+  }, [endsAt]);
+
+  // Lock-screen alert: tell the Worker when the rest ends (start, ±15 s) and cancel it on skip or discard.
+  // A rest that ran to its end is left alone: the Worker is sending that push right now.
+  const prevEnds = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const prev = prevEnds.current;
+    prevEnds.current = endsAt;
+    if (endsAt) void scheduleRestPush(endsAt);
+    else if (prev && Date.now() < Date.parse(prev) - 500) void cancelRestPush();
   }, [endsAt]);
 
   // Finished: buzz (only if it just ended, not when waking up long after) and clear.

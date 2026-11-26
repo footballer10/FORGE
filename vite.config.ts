@@ -27,6 +27,8 @@ export default defineConfig({
         ],
       },
       workbox: {
+        // Lock-screen rest alerts: public/push-handler.js adds the push and notificationclick handlers.
+        importScripts: ['push-handler.js'],
         globPatterns: ['**/*.{js,css,html,svg,png,woff2,json}'],
         navigateFallback: '/index.html',
         runtimeCaching: [
