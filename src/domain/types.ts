@@ -396,13 +396,32 @@ export interface NutritionEntry extends BaseEntity {
   grams?: number;
 }
 
-/** A food the user eats often, one tap to add. */
+/** One part of a recipe, as it was when added: the amount eaten and its values. */
+export interface RecipeIngredient {
+  /** "Rice, white, cooked · 1 cup (158 g)". */
+  name: string;
+  /** The list food or saved food it came from, when it did. */
+  foodId?: string;
+  calories: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+}
+
+/**
+ * A food the user keeps: eaten often (quick add), a custom food typed once, or a recipe built from parts.
+ * Values are per serving. A recipe has `ingredients` (the whole recipe) and `servings` (how many it makes).
+ */
 export interface SavedFood extends BaseEntity {
   name: string;
   calories: number;
   proteinG?: number;
   carbsG?: number;
   fatG?: number;
+  /** What one serving is, e.g. "burrito" or "slice". Defaults to "serving". */
+  servingLabel?: string;
+  ingredients?: RecipeIngredient[];
+  servings?: number;
 }
 
 /** Daily targets the user typed; the app never invents them. */

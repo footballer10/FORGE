@@ -3,15 +3,29 @@ import { ScreenHeader } from '../../components/ScreenHeader';
 import { MenuRow } from '../../components/SubScreen';
 import { UNDO_EVENT, nutritionRepo, type FoodInput, type NutritionData } from '../../db/repositories';
 import { addDays, localDateKey } from '../../domain/calendar';
+import { savedFoodToFood, type Food } from '../../domain/foods';
 import { dayTotals } from '../../domain/nutrition';
-import { FoodPicker } from './FoodPicker';
+import type { SavedFood } from '../../domain/types';
+import { AmountPanel, foodInputFrom } from './AmountPanel';
+import { CustomFoodForm } from './CustomFoodForm';
+import { FoodResults, SearchInput } from './FoodSearch';
+import { MyFoods } from './MyFoods';
 import { NutritionTrends } from './NutritionTrends';
+import { RecipeBuilder } from './RecipeBuilder';
+import { Sheet, fieldClass as field } from './Sheet';
+import { useFoodCatalog } from './useFoodCatalog';
 
-const field = 'min-h-tap rounded-card border border-line bg-surface px-3 text-base text-fg placeholder:text-muted';
+/** What is open on top of the Nutrition screen. `back` is where closing it returns to. */
+type Overlay =
+  | { kind: 'amount'; food: Food }
+  | { kind: 'custom'; name?: string; edit?: SavedFood; back?: 'mine' }
+  | { kind: 'recipe'; edit?: SavedFood; back?: 'mine' }
+  | { kind: 'mine' };
 const num = (s: string): number | undefined => {
   const n = Number(s.trim().replace(',', '.'));
   return s.trim() !== '' && Number.isFinite(n) && n >= 0 ? n : undefined;
 };
+const NO_FOODS: SavedFood[] = [];
 const fmt = (n: number) => Math.round(n).toLocaleString();
 const dayName = (key: string, today: string) =>
   key === today ? 'Today' : key === addDays(today, -1) ? 'Yesterday' : new Date(`${key}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
@@ -43,7 +57,9 @@ export function NutritionScreen() {
   const [data, setData] = useState<NutritionData | null>(null);
   const [trends, setTrends] = useState(false);
   const [editFoods, setEditFoods] = useState(false);
-  const [picker, setPicker] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [query, setQuery] = useState('');
+  const [overlay, setOverlay] = useState<Overlay | null>(null);
   const [name, setName] = useState('');
   const [cal, setCal] = useState('');
   const [protein, setProtein] = useState('');
@@ -59,6 +75,8 @@ export function NutritionScreen() {
     window.addEventListener(UNDO_EVENT, reload);
     return () => window.removeEventListener(UNDO_EVENT, reload);
   }, [reload]);
+
+  const catalog = useFoodCatalog(data?.foods ?? NO_FOODS);
 
   if (!data) return null;
   if (trends) return <NutritionTrends data={data} today={today} onBack={() => setTrends(false)} onChanged={reload} />;
@@ -91,9 +109,40 @@ export function NutritionScreen() {
     setName(''); setCal(''); setProtein(''); setCarbs(''); setFat(''); setSave(false);
   }
 
+  const closeOverlay = (back?: 'mine') => setOverlay(back === 'mine' ? { kind: 'mine' } : null);
+  async function logFood(input: FoodInput) {
+    await add(input);
+    setOverlay(null);
+    setSearching(false);
+    setQuery('');
+  }
+  async function saveCustom(input: Parameters<typeof nutritionRepo.saveSavedFood>[0], edit?: SavedFood) {
+    const saved = edit ? await nutritionRepo.updateSavedFood(edit.id, input) : await nutritionRepo.saveSavedFood(input);
+    reload();
+    return saved;
+  }
+
   return (
     <div className="pb-6">
       <ScreenHeader title="Nutrition" />
+      <SearchInput query={query} onQuery={(q) => { setQuery(q); setSearching(true); }} onActive={() => setSearching(true)} {...(searching ? { onCancel: () => { setSearching(false); setQuery(''); } } : {})} />
+      {searching ? (
+        <>
+          <p className="pt-2 text-xs text-muted">Adding to {dayName(date, today)}</p>
+          <FoodResults
+            foods={catalog.foods}
+            mine={catalog.mine}
+            entries={data.entries}
+            query={query}
+            loading={catalog.loading}
+            failed={catalog.failed}
+            onPick={(food) => setOverlay({ kind: 'amount', food })}
+            onCustom={(name) => setOverlay({ kind: 'custom', ...(name ? { name } : {}) })}
+            onRecipe={() => setOverlay({ kind: 'recipe' })}
+          />
+        </>
+      ) : (
+        <div className="pt-3">
       <div className="flex items-center justify-between pb-3">
         <button type="button" aria-label="Previous day" onClick={() => setDate(addDays(date, -1))} className="min-h-tap min-w-tap text-2xl text-muted">‹</button>
         <span className="text-lg">{dayName(date, today)}</span>
@@ -118,7 +167,7 @@ export function NutritionScreen() {
                 key={f.id}
                 type="button"
                 aria-label={editFoods ? `Remove ${f.name}` : `Add ${f.name}, ${f.calories} calories`}
-                onClick={() => (editFoods ? void nutritionRepo.removeFood(f.id).then(reload) : void add({ name: f.name, calories: f.calories, ...(f.proteinG !== undefined ? { proteinG: f.proteinG } : {}), ...(f.carbsG !== undefined ? { carbsG: f.carbsG } : {}), ...(f.fatG !== undefined ? { fatG: f.fatG } : {}) }))}
+                onClick={() => (editFoods ? void nutritionRepo.removeFood(f.id).then(reload) : void add({ name: f.name, foodId: `my:${f.id}`, calories: f.calories, ...(f.proteinG !== undefined ? { proteinG: f.proteinG } : {}), ...(f.carbsG !== undefined ? { carbsG: f.carbsG } : {}), ...(f.fatG !== undefined ? { fatG: f.fatG } : {}) }))}
                 className="min-h-tap rounded-card border border-line bg-surface px-3 text-left text-sm"
               >
                 {editFoods ? '✕ ' : ''}{f.name}
@@ -130,15 +179,8 @@ export function NutritionScreen() {
       )}
 
       <section className="mt-4" aria-label="Add food">
-        <h2 className="pb-2 text-xl uppercase">Add food</h2>
-        <button type="button" onClick={() => setPicker(true)} className="mb-3 flex min-h-[56px] w-full items-center justify-between rounded-card border border-line bg-surface px-4 text-left">
-          <span>
-            <span className="block text-base font-medium">Search the food list</span>
-            <span className="block text-sm text-muted">Pick a food, slide the amount, see the macros</span>
-          </span>
-          <span aria-hidden="true" className="text-muted">›</span>
-        </button>
-        <p className="pb-2 text-sm text-muted">Or type it in:</p>
+        <h2 className="pb-2 text-xl uppercase">Add by typing</h2>
+        <p className="pb-2 text-sm text-muted">Know the calories? Type them in.</p>
         <div className="flex flex-wrap gap-2">
           <input className={`${field} w-28`} inputMode="numeric" placeholder="Calories" aria-label="Calories" value={cal} onChange={(e) => setCal(e.target.value)} />
           <input className={`${field} w-28`} inputMode="decimal" placeholder="Protein g" aria-label="Protein in grams" value={protein} onChange={(e) => setProtein(e.target.value)} />
@@ -172,10 +214,67 @@ export function NutritionScreen() {
         </ul>
       )}
 
-      <div className="mt-4">
+      <div className="mt-4 flex flex-col gap-2">
+        <MenuRow title="My foods and recipes" detail={data.foods.length ? `${data.foods.length} saved. Build a meal from parts` : 'Save a food, or build a meal from parts'} onClick={() => setOverlay({ kind: 'mine' })} />
         <MenuRow title="Trends and targets" detail="Averages, maintenance estimate, your targets" onClick={() => setTrends(true)} />
       </div>
-      {picker && <FoodPicker entries={data.entries} onAdd={(food) => add(food)} onClose={() => setPicker(false)} />}
+        </div>
+      )}
+
+      {overlay && (
+        <Sheet label="Food" onClose={() => closeOverlay('back' in overlay ? overlay.back : undefined)}>
+          {overlay.kind === 'amount' && (
+            <AmountPanel
+              key={overlay.food.id}
+              food={overlay.food}
+              confirmLabel="Add"
+              backLabel="Search"
+              onBack={() => setOverlay(null)}
+              onConfirm={(c) => void logFood(foodInputFrom(c))}
+            />
+          )}
+          {overlay.kind === 'custom' && (
+            <CustomFoodForm
+              {...(overlay.name ? { initial: { name: overlay.name } } : {})}
+              {...(overlay.edit ? { existing: overlay.edit } : {})}
+              onCancel={() => closeOverlay(overlay.back)}
+              onSave={async (input) => {
+                const saved = await saveCustom(input, overlay.edit);
+                // A new food from the search goes straight to "how much?"; an edit, or a new one from My foods, returns to the list.
+                if (overlay.edit || overlay.back) closeOverlay(overlay.back);
+                else setOverlay({ kind: 'amount', food: savedFoodToFood(saved) });
+              }}
+            />
+          )}
+          {overlay.kind === 'recipe' && (
+            <RecipeBuilder
+              foods={catalog.foods}
+              mine={catalog.mine}
+              entries={data.entries}
+              loading={catalog.loading}
+              failed={catalog.failed}
+              {...(overlay.edit ? { initial: overlay.edit } : {})}
+              onClose={() => closeOverlay(overlay.back)}
+              onSaveFood={(input) => saveCustom(input)}
+              onSave={async (input) => {
+                const saved = await saveCustom(input, overlay.edit);
+                if (overlay.edit || overlay.back) closeOverlay(overlay.back);
+                else setOverlay({ kind: 'amount', food: savedFoodToFood(saved) });
+              }}
+            />
+          )}
+          {overlay.kind === 'mine' && (
+            <MyFoods
+              saved={data.foods}
+              onClose={() => setOverlay(null)}
+              onEdit={(f) => setOverlay(f.ingredients?.length ? { kind: 'recipe', edit: f, back: 'mine' } : { kind: 'custom', edit: f, back: 'mine' })}
+              onDelete={(f) => void nutritionRepo.removeFood(f.id).then(reload)}
+              onNewFood={() => setOverlay({ kind: 'custom', back: 'mine' })}
+              onNewRecipe={() => setOverlay({ kind: 'recipe', back: 'mine' })}
+            />
+          )}
+        </Sheet>
+      )}
     </div>
   );
 }

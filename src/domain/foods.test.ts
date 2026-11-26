@@ -1,20 +1,19 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
-  defaultGrams,
-  entryLabel,
   foodIdOf,
   parseFoods,
-  portionAt,
+  queryVariants,
   recentFoodIds,
+  savedFoodToFood,
   scaleFood,
+  scalingFormula,
   searchFoods,
-  sliderSpec,
-  snapGrams,
   type Food,
   type FoodsFile,
 } from './foods';
-import type { NutritionEntry } from './types';
+import { defaultAmount, gramsPerMl, unitsFor } from './foodUnits';
+import type { NutritionEntry, SavedFood } from './types';
 
 const food = (id: number, name: string, over: Partial<Food> = {}): Food => ({
   id: foodIdOf(id),
@@ -90,44 +89,41 @@ describe('recentFoodIds', () => {
   });
 });
 
-describe('slider', () => {
-  it('spans 5 g to at least 500 g, or 4 × the biggest portion', () => {
-    expect(sliderSpec(oats)).toEqual({ min: 5, max: 500, step: 5 });
-    const big = food(9, 'Watermelon', { portions: [{ label: '1 wedge', grams: 572 }] });
-    expect(sliderSpec(big).max).toBe(2290);
+describe('own foods in the search', () => {
+  const saved = (name: string, over: Partial<SavedFood> = {}): SavedFood => ({ id: name, name, calories: 500, createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-01T00:00:00Z', ...over });
+  it('turns a saved food into a per-serving food with a tag', () => {
+    const f = savedFoodToFood(saved('Veggie burrito', { proteinG: 20, servingLabel: 'burrito', ingredients: [{ name: 'x', calories: 500, proteinG: 20, carbsG: 0, fatG: 0 }], servings: 1 }));
+    expect(f).toMatchObject({ id: 'my:Veggie burrito', basis: 1, tag: 'Recipe', kcal: 500, proteinG: 20, servingLabel: 'burrito', mine: true });
+    expect(savedFoodToFood(saved('Granola')).tag).toBe('My food');
+    expect(scaleFood(f, 1.5).calories).toBe(750);
+    expect(scalingFormula(f)).toMatch(/per serving/);
   });
-  it('snaps to a household portion when close, else to 5 g', () => {
-    expect(snapGrams(banana, 116)).toBe(118);
-    expect(snapGrams(banana, 121)).toBe(118);
-    expect(snapGrams(banana, 130)).toBe(130);
-    expect(snapGrams(banana, 132)).toBe(130);
-    expect(snapGrams(banana, 148)).toBe(150);
-  });
-  it('clamps to the range', () => {
-    expect(snapGrams(oats, 0)).toBe(5);
-    expect(snapGrams(oats, 9999)).toBe(500);
-  });
-  it('starts at the portion closest to 100 g, else 100 g', () => {
-    expect(defaultGrams(banana)).toBe(118);
-    expect(defaultGrams(food(8, 'Rice', { portions: [{ label: '1 cup', grams: 158 }, { label: '1 tbsp', grams: 10 }, { label: '1/2 cup', grams: 79 }] }))).toBe(79);
-    expect(defaultGrams(oats)).toBe(100);
+  it('lists the user\'s own foods before list foods with the same words', () => {
+    const mine = savedFoodToFood(saved('Chicken burrito'));
+    const usda = food(70, 'Burrito, chicken');
+    expect(searchFoods([usda, mine], 'burrito').map((f) => f.id)).toEqual([mine.id, usda.id]);
   });
 });
 
-describe('labels', () => {
-  it('names the portion when the amount matches one', () => {
-    expect(portionAt(banana, 118)?.label).toBe('1 medium');
-    expect(portionAt(banana, 120)).toBeUndefined();
-    expect(entryLabel(banana, 118)).toBe('Bananas, raw · 118 g (1 medium)');
-    expect(entryLabel(banana, 130)).toBe('Bananas, raw · 130 g');
+describe('search words', () => {
+  const all = [food(20, 'Egg, whole, raw'), food(21, 'Soft drink, cola'), food(22, 'French fries'), food(23, 'Beverages, carbonated, lemon-lime soda'), food(24, 'Tomatoes, red, raw')];
+  it('matches a plural typed word to the singular name word', () => {
+    expect(searchFoods(all, 'eggs').map((f) => f.name)).toEqual(['Egg, whole, raw']);
+    expect(searchFoods(all, 'tomatoes').map((f) => f.name)).toEqual(['Tomatoes, red, raw']);
+  });
+  it('also tries the words USDA uses (soda, coke, fries)', () => {
+    expect(queryVariants('diet coke')).toEqual([['diet', 'coke'], ['diet', 'cola']]);
+    expect(searchFoods(all, 'coke').map((f) => f.name)).toEqual(['Soft drink, cola']);
+    expect(searchFoods(all, 'soda').map((f) => f.name)).toEqual(['Soft drink, cola', 'Beverages, carbonated, lemon-lime soda']);
+    expect(searchFoods(all, 'fries').map((f) => f.name)).toContain('French fries');
   });
 });
 
 describe('bundled USDA data', () => {
   const file = JSON.parse(readFileSync(new URL('../data/foods.json', import.meta.url), 'utf8')) as FoodsFile;
   const foods = parseFoods(file);
-  it('has 500 or more foods with unique ids and names', () => {
-    expect(foods.length).toBeGreaterThanOrEqual(500);
+  it('has 5000 or more foods with unique ids and names', () => {
+    expect(foods.length).toBeGreaterThanOrEqual(5000);
     expect(new Set(foods.map((f) => f.id)).size).toBe(foods.length);
     expect(new Set(foods.map((f) => f.name.toLowerCase())).size).toBe(foods.length);
   });
@@ -142,9 +138,26 @@ describe('bundled USDA data', () => {
       for (const p of f.portions) expect(p.grams, `${f.name} ${p.label}`).toBeGreaterThan(0);
     }
   });
-  it('finds common foods', () => {
-    for (const q of ['banana', 'egg', 'chicken breast', 'rice', 'oats', 'milk', 'salmon', 'peanut butter', 'broccoli', 'yogurt']) {
-      expect(searchFoods(foods, q).length, q).toBeGreaterThan(0);
-    }
+  it('finds common foods and the basics to build a recipe from', () => {
+    const basics = [
+      'banana', 'egg', 'chicken breast', 'rice', 'oats', 'milk', 'salmon', 'peanut butter', 'broccoli', 'yogurt',
+      'tortilla', 'flour tortilla', 'taco shell', 'black beans', 'pinto beans', 'refried beans', 'white rice cooked', 'brown rice', 'steak', 'ground beef',
+      'cheddar', 'mozzarella', 'sour cream', 'salsa', 'guacamole', 'lettuce', 'tomato', 'onion', 'garlic', 'cilantro', 'lime', 'avocado',
+      'olive oil', 'butter', 'flour', 'sugar', 'brown sugar', 'salt', 'honey', 'bread', 'bagel', 'pasta', 'spaghetti', 'noodles', 'tomato sauce', 'mayonnaise', 'ketchup', 'mustard', 'soy sauce', 'hot sauce',
+      'burrito', 'burrito bowl', 'taco', 'quesadilla', 'pizza', 'hamburger', 'cheeseburger', 'french fries', 'chicken sandwich', 'chicken nuggets', 'hot dog', 'sub sandwich',
+      'cola', 'diet cola', 'root beer', 'ginger ale', 'lemon-lime soda', 'orange soda', 'dr pepper', 'orange juice', 'apple juice', 'coffee', 'tea', 'beer', 'wine', 'whey protein', 'protein bar',
+      'ice cream', 'cookie', 'cake', 'chocolate', 'potato chips', 'popcorn', 'almonds', 'walnuts', 'cashews', 'oatmeal', 'cereal', 'granola', 'pancakes', 'bacon', 'sausage', 'ham', 'turkey', 'tuna', 'shrimp', 'tofu',
+      'apple', 'orange', 'grapes', 'strawberries', 'blueberries', 'pineapple', 'mango', 'watermelon', 'carrots', 'spinach', 'cucumber', 'bell pepper', 'jalapeno', 'mushrooms', 'corn', 'sweet potato', 'potato', 'cinnamon', 'cumin', 'chili powder',
+    ];
+    const missing = basics.filter((q) => searchFoods(foods, q).length === 0);
+    expect(missing).toEqual([]);
+  });
+  it('lets a drink be measured in ml and cups, and a tortilla in pieces', () => {
+    const milk = searchFoods(foods, 'milk whole')[0];
+    expect(milk && gramsPerMl(milk)).toBeGreaterThan(0.95);
+    expect(milk && unitsFor(milk).map((u) => u.id)).toEqual(expect.arrayContaining(['ml', 'cup', 'floz', 'tbsp', 'tsp', 'g', 'oz']));
+    const tortilla = foods.find((f) => f.name === 'Tortilla, flour');
+    expect(tortilla && unitsFor(tortilla).some((u) => u.kind === 'portion')).toBe(true);
+    expect(tortilla && defaultAmount(tortilla).unitId).toMatch(/^p\d+$/);
   });
 });
