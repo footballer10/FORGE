@@ -46,6 +46,10 @@ async function send(r: HttpRequest): Promise<Response> {
   return fetch(r.url, { ...r.init, keepalive: true });
 }
 
+/** A 404 here means the live Worker predates lock-screen alerts (the route does not exist yet). */
+export const OUTDATED_WORKER =
+  'Your Worker is an older version without lock-screen alerts. Update your copy of Forge first (git pull in the FORGE folder), set the two VAPID secrets, then run npx wrangler deploy in the worker folder. Steps: docs/connector.md.';
+
 /** Ask permission (must run from a tap), subscribe and register with the Worker. Resolves with a message for the user. */
 export async function enablePushAlerts(): Promise<{ ok: boolean; message: string }> {
   const blocked = pushSupportMessage();
@@ -56,6 +60,8 @@ export async function enablePushAlerts(): Promise<{ ok: boolean; message: string
     if ((await Notification.requestPermission()) !== 'granted') return { ok: false, message: 'Notifications were not allowed. Allow them for Forge in the iPhone Settings app, then try again.' };
     const keyRes = await send(keyRequest(e));
     if (keyRes.status === 503) return { ok: false, message: 'The Worker is not set up for alerts yet. Follow the lock-screen alerts steps in docs/connector.md and redeploy it.' };
+    if (keyRes.status === 404) return { ok: false, message: OUTDATED_WORKER };
+    if (keyRes.status === 401) return { ok: false, message: 'The Worker rejected the token (401). Check the token in Settings → Claude → Cloud sync.' };
     if (!keyRes.ok) return { ok: false, message: `The Worker answered ${keyRes.status}. Check Cloud sync.` };
     const { publicKey } = (await keyRes.json()) as { publicKey: string };
     const reg = await navigator.serviceWorker.ready;

@@ -25,7 +25,9 @@ const row = (id: string, updatedAt: string, extra: object = {}) => ({
 
 describe('auth', () => {
   it('health is open', async () => {
-    expect((await call('/api/health', {}, null)).status).toBe(200);
+    const health = await call('/api/health', {}, null);
+    expect(health.status).toBe(200);
+    expect(((await health.json()) as { features: string[] }).features).toEqual(expect.arrayContaining(['sync', 'mcp', 'nutrition', 'push']));
   });
   it('rejects a missing or wrong token', async () => {
     expect((await call('/api/sync/pull', {}, null)).status).toBe(401);
