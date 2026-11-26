@@ -151,6 +151,15 @@ export function SettingsScreen() {
           <input type="checkbox" className="h-6 w-6" checked={p.showDumbbellPairTotal} onChange={(e) => void save({ showDumbbellPairTotal: e.target.checked })} />
         </label>
         <p className="pb-3 text-xs text-muted">Weeks start on Monday. Pair total is a display line only; dumbbells are stored per implement.</p>
+        <label className={`${row} border-t border-line`}>
+          <span>Fill warm-up weights automatically</span>
+          <input type="checkbox" className="h-6 w-6" checked={p.autoWarmups !== false} onChange={(e) => { void useWorkout.getState().setAutoWarmup(e.target.checked); setP({ ...p, autoWarmups: e.target.checked }); }} />
+        </label>
+        <p className="pb-3 text-xs text-muted">
+          Warm-ups follow your first working weight, by how many warm-up sets the exercise has: 1 set 60%; 2 sets 65%, 85%; 3 sets bar, 70%, 85%;
+          4 sets bar, 60%, 75%, 90%; 5 sets bar, 40%, 55%, 75%, 90%. Each is rounded to the easiest load near it (fewest plates, no 2.5s if
+          avoidable). A warm-up you type yourself, or have done, is never changed.
+        </p>
       </section>
 
       <section className="rounded-card border border-line bg-surface px-4 py-3" aria-label="Rest timer sound">

@@ -482,9 +482,44 @@ describe('progression on start', () => {
     await useWorkout.getState().updateSet(sets()[0]!.id, { weight: 225, reps: 5 });
     const weId = useWorkout.getState().rows[0]!.we.id;
     await useWorkout.getState().addWarmups(weId, 45, [45, 35, 25, 10, 5, 2.5]);
-    expect(sets().map((s) => [s.type, s.weight, s.reps])).toEqual([['warmup', 45, 10], ['warmup', 110, 5], ['warmup', 155, 3], ['warmup', 190, 1], ['working', 225, 5]]);
+    // The inserted ramp is then filled by the automatic rule for 4 warm-ups: bar, 60%, 75%, 90% on the easiest plates.
+    expect(sets().map((s) => [s.type, s.weight, s.reps])).toEqual([['warmup', 45, 10], ['warmup', 135, 5], ['warmup', 165, 3], ['warmup', 205, 1], ['working', 225, 5]]);
     await useWorkout.getState().addWarmups(weId, 45, [45, 35, 25, 10, 5, 2.5]);
     expect(sets()).toHaveLength(5);
+  });
+
+  it('auto-fills warm-up weights from the working weight, follows it, and leaves typed or done warm-ups alone', async () => {
+    const { routineRepo } = await import('../../db/repositories');
+    const sq = await exerciseRepo.create({ ...base, name: 'Squat', equipment: 'barbell', loadModel: 'total' });
+    const r = await routineRepo.create({
+      name: 'Legs',
+      exercises: [{ exerciseId: sq.id, order: 0, targets: [
+        { type: 'warmup', reps: 8 }, { type: 'warmup', reps: 8 }, { type: 'warmup', reps: 3 }, { type: 'warmup', reps: 2 }, { type: 'warmup', reps: 1 },
+        { type: 'working', reps: 6, weight: 205, unit: 'lb' },
+      ] }],
+    });
+    await useWorkout.getState().startFromRoutine(r.id);
+    const weights = () => sets().map((s) => s.weight);
+    expect(weights()).toEqual([45, 95, 115, 155, 185, 205]);
+    expect(sets().map((s) => s.reps)).toEqual([8, 8, 3, 2, 1, 6]); // reps from the routine are kept
+
+    // Raise the working weight: warm-ups follow.
+    await useWorkout.getState().updateSet(sets()[5]!.id, { weight: 225 });
+    expect(weights()).toEqual([45, 95, 115, 165, 205, 225]); // 115 is one 35 a side
+
+    // A warm-up the user typed and one already done stay as they are.
+    await useWorkout.getState().updateSet(sets()[1]!.id, { weight: 100 });
+    await useWorkout.getState().toggleComplete(sets()[0]!.id);
+    await useWorkout.getState().updateSet(sets()[5]!.id, { weight: 185 });
+    expect(weights()[0]).toBe(45);
+    expect(weights()[1]).toBe(100);
+    expect(weights().slice(2)).toEqual([95, 135, 165, 185]);
+
+    // Turned off: nothing changes.
+    await useWorkout.getState().setAutoWarmup(false);
+    await useWorkout.getState().updateSet(sets()[5]!.id, { weight: 275 });
+    expect(weights().slice(2, 5)).toEqual([95, 135, 165]);
+    await useWorkout.getState().setAutoWarmup(true);
   });
 
   it('fillSuggested fills the next open working set only', async () => {
