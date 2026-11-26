@@ -22,3 +22,11 @@ class_name = "RestAlarm"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["RestAlarm"]
+
+# Weekly email (Sunday summary). Runs Monday 01:00 UTC = Sunday evening in the US and reports Monday–Sunday.
+# Free Resend account (resend.com): create an API key, then
+#   npx wrangler secret put RESEND_API_KEY
+#   npx wrangler secret put EMAIL_TO        (the email address you signed up to Resend with)
+# Without a verified domain Resend only delivers to that sign-up address, which is all a one-person app needs.
+[triggers]
+crons = ["0 1 * * 1"]

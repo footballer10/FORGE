@@ -27,6 +27,10 @@ export interface Env {
   VAPID_PUBLIC?: string;
   VAPID_PRIVATE?: string;
   VAPID_SUBJECT?: string;
+  /** Weekly email (Sunday summary). Optional: without them the cron does nothing. */
+  RESEND_API_KEY?: string;
+  EMAIL_TO?: string;
+  EMAIL_FROM?: string;
 }
 
 /** Tables that sync. Photos (large blobs), the undo stack, meta and raw import rows stay on the device. */
@@ -53,7 +57,7 @@ export const SYNCED_TABLES = [
 export type SyncedTable = (typeof SYNCED_TABLES)[number];
 
 /** Bump when the Worker gains something the app checks for. */
-export const WORKER_FEATURES = ['sync', 'mcp', 'nutrition', 'push'] as const;
+export const WORKER_FEATURES = ['sync', 'mcp', 'nutrition', 'push', 'readiness', 'weekly'] as const;
 
 export const MAX_PUSH_ROWS = 200;
 export const MAX_PULL_ROWS = 500;
