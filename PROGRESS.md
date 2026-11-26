@@ -1,107 +1,17 @@
 # PROGRESS
 
-Status legend: `[x]` done · `[ ]` todo · `[~]` partial
+Status legend: `[x]` done · `[ ]` todo
 
-## Current
-- **Done (2026-11-26, Strength chart):** a chart at the top of Strength with a lift picker (default "Overall strength") and 1M/3M/6M/1Y/All. Overall strength = average over the chosen lifts of (best e1RM in the last 4 weeks ÷ that lift's first such value) × 100, held up to 12 weeks after a lift was last trained (`domain/strengthIndex.ts`); every lift counts equally and a lift added later starts at its own 100. Settings → "Lifts in overall strength" picks them (profile `overallLifts`, absent = all). The e1RM formula is now fixed to Epley everywhere (`E1RM_FORMULA`); the formula pickers in Settings and on the exercise page are gone, and the UI no longer names it.
-- **Done (2026-11-26, phantom workouts):** opening the app sometimes showed a finished or long-discarded workout as in progress. Causes: (1) the edit-a-past-workout state was resumed on every launch; (2) the app opened the newest unfinished workout however old, so leftover open rows (an undone discard, an old copy from a restore or sync, a Safari copy syncing to the same cloud) surfaced. Now: edit mode is never resumed on load; an unfinished workout is opened automatically only if used in the last 3 hours (`domain/openWorkouts.ts`); an older one shows a prompt (Resume / Finish and save / Discard); older extra open workouts are closed on load (finished at their last activity if they have logged sets, else moved to trash). Cloud sync panel explains where the token is.
-- **Done this session (2026-11-26, milestone 19a: foods, units, recipes, search at the top; 19b dropped):**
-  - **Environment:** the session started on the Default environment (USDA blocked), so it was moved to your personal "forge" environment (allows `fdc.nal.usda.gov`) with your approval; nothing was added to it. Brand sites are still blocked, which is why 19b waits.
-  - **Longer food list (about 7,000 foods, was 776):** `scripts/build-foods.mjs` now also reads the USDA Survey (FNDDS) JSON (mixed dishes, burritos and bowls, sandwiches, pizza, soft drinks and other drinks, sauces; 5,114 foods, "NFS / NS as to" removed from names), all generic SR Legacy "Fast foods" and "Restaurant" items, and a much longer staples list (about 600 words: meats and cuts, fish, dairy and cheeses, grains, tortillas, breads, produce, herbs and spices, oils, sauces, sweeteners, nuts, drinks). Every one of the 776 earlier food IDs and values is unchanged (checked), so past entries keep working. 811 kB (170 kB gzip), lazy chunk; chunk warning limit raised to 900 kB.
-  - **Amounts in units you can estimate** (`domain/foodUnits.ts`, 20 tests): g, oz, ml, fl oz, tsp, tbsp, cup, plus each food's own USDA portions (1 medium, 1 slice, 1 can, 1 bottle (20 fl oz), 1 burrito...). Volumes are exact US measures turned into grams with the food's own USDA weight for a plain cup / fl oz / tbsp / tsp (grams ÷ ml); a food with no such row gets no volume units (nothing is guessed). Quantity is typed ("2", "1.5", "1/2", "1 1/2"), stepped with − and + (g 5, cup ¼, tbsp ½, pieces ½), or slid. Switching unit keeps the same amount of food. The start unit: a drink starts at its can, else a cup; a counted food at the portion named after it ("1 banana") or the "medium/regular" one; oil and nut butter at a tablespoon (a cup would be over 700 kcal); else 100 g. The panel always shows what the unit weighs ("1 cup = 244 g").
-  - **Search at the top of the Nutrition tab:** the search bar is the first thing on the screen; typing (or tapping it) switches to results with "Adding to Today", Cancel returns. Empty search shows recent foods, then your own foods and recipes. Ranking: recent, your own, whole-word matches ("cola" before "Colada"), then plain names ("Rice, white, cooked" before "Rice cake"), mixed items ("Rum and cola") after the plain food. Plurals match ("eggs"), and words USDA writes differently are searched too (soda, pop, coke, fries, sub, burger, pb, oj, bbq, ketchup, mac, shake...; `SEARCH_ALIASES`). 50 results.
-  - **Custom foods and recipes** (your own foods rank first in search; no new table, no Worker change: `SavedFood` gained optional `servingLabel`, `ingredients`, `servings`): "Add 'x' myself" (name, what one serving is, calories, optional protein/carbs/fat) and "Build a recipe" (search each part, pick its amount in any unit, add a part you typed yourself, set servings and what one serving is; per serving = sum of the parts ÷ servings, formula shown). Parts keep the values they had when added. A recipe can be a part of another recipe. After saving a new food or recipe from the search you go straight to "how much?". Menu row "My foods and recipes" lists, edits and deletes (delete is undoable). Quick-add chips still work and now log with the food id.
-  - Verified in a 390 px headless Chromium: search, units (g, cup, tbsp, ml), recipe of 5 parts + a custom part, saving, logging a serving, finding it again first in search, My foods add and delete. Not on an iPhone.
-  - Tests (551) and build pass.
-- **Next session:** milestone 19 is complete (19b dropped: generic fast-food items are enough). Pick from the Ideas backlog or the Known issues.
-- **Done this session (2026-11-26, data safety + e1RM):**
-  - **Restore after removing the app**: removing a Home Screen web app on iPhone deletes its data. Settings → Claude → Cloud sync now has "Copy restore code" (URL + token in one `forge1:` code, `domain/connection.ts`), and the welcome screen of a fresh install offers "Restore from the cloud" (paste the code) or "Restore from a backup file". `syncRepo.restoreFromCloud` clears what the fresh install created (default profile, library seeded with new IDs), pulls the full cloud copy, then re-seeds only missing library exercises: no duplicates, cloud profile wins. Refused if the phone has workouts. The app also asks for persistent storage, and Settings says plainly that removing the app deletes local data. Photos are not in the cloud copy.
-  - **e1RM for 15-rep work**: `E1RM_MAX_REPS` is now 20 with `e1rmCandidates`: a session uses its 1–12-rep sets when it has any, else its 13–20-rep sets as a rough estimate (`rough` on the point). Same rule in the Worker's `get_exercise_history` (needs a Worker redeploy). Warm-ups were already excluded everywhere.
-  - Food additions handed off as milestone 19.
-  Tests (519) and build pass.
-- **Done this session (2026-11-26, milestone 18, food list with portion slider; complete):**
-  - **Data:** `scripts/build-foods.mjs` reads the USDA FoodData Central Foundation Foods and SR Legacy JSON downloads (`node scripts/build-foods.mjs <foundation.json> <sr_legacy.json>`) and writes `src/data/foods.json`: 776 foods, per 100 g kcal/protein/carbs/fat and up to 6 household portions with gram weights, all copied from the USDA files (nothing typed by hand). The script only chooses WHICH foods, from a list of common-food words (up to 2 variants each, plain names and Foundation first; brands, game meats, offal and cut-detail names excluded). Built from Foundation 2026-10-29 and SR Legacy 2018-04. 70 kB (23 kB gzip), lazy chunk. No match in USDA for kefir, cantaloupe, sports drink.
-  - **Pure code** `domain/foods.ts` (+ 16 tests incl. checks on the bundled file): `scaleFood` (value per 100 g × grams ÷ 100), `searchFoods` (every typed word starts a word of the name; recent foods first, then plainer names), `recentFoodIds` (from logged entries, no new table), `sliderSpec`, `snapGrams` (to a portion within 3 g or 3%, else 5 g), `defaultGrams` (portion nearest 100 g), `entryLabel`.
-  - **Entries:** `NutritionEntry` gained optional `foodId` (`fdc:<id>`) and `grams`; no schema bump, sync and backup are generic. Repository test added.
-  - **UI:** Nutrition → "Search the food list" opens a full-screen sheet (`features/nutrition/FoodPicker.tsx`): search (recent foods when empty), tap a food, slider with ±5 g buttons and portion chips, live calories/protein/carbs/fat, the formula and the USDA credit, "Add · N kcal". Typed entry and quick foods are unchanged below it. Verified in a 390 px headless Chromium (search, slider, add, entry listed); not on an iPhone.
-  - **Environment:** the sandbox blocked USDA, so a personal "forge" environment allowing `fdc.nal.usda.gov` was created with your approval.
-  - Tests (512) and build pass.
-- **(Earlier)** If the device test of 17 (lock-screen alerts) shows problems, fix those first.
-- **Done this session (2026-11-26, milestone 17, Web Push rest alerts; split 17a Worker, 17b app; both done in code):**
-  - **17a (Worker):** `worker/src/vapid.ts` (ES256 VAPID JWT with WebCrypto, key import/generation, tested by verifying the signature with the public key), `restAlarm.ts` (`RestScheduler` over a minimal storage interface plus the thin `RestAlarm` Durable Object: stores the subscription and `endsAt`, sets an alarm, sends one payload-less push with `Authorization: vapid ...`, `TTL 60`, `Urgency high`; forgets the subscription on 404/410; ignores a rest more than 35 min ahead or over a minute past; re-waits if the alarm fires early), `pushRoutes.ts` (token-protected `GET /api/push/key`, `POST /api/push/subscribe|unsubscribe`, `PUT|DELETE /api/rest`; 503 with a clear message until the keys and the Durable Object exist), CORS now allows PUT and DELETE. Subscription endpoints must be https on a known push host (Apple, Google, Mozilla, Windows). `scripts/vapid-keys.mjs` generates the keys. `wrangler.toml` gained the `REST` binding and the `new_sqlite_classes` migration; `wrangler deploy --dry-run` bundles.
-  - **17b (app):** `public/push-handler.js` loaded through workbox `importScripts` (push shows "Rest over" with a tag; if Forge is open and visible its banner is closed after 1.5 s because the in-app bell already rang; tap focuses or opens the app). `domain/restPush.ts` (request builders, key decoding, "why unavailable" text) and `features/train/restPush.ts` (permission from a tap, subscribe, register, schedule, cancel; all silent and best effort). `RestTimer` sends `PUT` when a rest starts and on ±15 s, and `DELETE` on skip or discard (not when the rest ran to its end). Settings: "Lock-screen rest alerts" toggle with a 10-second test. The old "planned" wording is gone. Docs in `docs/connector.md`.
-  - Tests (496) and build pass. **Not tried on an iPhone or against a deployed Worker.**
-  - **Your steps:** follow "Lock-screen rest alerts" in `docs/connector.md` (generate keys, two secrets, `npx wrangler deploy` in `worker/`), redeploy the app, install it on the Home Screen, turn the setting on, run the 10-second test with the phone locked, then a real rest. Report what arrives and when.
-- **Next session:** milestone 18 (food list with portion slider), Sonnet, high effort. If the device test of 17 shows problems, fix those first.
-- **Done this session (2026-11-26, post-workout notes round):**
-  - **Automatic warm-up weights** (`domain/warmup.ts`: `WARMUP_LADDERS`, `autoWarmupWeights`, `warmupKitFor`): the warm-up sets an exercise has are filled from its first working weight by a rule per number of warm-up sets (1: 60%; 2: 65, 85%; 3: bar, 70, 85%; 4: bar, 60, 75, 90%; 5: bar, 40, 55, 75, 90%), rounded to the easiest load within 7.5% (fewest plates a side, tiny 2.5s count extra). Built from the user's own ramps (press 45/55/65, RDL 95/115, incline DB 25/30 reproduced exactly). Applied when a workout starts (routine, program, repeat, add, swap) and whenever the first working weight changes; a warm-up the user typed or completed is never changed. Settings toggle (profile `autoWarmups`, default on). The "+ Warm-ups" button now uses the same rule.
-  - **Boxing-bell timer sound**: synthesized three-strike bell replaces the beeps; when the timer ends with the app open and the long file did not play, the bell rings directly (`ringIfSilent`). Settings text is now honest that "Sound" mode cannot ring with the screen locked.
-  - **Workout bar** (`app/WorkoutBar.tsx`) above the tabs on every tab and in Settings while a workout is open (name, sets done, elapsed); tap returns to it. **Tapping a tab closes Settings.**
-  - **Home**: Next up, then three tiles (this week's hard sets and sessions, food today vs target, bodyweight with 7-day trend change) and the latest PR (`domain/homeSummary.ts`).
-  - **Conditioning**: no longer blank. Quick starts with distances and per-effort rests: Sprints 8 x 40 yd, Tempo 10 x 100 m, Intervals 6 x 400 m, PFT 600-yard run x 2, AFT 1.5-mile run. Creates "Sprint"/"Run" time-distance exercises once.
-  - **Lat pulldown**: one-time fix (`db/fixups.ts`) renames "Close-Grip Front Lat Pulldown" to "Lat Pulldown" with the note "Grip just wider than shoulder width.", old name kept as an alias, Strong name "Lat Pulldown (Cable)".
-  - **Strong lock-in**: Strong has no import at all (checked), so the export cannot go back into Strong. The CSV screen now says so; the file stays in Strong's format, which Hevy (kg) and other trackers import. Full JSON backup remains the complete copy.
-  - **Handed off as separate tasks** (suggested to the user, not started here): lock-screen rest alerts with Web Push from the Worker (the only way to alert with the app closed), and a food list with a portion slider (USDA data).
-  Tests (475) and build pass. Verified in a phone-sized browser, not on an iPhone.
-- **Done this session (2026-11-25, Strong templates round):**
-  - **Per-set rest timers** (Strong style): `TargetSet.restSec` (rest after that set, warm-ups included). Routine and program editors have a Rest column per set ("1:30" or "90"); the live workout uses it for that set (matched by position), else the exercise default rest. The proposal schema accepts `restSec` on a set (docs and the "Copy format for Claude" text updated). The Worker bundles the validator, so **redeploy the Worker again** for Claude proposals that use per-set rest.
-  - **A/B/C program from the user's Strong screenshots** (`domain/starterProgram.ts`): 18 exercises, every set and rest timer as in the templates, 4 weeks x 3 days. Reached with Train → Program → "Add my A/B/C program" (or Settings → Claude → "Load my A/B/C program"), which goes through the normal preview and approve step, saves as a draft; then Make active. Verified in a browser: squat rests run 1:00 1:00 1:30 1:30 2:00 3:00 3:00 3:00.
-  - **Export to Strong with a selection:** Backup → "Export workouts to Strong…": tick the workouts (those imported from Strong are hidden by default so they are not duplicated in Strong), weight unit, and a names section. The CSV uses Strong's exact exercise names, W for warm-ups, working sets numbered 1, 2, 3, dumbbells as pair totals. Names come from: a "Name in Strong" the user set (also a field in the exercise form), else the name the exercise had in the user's own Strong import, else a table for the 18 template exercises (`domain/strongNames.ts`), else the Forge name flagged "check this name". Verified by exporting a logged workout in a browser.
-  - Working sets are numbered 1, 2, 3 on the logging screen (warm-ups show W and are not counted).
-  Tests (459) and build pass. Not opened on an iPhone.
-- **Done this session (2026-11-25, user request round):**
-  - **Drag-to-reorder** with `@dnd-kit` (`components/SortableList.tsx`): routine/planned-session exercises, program weeks and sessions (handle ⠿), and a Reorder sheet for the live workout (`train/ReorderSheet.tsx`, store `setExerciseOrder`). Up/down buttons removed. Mouse and keyboard verified in a browser; touch not yet tried on a phone.
-  - **Coach tab removed.** Claude is used in the Claude app through the connector. The proposal inbox, connection (sync) panel, training profile and a collapsed "copy and paste" fallback now live in Settings → Claude (`features/coach/ClaudeScreen.tsx`). Home shows a notice when a proposal is waiting. The fifth tab is now **Nutrition**.
-  - **Auto-sync:** `db/autoSync.ts` syncs 8 s after any repository write, on foreground, on reconnect and every 5 min while open (only when sync is configured). Before this, Claude saw only what had been synced by hand. **The Worker must be redeployed** (`npx wrangler deploy` in `worker/`) for the new tables and tools; an old Worker makes sync say "out of date".
-  - **Connector** gained `get_nutrition` and `get_fitness_tests`. Reachability verified from this session with the live connector (profile, workouts, bodyweight, proposals all answered).
-  - **Nutrition v1** (schema v2: `nutritionEntries`, `savedFoods`; synced and in backups): log calories and protein (carbs, fat optional), quick foods, day navigation, 7 and 28 day averages over logged days, 14-day bars, targets typed by the user, and a maintenance estimate from intake plus bodyweight trend (formula shown, needs 14 days of weights and enough logged days). No food database or barcode scanning.
-  - **Academy tests:** Fitness tests now has a USAFA section (PFT: pull-ups, standing long jump, sit-ups, push-ups, 600-yard run; AFT: 1.5-mile run), one test date for all events, a log-a-full-test-day form, and a quiet line on Home once targets or a date exist. Events come from USAFA cadet sources, not the official instruction (not retrieved); scoring tables are not bundled, the user types targets.
-  Tests (440) and build pass. Not opened on an iPhone.
-- **Done this session (rest of milestone 14; milestone 14 complete except drag-to-reorder):**
-  - **Units (a):** set weights show in the profile unit everywhere they are displayed (logging rows, previous-session hint, collapsed summary, suggested chip, pair total, History). `inUnit` in `domain/logging.ts` converts for display only (2 decimals); stored sets keep their unit. Editing a weight on the logging screen writes it back in the profile unit, so the set is normalised on first edit. Keypad step uses the profile unit.
-  - **Settings → Bar and plates:** edits the default equipment profile's bar and plates in the profile unit (`withBarAndPlates` in `domain/profileForm.ts`, tests); creates a "Gym" profile when none exists. The Coach profile editor still has the full equipment editor.
-  - **Focus trap:** `components/TrapFocus.tsx` / `useFocusTrap.ts` in the four modal dialogs (confirm, photo viewer, onboarding, workout summary): focus moves in, Tab wraps, focus returns on close.
-  - **Library classification:** mapper fixes (squat checked before hinge so "Front Squat (Clean Grip)" is a squat; curls, raises and extensions are isolation even when the name says overhead; "Dips" plural and push-ups on a ball; olympic lifts stay hinge/squat/push, none were conditioning). `LIBRARY_VERSION` is now 2: installs seeded earlier get pattern and load model re-applied ONLY on library exercises the user never edited (`updatedAt` equals `createdAt`); edited ones are untouched. Regression table in `exerciseMapper.test.ts`.
-  - **Trash and undo:** routines now appear in Trash (restore, delete forever, 30-day purge). Deleting a weigh-in, a test result or a whole fitness test is undoable from the undo bar.
-  - **Drag-to-reorder:** now done (see the new session notes above).
-  Tests (423) and build pass. None of the UI was opened in a browser or on an iPhone.
-- **Next session:** start the two handed-off tasks (Web Push rest alerts; food list), redeploy the Worker after the first. Older notes follow.
-- **Earlier next-session note:** deploy the Worker again (new tables, tools and per-set rest), then on the phone: Train → Add my A/B/C program → approve → Make active, run A Day, and Backup → Export workouts to Strong…; import that file in Strong and report anything that looks different. Older note: deploy the Worker again (`npx wrangler deploy`), then try on the phone: drag, Nutrition, the USAFA section, Settings → Claude. Then pick from milestones 15c-e and 16. (Older note follows.) milestone 14 is finished apart from the dependency question; there is no milestone 15 yet. Suggested next: the open real-device items (deploy the Worker, sync once, add the connector per docs/connector.md, Strong import with the real file, rest alarm on a locked iPhone) and tell me what breaks; then pick the next milestone from the Ideas backlog.
-- **Done this session (14, item 4, first half):** the exercise form's Increment now has a lb/kg choice (saved as the exercise's `incrementUnit`; the keypad and progression already convert it to the set's unit). Tests (410) and build pass; not opened in a browser. **Not done, needs your decision:** "units change converts displayed set weights". Sets keep the unit they were logged in (CLAUDE.md: convert only for display), so the choice is between (a) show every set in the profile unit by converting on display, or (b) rewrite stored sets to the new unit. I recommend (a): reversible, no stored data touched. Say "go with a" and it is the next session.
-- **Next session:** your answer on (a)/(b), then the Settings plate/bar editor and dialog focus trap, then the library classification review and Trash for routines / undo for weigh-ins and tests. Drag-to-reorder still needs your OK for a dependency.
-- **Done this session (14, item 3):** unsaved-draft protection. Shared hook `components/useLeaveGuard.tsx`: the draft counts as changed once its JSON differs from its first value; Cancel then asks "Discard changes?" (Keep editing is the default) and a reload or close shows the browser warning. Used in the routine and planned-session editor (`ExercisesEditor`) and the program editor. The Claude proposal paste box keeps its text in localStorage (`forge.proposalDraft`) so it survives leaving the Coach tab or closing the app; approve, reject or clearing the box removes it. Tests (410) and build pass; the hook has no unit test (React only, tests run in node) and was not clicked through in a browser.
-- **Next session:** milestone 14, next items: kg increments in the exercise form plus unit changes converting displayed set weights (check the design with the user first; it touches stored data), then the Settings plate/bar editor and dialog focus trap. Drag-to-reorder still needs your OK for a dependency.
-- **Done this session (14, item 2):** editing a past workout now has "Edit name and times" at the top of the logging screen (`features/train/DetailsEditor.tsx`): name plus start and end pickers, saved with one button after validation (`domain/workoutDetails.ts`: name required, end after start, end not in the future; times are local wall-clock). Writes through `workoutRepo.update` at once. Tests (410) and build pass. Not opened on an iPhone (native datetime-local picker).
-- **Next session:** milestone 14, next unticked item (drag to reorder: needs a dependency, ask first, or keep buttons; so start with unsaved-draft protection in the routine, program and proposal editors).
-- **Done this session (14a + 14b, first item of milestone 14):** imported exercises get muscles and movement pattern. Pure `domain/exerciseInference.ts` `inferTraits`: copies the closest library exercise (name similarity ≥ 0.75 with equipment words and the "(Tag)" ignored), else keyword rules on the name (squat, hinge, presses, rows, pulls, curls, core, carries; first match wins), else nothing. New imports now fill muscles, pattern and unilateral at creation (a file-based pattern such as time/distance wins). For exercises already imported: Settings → "Review exercise muscles" lists every exercise with no primary muscle, each with its suggestion and the reason, ticked by default; "Apply to N exercises" writes them (`exerciseRepo.traitSuggestions` / `applyTraits`). No suggestion = listed with a note to set it in the library. Tests (407) and build pass. Not opened in a browser or on an iPhone.
-- **Next session:** the next unticked item of milestone 14 (edit a past workout's name and times). Still open: deploy the Worker, sync once, add the connector (docs/connector.md) and report what happens.
-- **Done this session (13a + 13b, milestone 13 complete):** each fitness test can have a target and a test date, typed by the user (`FitnessTest.targetValue` in base units, `testDate`; optional fields, no schema bump). Progress > Fitness tests: under each test name a line like "target 15 reps, 6 reps to gain, test 2026-12-20 (in 25 days)" (or "target met"); open a test to edit the goal ("Save goal", clear both boxes to remove). Pure `testCountdown`, `describeCountdown`, `daysUntil` in `domain/fitness.ts`; `fitnessRepo.setGoal`. 13b: the Coach summary's Fitness tests section lists the goal per test (even with no results yet) and, when any test has a date, adds a line asking Claude to aim the plan at it and not change my targets. Tests (400) and build pass. Not opened in a browser or on an iPhone.
-- **Next session:** milestone 14 (issue burn-down, one item per sitting; start with imported exercises' muscles/pattern). Still open: deploy the Worker, sync once, add the connector (docs/connector.md) and report what happens.
-- **Done this session (12a + 12b, milestone 12 complete):** `domain/insights.ts` turns existing analytics into one-sentence notes with the numbers: missed week (last week's days vs planned), imbalance (push:pull, squat:hinge over 4 weeks, reusing `balanceChecks`; 'Pulling volume is low' for push-heavy), plateau (no e1RM gain in 6 weeks, reusing `detectPlateau`). Home shows at most 3 under the status line (`InsightNotes`): tap a note for the rule and inputs, × dismisses it. Dismissals are ids kept in localStorage on the device; ids include the lift's last-gain date or the week, so a note can return when the situation changes. 12b: Coach has a 'Copy weekly review' button: a short ask for Claude, all current notes with their rules, then the 7-day summary (`domain/weeklyReview.ts`). Tests (392) and build pass. Not opened in a browser or on an iPhone.
-- **Next session:** milestone 13 (fitness-test countdown), then 14. Still open: deploy the Worker, sync once, add the connector (docs/connector.md) and report what happens.
-- **Done this session (11c, milestone 11 complete):** "+ Warm-ups" button on barbell exercises that have a working weight and no warm-ups yet. Pure `domain/warmup.ts` `buildWarmups`: empty bar × 10, then 50% × 5, 70% × 3, 85% × 1 of the first working weight, each rounded down to what the plates can load (plate calculator logic), duplicates and steps at or above the work weight dropped. Warm-ups are inserted before the working sets (`workoutRepo.insertWarmups`); bar and plates come from the exercise, the equipment profile, else 45 lb and a standard plate set. Tests (383) and build pass.
-- **Next session:** milestone 12 (plain-language insights), then 13, 14. Still open: deploy the Worker, sync once, add the connector (docs/connector.md) and report what happens.
-- **Done this session (11b):** logging screen shows a "Suggested 140 lb × 8 · tap to fill" chip on exercises started from a routine or program that has a progression rule; one tap fills the next open working set (weight, unit, reps when the rule sets them), and the one-line reason (formula and inputs) sits under it. Chip disappears when no working set is open. New `WorkoutExercise.suggested` (numbers); `progressionNote` now holds only the reason. `suggestionTarget` in `domain/logging.ts`, `fillSuggested` in the workout store, tests added. Tests (378) and build pass.
-- **Done this session (11a):** Home now opens with a "Next up" card (`features/home/NextUpCard.tsx`): the newest active program's first open session (via `nextSession`), else the routine of the last finished workout; lists each exercise with the sets and weight it will start with (same prefill and progression rules as starting, via read-only `workoutRepo.previewPlan`); one tap starts it and switches to Train. Hidden while a workout is in progress. Pure helpers `domain/nextUp.ts` (`pickNextUp`, `summarizeSets`) with tests. Tests (376) and build pass.
-- **Done this session (10d, milestone 10 code complete):** `propose_program` MCP tool: validates with the app's own `validateProposal`, checks exercise names against the library, rejects with a readable message Claude can act on, caps 5 waiting proposals and 100k characters, and writes ONLY an `aiDecisions` row with status `proposed` (test confirms programs, workouts and sets are untouched). `get_proposals` read tool. App: Coach → Program from Claude gets a "Proposals waiting" inbox (Check for proposals runs a sync, Review loads the existing diff and approve flow, Reject dismisses); approve/reject update the same decision row instead of logging a second one, and the result syncs back. Tests (370) and build pass. Nothing tried against the real Claude connector or real D1 yet.
-- **Next session:** Before coding: you deploy the Worker, sync once, add the connector, and report what happens (docs/connector.md); fix anything that breaks. Then 11a (Today: next-up session), 11b, 11c, 12, 13, 14.
-- **Done this session (10c):** MCP server on the Worker (`worker/src/mcp.ts`, tools in `worker/src/tools.ts`): stateless Streamable HTTP with JSON responses at `/mcp/<token>` (Bearer also accepted), 7 read-only tools (profile, exercises, workouts, exercise history with e1RM formula and unit, weekly hard sets per muscle, active program, bodyweight), reusing the app's pure domain functions. No write tools. 9 new tests call the tools over real MCP JSON-RPC against SQLite. `wrangler deploy --dry-run` bundles fine (247 KiB gzip); added `nodejs_compat`. `docs/connector.md` has the connect steps. Tests and build pass. NOT yet tried against the real Claude connector screen or real D1.
-- **Next session:** first, you deploy the Worker, sync once from the phone, and add the connector (docs/connector.md); report what Claude's screen says. Then 10d (propose_program write tool creating an `AiDecision` with status `proposed`, plus the Coach inbox using the existing approve flow). Then 11a-c, 12, 13, 14.
-- **Done this session (10b):** app sync client `db/repositories/sync.ts` (`syncRepo`): push rows with `updatedAt` at or after a saved watermark (batches of 200, watermark moves only after the server accepts a batch, so offline or failed syncs just retry; no separate queue), then pull pages from the saved cursor; last-writer-wins by `updatedAt`, ties keep local. Never throws; errors stored as `lastError`. Settings → Cloud sync panel (`SyncPanel.tsx`): URL + token, Connect and sync, Sync now, Re-upload everything, Disconnect, pending count, last sync and error. URL/token live in the `meta` table (not in backups). 7 new tests with a fake server; tests (354) and build pass. Not tried against the real Worker yet.
-- **Next session:** 10c (MCP server on the Worker with read tools, docs/connector.md, user adds it in Claude). Needs the Worker deployed and a first real sync from the phone so D1 has data. Then 10d, 11a-c, 12, 13, 14.
-- **Done this session (10a):** sync backend in `worker/`: Cloudflare Worker handler (`worker/src/sync.ts`) with D1 schema (`worker/schema.sql`, one JSON row table keyed by table+id with a server `seq` change counter), Bearer-token auth (constant-time compare, refuses tokens under 16 chars), `POST /api/sync/push` (max 200 rows, last-writer-wins by `updatedAt`, whole push rejected on a bad row), `GET /api/sync/pull?since=` (paged, 500 max), `/api/health`, CORS. Photos, undo, meta and raw import rows are not synced. 17 tests run the real SQL against node:sqlite. `docs/connector.md` has deploy steps (user step: wrangler login, d1 create, schema, secret, deploy). Dependencies added with approval: wrangler, @modelcontextprotocol/sdk, zod (dev). Not deployed or tried against real D1 yet.
-- **Superseded plan:** 10b (app sync layer behind the repository interface: push/pull, status and Sync now in Settings, offline-safe queue). Before it: deploy the Worker per `docs/connector.md` and give the Worker URL and token when asked (token stays in the app's Settings, never in the repo). Then 10c, 10d, then 11a-c, 12, 13, 14.
-- **Done this session (9b, milestone 9 complete):** per-exercise page rebuilt: header with best e1RM and PR badges (PRs from the last 30 days, max 3), ONE chart with range pills (1M/3M/6M/1Y/All, default 6M) and the formula named under it (compact formula select kept), segments History (working sets per workout, warm-ups counted not listed, 10 then Show more), Records (best load at exactly 1/3/5/8/10 reps with dates) and Volume (per workout). Helpers in `domain/exerciseHistory.ts` with tests. The old PR timeline list is gone (badges + Records replace it). Tests (330) and build pass. Not yet seen on a phone or with real data in a browser.
-- **Done earlier (information diet, 9a):** Home, Train, Strength, Progress and Coach simplified (see Decisions). Train went from about 7,400 px of scrolling to one screen with sample data. Tests (326) and build pass.
-- **Done earlier (post-M8 tweaks):** rest timer after every set incl. warm-ups; rest alarm as locked-screen-safe audio with a Settings option and test button; logging screen declutter (collapsed exercise cards, folded warm-ups). Tests and build pass. Open requests: rework of the Strength tab (user dislikes it; waiting for specifics) and a built-in Claude (decision pending, see chat).
-- **Previous session:** Milestone 8b (milestone 8 code complete): tab screens lazy-loaded and Recharts split into its own chunk (entry bundle 923 kB to 277 kB, no size warning); real F icons (rounded, maskable, Apple touch); install-to-Home-Screen help in Settings; offline check passed in headless Chromium (reload offline, lazy tabs load); accessibility pass (lighter `accent-text` token so red text reaches 5:1 on dark, focus-visible ring, Escape closes the confirm dialog; muted text already 5.2:1 or better); Cloudflare Pages config (`public/_headers`) and `docs/deploy.md`. Tests (311) and build pass.
-- **Earlier plan (superseded by the line above):** Milestone 11a, 11b, 11c, then 10, then 12, 13, 14. Before that: the Cloudflare Pages deploy is a user step (needs the user's Cloudflare account): follow `docs/deploy.md`. After that, the first real-device pass (iPhone): Strong import with the real file, offline, backup share sheet, photos.
-- **Known issues:** see bottom.
+## Current (2026-11-26)
+- **State:** every milestone the user wants is done and tested; the Worker is redeployed. Dropped at the user's request: 15d (food search API and barcodes), 15e (other academies), 19b (brand foods), the ideas backlog.
+- **Done this session:** rep PRs count for every rep count at or below the set (no pop-up, warm-ups excluded); plateau looks at the last 4 weeks only; yards for conditioning distances; editors use the profile weight unit; editor drafts survive tab switches; Trash restore relinks planned sessions; proposal diffs match sessions by name; plate line under barbell weights (Settings toggle); quick strip on the next set (same as last, −/+ increment); daily readiness check-in with trends, coach summary and `get_readiness`; year in review; weekly email from the Worker.
+- **User steps:** to get the weekly email and `get_readiness`, `git pull`, set `RESEND_API_KEY` and `EMAIL_TO` (docs/connector.md, "Weekly email"), then `npx wrangler deploy` in `worker/`. `/api/health` should list `readiness` and `weekly`.
+- **Next:** nothing scheduled. Ask the user. The only open idea is a native Apple Watch app (16b).
 
 ## Decisions (defaults chosen; change by asking)
 - Unit display (14): sets are never rewritten by a units change; every screen converts for display with `inUnit`, and editing a weight saves it in the profile unit. Analytics already convert. The routine/program target editors still show targets in their own unit label (lb), see Known issues.
 - Library reclassification (14): `LIBRARY_VERSION` 2 re-applies pattern and load model only to untouched library exercises (never edited, never deleted). Anything the user edited keeps their values. Further mapper changes need another version bump.
-- Reorder (14): up/down buttons stay; drag-and-drop would need a dependency (not approved).
+- Reorder: drag-to-reorder with @dnd-kit (approved 2026-11-25).
 - Fitness-test countdown (13): one target and one test date per test, stored on the test (target in base units, shown in the profile length unit). Gap = target − best (higher is better) or best − target (lower is better), floored at 0; measured against the BEST result, not the latest. A past date shows "N days ago". The Worker/connector does not expose targets yet (the Copy summary does).
 - Insights (12a): max 3 notes on Home, order missed week, imbalance, plateaus (longest first). Dismissed note ids live in localStorage, not the database (display preference; no sync or schema change). 'Missed' ignores long breaks (nothing the week before). Weekly review (12b) copies from Coach; the connector path is separate and unchanged.
 - Food list (18): per-100 g values from USDA FoodData Central Foundation + SR Legacy (public domain), copied by `scripts/build-foods.mjs`; the script's word list decides which foods are included, never any value. Amount = value per 100 g × grams ÷ 100, calories rounded to whole, macros to 0.1 g. Slider 5 g to max(500 g, 4 × biggest portion), snaps to portions. Recent foods come from the user's own entries. No new dependency.
@@ -126,7 +36,7 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Editing a past workout reopens it in the logging screen with its original end time kept; the ID is stored in `meta.editingWorkoutId` so a reload resumes the edit. No rest timer while editing. "Close without finishing" just closes (edits are already saved).
 - Repeat copies exercises, supersets and set structure (type/weight/reps/time/distance) as unticked sets; notes, RPE/RIR are not copied.
 - Plate calculator uses the exercise's `barWeight`, else the default equipment profile's bar (45 lb) and plates; shown only for barbell exercises with the `total` load model. Greedy, per side, with a "closest" note when the target is not reachable.
-- Dumbbell pair total is display-only, a small "N total" line under the weight; the toggle lives on the Train home screen until a Settings screen exists.
+- Dumbbell pair total is display-only, a small "N total" line under the weight; the toggle is in Settings.
 - Strong import: file dates are local wall-clock time; weights keep the unit the file states (header `Weight (kg)` or a Weight Unit column), else the unit chosen in the preview (default lb). Stored in that unit; never converted at import.
 - Strong import: distance is read as metres unless the header says `(km)` or `(mi)`. Strong's own export may differ; check on the first real file.
 - Strong import: only equipment `dumbbell` + `perImplement` exercises get the pair-total halving (kettlebells are single loads). Default is halve; override globally or per exercise in the preview; fixable later from "Past imports".
@@ -171,287 +81,53 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - A/B/C program values: Strong's template boxes looked stale (for example bench 65 x 3, deadlift 145 x 1), so reps come from the last performed session ("Previous" column and the connector's last A, B and C Day). Working weights are left blank so each set prefills from history, except the squat (A 205 x 6, C 185 x 8) because A and C Day share it. Warm-up weights are fixed. Dumbbell weights are per dumbbell (half of Strong's pair total). Exercises that Strong maps differently keep the library exercise where the user's imported history lives: Lateral Raise (Dumbbell) = Dumbbell Raise, Bulgarian Split Squat = Suspended Split Squat, Chest Fly = Butterfly. Assumptions to confirm: B Day ends with Hanging Leg Raise (the screenshots cut off after set 3), the Bulgarian warm-up has no fixed weight, the lat pulldown warm-up is 50 lb (Strong's Previous showed 120).
 - Strong export: no "Rest Timer" rows and no superset markers (Strong's CSV has no column for supersets); duration is the Forge workout length.
 - Default rest 120 s for compound lifts, 90 s otherwise; default increment 5 lb barbell, 5 lb dumbbell (per implement), 2.5 lb fallback for small plates is a per-exercise edit.
-
 - Analytics (4a): only finished, non-trashed workouts count. Effective load per `domain/load.ts`; bodyweight lifts use the nearest weigh-in on or before the set, else the workout snapshot, else the set is skipped. Analysis unit is the profile unit. e1RM uses sets of 1–12 reps, one point per workout (its best set); a single is its own max in every formula. Default formula Epley, changed in the chart screen and stored on the profile.
-- PRs (4a): the first value of each kind is a baseline, not a PR; ties are not PRs. Kinds: rep (heaviest load at exactly 1, 2, 3, 4, 5, 6, 8, 10 or 12 reps), e1RM (chosen formula), volume (load × reps summed over the exercise in one workout). Evaluated per workout, so several sets in one workout yield at most one PR per kind and rep count.
+- PRs: the first value of each kind is a baseline, not a PR; ties are not PRs; warm-ups never count. Rep PR = heaviest load at N reps or more (N = 1 to 20), so a heavier 5 is also the best for 1 to 4 reps; it is shown as a PR only at the set's own rep count (the lower counts update silently, no pop-up). e1RM uses Epley (fixed). Volume = load × reps summed over the exercise in one workout.
 - Volume (4b-i): a hard set is a completed non-warm-up set of a finished, non-trashed workout; it counts even with no reps/load. Muscle credit: primary 1.0, secondary 0.5 (a muscle listed as both counts once, as primary). Exercises with no muscles are counted in the set total and reported as "unassigned", not spread anywhere. Volume (load × reps) uses effective load and is 0 for sets with unknown load.
 - Period comparison (4b-i): month = this calendar month so far vs the whole previous month; 3/6/12 months = last N months to today vs the N months before. Windows differ in length for "month", and totals are plain sums, so the UI says they are not per-week rates.
-- Plateau (4b-i): 6 weeks (constant `PLATEAU_WEEKS`, no setting yet), best e1RM in the window does not beat the earlier best, needs an earlier best and at least 3 sessions in the window. Uses the formula chosen on the profile.
+- Plateau: looks only at the last 4 weeks (`PLATEAU_WEEKS`): flagged when there are at least 3 sessions in the window and none beats the first session in the window. Earlier, higher bests are ignored.
 - Strength score (4b-ii): score = 100 × Σ(weight × e1RM ÷ bodyweight) ÷ Σ(weight) over chosen lifts that have an e1RM in the last 12 weeks (best, chosen formula). Lifts with no recent e1RM are left out and the card says what share of the lift weights was used. Bodyweight = latest weigh-in on or before today. Lifts, weights and thresholds live on the profile (`strengthScoreLifts`, `strengthStandards`); no schema change.
 - Tiers (4b-ii): thresholds are minimum e1RM ÷ bodyweight per tier; the tier is the highest met, "Below beginner" under the first. Starting templates (squat, bench, deadlift, press, row) are rough multiples chosen by the app for a trained adult male, not from a dataset and not percentiles; copied into the profile when a lift is added, picked by movement pattern, fully editable. Thresholds must be positive and non-decreasing.
 - Bodyweight entry: until Milestone 5 builds the bodyweight log, the score card has a small "Log today" box that writes a normal `BodyMetric` (kind bodyweight) in the profile unit, so M5 inherits the data.
 - Body map (4b-ii): schematic regions, not anatomical. Shade = the selected week's weighted sets relative to the busiest muscle (steps at >0, >25%, >50%, >75%); the rule is printed under the map. Same data and week picker as the weekly list.
 - Balance checks (4b-ii): hard sets by exercise movement pattern over the last 4 weeks (constant). Push = horizontal + vertical push; pull = horizontal + vertical pull; squat side = squat + lunge; hinge = hinge. Flagged when one side has more than 1.5× the other's sets (exactly 1.5 is fine). Core, isolation, carry and other patterns are ignored. Imported exercises count only once their pattern is set in the library.
+- Editors and units (2026-11-26): routine and program editors show and type weights in the profile unit (stored with that unit) and distances in yards for an inch profile, metres otherwise (stored in metres). The logging screen, keypad and history do the same for distance.
+- Drafts survive tab switches: the Train tab stays mounted (hidden) while other tabs or Settings are open; its lists and the workout view reload when Train is shown again.
+- Trash restore relinks a planned session if that session still exists, is not deleted and has no other completed workout.
+- Proposal diffs match sessions by name within a week (leftovers paired in order as renames), so inserting a day no longer shows every later day as changed. History carry-over matches by name too.
+- Plate line: per-side plates (e.g. "45×2 10") in 10 px text pinned inside the bottom of each barbell weight box, so the row height does not change. Settings toggle "Show plates under barbell weights" (default on, `Profile.showPlatesInline`).
+- Quick strip: only under the next set of the current exercise: "Same · 185×5" copies the last completed set (same kind, warm-up or working), and −/+ step the weight by the exercise increment.
+- Readiness: one sheet per day when a workout starts (sleep hours, soreness 1–5, energy 1–5; Skip today). Score = average of sleep points (hours − 4, kept 1–5), 6 − soreness and energy. Trends under Progress → Readiness; in the coach summary and the `get_readiness` tool.
+- Year in review (Progress): total lifted (load × reps of working sets), workouts, hours, PRs (rep and e1RM), biggest e1RM gains vs the best before the year (or the first session for a new lift), most-trained lifts by sets, heaviest set, longest run of weeks meeting the planned days.
+- Weekly email: Worker cron Monday 01:00 UTC (Sunday evening in the US) reports Monday–Sunday through Resend's free plan (secrets `RESEND_API_KEY`, `EMAIL_TO`; optional `EMAIL_FROM`). Without a domain Resend only mails the sign-up address, which is the user. `GET /api/weekly` previews, `POST /api/weekly/send` sends now (token auth).
+- Apple Watch (16): Shortcuts cannot show a live workout; a Strong-style Watch view needs a native watchOS app (see Milestone 16). Not scheduled.
 
-## Milestone 0 — Foundation
-- [x] SPEC.md, CLAUDE.md, PROGRESS.md
-- [x] Vite + React + TS scaffold, Tailwind, PWA plugin, Vitest
-- [x] Design tokens (dark/light), fonts, safe areas, no zoom / rubber band
-- [x] App shell with five tabs (Home, Train, Strength, Progress, Coach)
-- [x] Data model as code (`src/domain/types.ts`) including later-phase entities
-- [x] Units + load-model pure functions with tests
-- [x] Dexie schema v1 + repository layer with tests
-
-## Milestone 1a-i — Exercise library
-- [x] Vendor free-exercise-db JSON (slimmed); mapper to Exercise (pattern, loadModel, increment, rest, aliases) with tests
-- [x] Seed library on first run (idempotent, versioned, never overwrites user edits)
-- [x] Exercise picker: search name + aliases, filter by muscle/equipment, recent first (pure search fn + tests)
-- [x] Custom exercise create/edit (load model, increment, rest, aliases)
-
-## Milestone 1a-ii — Logging core
-- [x] Active workout store (Zustand) backed by repositories; resume on reopen
-- [x] Start empty workout; add exercises
-- [x] Set row: weight × reps prefilled from last session; one tap to complete
-- [x] Custom numeric keypad with ± steps = exercise increment
-- [x] Set types (warm-up, working, drop, failure, AMRAP) + optional RPE/RIR
-- [x] Finish / discard workout; basic workout history list
-
-## Milestone 1b-i — Logging extras, part 1
-- [x] Timestamp-based rest timer (per-exercise default, survives lock), vibration on end
-- [x] Screen Wake Lock while a workout is active (re-acquire on visibility change)
-- [x] Sticky exercise notes + session notes
-- [x] Reorder / swap / remove exercises mid-workout
-
-## Milestone 1b-ii — Logging extras, part 2
-- [x] Supersets/circuits: group, timer after last exercise of the round
-- [x] Edit and duplicate past workouts
-- [x] Plate calculator (bar weight, available plates, per side)
-- [x] Display setting: show dumbbell pair total
-
-## Milestone 2a — Strong import
-- [x] CSV tokenizer + Strong CSV parser (pure) + tests: dumbbell, bodyweight, kg, lb, duration/distance
-- [x] Exercise matching (name + aliases), create-or-map plan, dumbbell convention (pure + tests)
-- [x] Duplicate detection (pure + tests)
-- [x] Import commit: ImportBatch + RawImportRow saved, re-apply conventions (repository + tests)
-- [x] Import preview UI: file pick, per-exercise map/create, dumbbell toggle, duplicate count, confirm
-
-## Milestone 2b — Export & restore
-- [x] Full JSON export + `docs/export-format.md`
-- [x] Strong-format CSV export
-- [x] JSON restore (replace or merge) with preview
-
-## Milestone 2c — Safety net
-- [x] Weekly backup reminder (Files/iCloud via share sheet / download)
-- [x] Undo last action
-- [x] Trash: soft-deleted workouts, 30-day purge, restore
-
-## Milestone 3 — Routines & programs (split 3a–3d)
-### 3a — Routines
-- [x] Routine CRUD with target sets/reps/rest/RPE; start workout from routine
-### 3b — Programs
-- [x] Program → weeks → planned sessions; versioning with change reason
-### 3c — Planned vs completed, history
-- [x] Planned vs completed linking and view
-- [x] History calendar + training-day heatmap
-### 3d — Progression
-- [x] Progression rules: double progression, % e1RM, RPE target → suggested weight (pure + tests)
-
-## Milestone 4 — Strength analytics (split 4a/4b)
-### 4a — e1RM, PRs, per-exercise view
-- [x] e1RM formulas (Epley, Brzycki, Lombardi, Mayhew, O'Conner, Wathan) + tests
-- [x] PR detection: rep-range, e1RM, volume + PR timeline (tests)
-- [x] Per-exercise e1RM chart with formula picker (Strength tab)
-### 4b-i — Volume, comparisons, plateau
-- [x] Weekly hard sets per muscle (primary 1.0, secondary 0.5 — shown)
-- [x] Period comparisons (month vs last; 3/6/12 months)
-### 4b-ii — Score, tiers, map, balance
-- [x] Strength score: chosen lifts + weights, formula displayed
-- [x] Strength tiers from editable standards tables
-- [x] Muscle body map (front/back SVG)
-- [x] Plateau detection (N weeks without e1RM gain)
-- [x] Balance checks: push:pull, squat:hinge
-
-## Milestone 5 — Body & athletic (split 5a/5b/5c)
-- [x] 5a: Bodyweight log + smoothed trend (EWMA, shown)
-- [x] 5b: Fitness tests + results history (pull-up max, push-ups, 1.5 mi, 40 yd, broad, vertical, custom)
-- [x] 5c-i: Conditioning sessions (time/distance sets)
-- [x] 5c-ii: Progress photos (IndexedDB blobs, device only)
-
-## Milestone 6 — Claude coach (split 6a/6b)
-- [x] 6a: Training profile editor
-- [x] 6a: Copy-for-Claude summary (date range, PRs, volume, program, profile)
-- [x] 6b: `docs/program-schema.md` + JSON schema
-- [x] 6b: Paste Claude program → validate → diff preview → approve → save (AiDecision logged)
-
-## Milestone 7 — Gamification (split 7a/7b)
-- [x] 7a: Achievement definitions + evaluator (pure + tests) and repository sync
-- [x] 7b: Weekly streaks vs planned days
-- [x] 7b: Achievements list + new-achievement cards (Home, summary)
-- [x] 7b: PR celebration (post-set highlight, summary, Home)
-
-## Milestone 8 — Polish & install
-- [x] 8a: Empty states (audited, already present), onboarding (units, bodyweight, goals), Settings screen, in-app confirm dialogs
-- [x] 8b: Accessibility pass (labels, contrast, reduced motion, focus)
-- [x] 8b: Performance (bundle split done; virtualization not needed at 30 rows)
-- [x] 8b: Install-to-home-screen help; offline check; real app icons
-- [~] 8b: Cloudflare Pages deploy (config + `docs/deploy.md` ready; connecting the repo is a user step)
-
-## Milestone 9 — Strength tab redesign (user request: cluttered, wants a per-exercise page, score/tiers feel off)
-Design (agreed in chat 2026-11-25):
-- Strength tab becomes ONE clean list of lifts: name, current e1RM, change over the last 4 weeks, last done date; search box; most recent first. Nothing else on the main screen.
-- Tapping a lift opens a per-exercise page (Strong/Hevy style): header with current best e1RM and PR badges; ONE chart (e1RM over time, range pills, formula named under it); segments below: History (workout by workout, working sets only, warm-ups folded), Records (best weight at 1, 3, 5, 8, 10 reps, with dates), Volume (per workout).
-- Score, tiers, body map, weekly sets per muscle, balance and plateau move off the main screen into an opt-in "Insights" screen (button in the header). Nothing is deleted. Score and tiers are hidden until the user sets them up. Note for the session: the tier thresholds are the app's own rough multiples, not from a dataset; say so on the screen and ask the user what felt off before changing the formulas.
-- Tasks:
-  - [x] 9a (done 2026-11-25): information-diet pass modelled on Strong/Hevy. Home = status line + History (short rows, tap to open). Train = Start workout + Program + Routines only. Strength = plain list of lifts (e1RM, 4-week change) with Insights behind a button. Progress = 4-row menu, each on its own screen. Coach = one Copy button, preview hidden. Library, Import and Backup moved to Settings.
-  - [x] 9b (done 2026-11-25): per-exercise page: header with current e1RM and PR badges; ONE chart; segments History (workout by workout, working sets only), Records (best weight at 1, 3, 5, 8, 10 reps with dates), Volume (per workout). Trim `ExerciseStrength.tsx` to match.
-- Suggested model: Sonnet, medium effort. Verify on the phone: chart readability at iPhone width.
-
-## Milestone 10 — Claude connector + cloud sync (user chose this over an in-app chat; free, uses the Claude Pro plan)
-Goal: the Claude app on the phone (and web) can read ALL Forge data live and propose changes; the user approves in Forge. Principle 4 holds: Claude only proposes.
-Architecture (to confirm at the start of 10a):
-- One Cloudflare Worker + D1 database in the user's own free Cloudflare account. Rows already carry `id`, `updatedAt`, `deletedAt`, so sync is push/pull of rows changed since a cursor; conflict rule last-writer-wins by `updatedAt` (same rule as merge restore). Photos stay on the device. One user, no accounts: a long secret token.
-- The same Worker exposes a remote MCP server. Read tools: profile, workouts by date range, exercise history, PRs, weekly sets per muscle, active program, the Copy-for-Claude summary. Write tool: `propose_program` (and notes) that only creates an `AiDecision` with status `proposed`; the app pulls it and shows it in Coach for approval with the existing diff and approve flow.
-- The user adds the Worker URL in Claude → Settings → Connectors → Add custom connector. Check at the start that the Pro plan allows custom connectors and which auth the connector UI accepts (authless with an unguessable URL vs OAuth); decide and note it.
-- Needs new dependencies (wrangler, an MCP SDK): ASK before adding. Deploy steps need the user's Cloudflare account; write `docs/connector.md`.
-- Privacy: a copy of the training data lives in the user's own Cloudflare account. Say this plainly in the Settings screen.
-- Tasks:
-  - [x] 10a (done 2026-11-25): Worker + D1 schema, token auth, sync endpoints, tests (Vitest against the handler)
-  - [x] 10b (done 2026-11-25): App sync layer behind the repository interface (push/pull, status in Settings, offline-safe queue, manual "Sync now")
-  - [x] 10c (done 2026-11-25; untested against real Claude): MCP server on the Worker with read tools; docs/connector.md; user connects it in Claude
-  - [x] 10d (done 2026-11-25; untested against real Claude): `propose_program` write tool + Coach "Proposals from Claude" inbox using the existing approve flow
-- Suggested model: Opus, high effort (auth, sync conflicts). Prerequisite: the Cloudflare Pages deploy (docs/deploy.md) is done.
-
-## Milestone 11 — Today (the reason to open the app)
-- [x] 11a (done): Home shows "Next up": the active program's next session (or the last routine) with weights already filled from the progression rules; one tap starts it. Pure helper picks the next session (reuse `domain/program.ts` `nextSession`).
-- [x] 11b (done): During logging, a "Suggested" chip per exercise (already computed by progression) that fills the set in one tap; show why in one short line.
-- [x] 11c (done, milestone 11 complete): Auto warm-up builder: from the first working weight, add warm-up sets (bar, 50%, 70%, 85%) with the plate calculator; pure function with tests.
-- Model: Sonnet, medium.
-
-## Milestone 12 — Plain-language insights (tell the user what to do)
-- [x] 12a (done): Rules that turn the existing analytics into one-sentence notes with the numbers behind them (plateau, low pulling volume, imbalance, missed sessions). Pure + tests; shown as at most 3 notes on Home under the status line, dismissible.
-- [x] 12b (done, milestone 12 complete): Weekly review text the user can send to Claude (or Claude pulls via the connector once M10 exists).
-- Model: Opus for the rules, medium effort.
-
-## Milestone 13 — Fitness-test countdown (service academy and rugby)
-- [x] 13a (done): Test date + target per test (pull-ups, push-ups, 1.5 mile, 40 yd, broad jump, vertical) on the Progress > Fitness tests screen; shows current best, target, gap and days left. No invented standards: targets are typed by the user (from the academy's published standards).
-- [x] 13b (done, milestone 13 complete): Proposal text for Claude includes the countdown so plans aim at the test.
-- Model: Sonnet, medium.
-
-## Milestone 14 — Issue burn-down (small fixes, one sitting each)
-- [x] Imported exercises get muscles and movement pattern: infer from the matched library exercise or the name, with a bulk review screen (so they count in weekly sets and balance). (done as 14a inference + 14b review screen)
-- [x] Edit a past workout's name and start/end time.
-- [x] Drag to reorder (done 2026-11-25, @dnd-kit).
-- [x] Unsaved-draft protection in the routine, program and proposal editors.
-- [x] kg increments in the exercise form; set weights shown in the profile unit.
-- [x] Settings: plate and bar editor; keyboard focus trap in dialogs.
-- [x] Library classification review: mapper heuristics fixed, regression tests, one-time reclassify of untouched exercises.
-- [x] Trash entry for routines; undo for deleting weigh-ins and tests.
-- Model: Sonnet, medium. Milestone 14 is a list of independent fixes: do one or two per session and tick them off (no further ID split needed).
-
-## Milestone 15 — Nutrition and academy tests (user request 2026-11-25)
-- [x] 15a: Nutrition tab v1 (see Decisions).
-- [x] 15b: USAFA PFT and AFT preset, countdown line on Home.
-- [ ] 15c: Verify USAFA events and the AFT event against the current USAFA instruction (ADOI 36-3504 as cited by cadet sources); user to confirm or send the official list; add scoring tables only if the user supplies them.
-- [ ] 15d: Food search (Open Food Facts or USDA FoodData Central are free) and barcode scanning. Large; only if the user wants it.
-- [ ] 15e: Presets for other academies (USNA PFA, West Point) if wanted.
-
-## Milestone 16 — Apple Watch
-Honest scope: a Watch app has to be a native watchOS app (Swift/SwiftUI) built in Xcode on a Mac. A web app cannot run on the Watch. It cannot be built or tested in this Linux environment. Options, cheapest first:
-- [ ] 16a: Shortcuts quick-log (free, no Mac): a Worker endpoint `POST /api/quicklog` (token auth) that adds a set or bodyweight entry; the user builds an iPhone Shortcut that also runs on the Watch (ask for exercise, weight, reps, then POST). Rest timer on the Watch uses the built-in Timer. Needs the Worker redeployed.
-- [ ] 16b: Native watchOS companion (Xcode, Apple Developer account at about $99 a year for lasting installs; a free account re-signs every 7 days). Reads the active workout from the Worker, logs sets, shows the rest timer. Needs the user's Mac; code can be written here but not compiled or tested.
-- Decision needed from the user: which option, and whether they have a Mac.
-
-## Milestone 17 — Lock-screen rest alerts (Web Push)
-Goal: the rest timer alerts even when Forge is closed or the iPhone is locked. A web page cannot do this with audio (iOS silences "ambient" audio on lock; "playback" pauses the user's music), so use Web Push (Home Screen web apps, iOS 16.4+).
-- [x] (17a, done) Worker (`worker/`): Durable Object (SQLite-backed, free plan; `new_sqlite_classes` migration in `wrangler.toml`) that stores the push subscription and sets an alarm at `endsAt`. Token-protected endpoints: `GET /api/push/key`, `POST /api/push/subscribe`, `PUT /api/rest {endsAt}`, `DELETE /api/rest`. On alarm, send Web Push signed with a VAPID JWT (ES256, WebCrypto); payload-less push avoids RFC 8291 encryption. VAPID private key as a wrangler secret, plus a key-generation script. Drop dead subscriptions on 404/410.
-- [x] (17b, done) Service worker: vite-plugin-pwa `workbox.importScripts: ['push-handler.js']` + `public/push-handler.js` (`push` → `showNotification('Rest over')` with a tag; `notificationclick` → focus/open the app).
-- [x] (17b, done) App: Settings toggle "Lock-screen rest alerts" (permission requested from a tap in the installed app; subscribe with the VAPID key); PUT on rest start and ±15 s, DELETE on skip/finish/discard; silent fallback offline; keep the in-app bell when open.
-- [x] (done) Tests for the JWT, scheduling and client calls; `docs/connector.md` deploy steps; note that iOS uses the system notification sound (no custom bell).
-- Model: Opus, high effort. Needs a Worker redeploy and a real-iPhone test.
-
-## Milestone 18 — Food list with portion slider
-Goal: pick a food from a list, set the amount with a slider, see calories/protein/carbs/fat live, add it.
-- [x] (done) Data: ~500–1000 common foods from USDA FoodData Central (Foundation + SR Legacy, public domain): per-100 g kcal/protein/carbs/fat and household portions. Reproducible script in `scripts/` writing `src/data/foods.json` (lazy-loaded). Credit USDA. If the download is blocked, ask the user; never type values from memory.
-- [x] (done) Pure search (recent first) and scaling-by-grams functions with tests.
-- [x] (done) `NutritionEntry` gains optional `foodId` and `grams` (backward compatible; sync and backup are generic).
-- [x] (done) UI: search → list → sheet with a slider snapping to portions or 5–10 g steps, live macros, Add. Keep typed entry and quick foods. Keep the main screen uncluttered.
-- Model: Sonnet, high effort.
-
-## Milestone 19 — More foods, units, recipes, search at the top (split 19a / 19b)
-User additions (2026-11-26): a much longer food list with lots of basics; units that are easy to estimate after eating (ml, cups, tablespoons, fl oz, pieces, not only grams); save compound foods (recipes, e.g. a burrito built from its parts) and custom foods for parts that do not exist; the food search is a search bar at the top of the Nutrition tab, not behind a button.
-- 19a (done 2026-11-26, no brand data needed):
-  - [x] (done) Data: widen `scripts/build-foods.mjs`: more staples and variants from Foundation + SR Legacy, SR "Fast foods" and generic "Restaurant" items, carbonated drinks, and the USDA Survey (FNDDS) set (mixed dishes, burritos, sandwiches, pizza, soft drinks). Keep the IDs of the existing 776 foods. Keep volume portions so ml/cups can be derived.
-  - [x] (done) Pure code: portion parsing, density from a plain volume portion, unit list per food (g, oz, ml, fl oz, tsp, tbsp, cup, USDA portions), fraction input, search aliases; tests.
-  - [x] (done) Saved foods: `SavedFood` gains optional `servingLabel`, `ingredients`, `servings` (recipes; no new table, so sync and backup are unchanged); pure recipe maths; repository.
-  - [x] (done) UI: search bar at the top of the Nutrition tab with inline results (mine first), amount sheet with quantity and unit chips, custom food form, recipe builder, "My foods" manager.
-- 19b (dropped 2026-11-26 at the user's request): brand and restaurant items are not needed; the generic USDA fast-food, restaurant and soft-drink items from 19a cover them. Milestone 19 is complete.
-- Model: Sonnet, high effort.
-
-## Ideas backlog (not scheduled)
-Auto warm-up ramp from the working weight; weekly volume landmarks per muscle; program library (5/3/1, linear progression) as importable JSON; muscle recovery view; Claude "what should I train today" proposals (after M10); beep-test and interval timers; light nutrition (daily calories and protein plus bodyweight trend to estimate maintenance); detailed set-by-set export for Claude (superseded by M10).
+## Milestones (all done unless marked)
+- [x] 0 Foundation · 1a/1b Logging · 2a–2c Strong import, export, safety net · 3a–3d Routines, programs, planned vs completed, progression
+- [x] 4a/4b Strength analytics · 5a–5c Bodyweight, fitness tests, conditioning, photos · 6a/6b Coach summary and proposals · 7a/7b Achievements, streaks, PR celebration · 8 Polish and install
+- [x] 9 Strength tab redesign · 10 Claude connector and cloud sync · 11 Today / next up / warm-ups · 12 Insights · 13 Test countdown · 14 Issue burn-down
+- [x] 15a Nutrition · 15b USAFA PFT/AFT preset · 15c USAFA events checked · 15d, 15e dropped
+- [ ] 16 Apple Watch: 16a (Shortcuts) dropped, it cannot show a live workout. 16b native watchOS app not scheduled: needs Xcode on the user's Mac and an Apple ID (free re-signs every 7 days, or $99 a year). It would read the active workout from the Worker, show exercise, weight, reps and the rest timer, mark sets done and advance; the phone's auto-sync keeps both sides current.
+- [x] 17 Lock-screen rest alerts · 18 Food list · 19a More foods, units, recipes (19b dropped)
+- [x] 20 (2026-11-26) Fixes and additions listed under Current.
 
 ## Known issues
-- Food list (18, 19a): about 7,000 USDA foods, not the full USDA database (no brands, no barcode scan); names are USDA's wording ("Beef, ground, 85% lean meat / 15% fat, raw", "Soft drink, cola"). Raw and cooked are separate foods; pick the one you weighed. Search has no popularity signal: it ranks plain names first, so "rice" lists "Rice, fried" before "Rice, white, cooked, long-grain" in places; type more words ("white rice cooked"). Unit chips can run to 13 for drinks and mixed dishes (USDA gives many sizes). "cup" of a mixed dish (burrito, pizza) is USDA's weight for a cup of it and means little. Volume units exist only when USDA gives a plain cup, fl oz, tbsp or tsp weight for that food (no ml for a steak). The USDA Survey set is average American recipes, not brands. Entries keep the name text they had when added; editing a logged food is not possible (delete and re-add). A recipe's parts cannot be re-amounted, only removed and re-added; editing a recipe does not change entries already logged. Not tried on an iPhone (range thumb size, decimal keypad has no "/" key so fractions need the − and + buttons).
-- Conditioning sets show distance in metres (40 yd shows as 36.58 m); the set row has no yard/mile display yet.
-- Auto warm-ups use the default equipment profile's bar and plates; an exercise-specific bar weight is respected. Machine and cable warm-ups round to the exercise increment only.
-- The in-app bell cannot ring with the screen locked in "Sound" mode (iOS silences ambient audio on lock); "Loud" mode can but pauses music. Lock-screen alerts (milestone 17, Settings) are the fix once the Worker is set up; untested on a device.
-- Lock-screen alerts: a rest that ends while Forge is open and visible may flash a notification for about 1.5 s (closed by the service worker); not verified on iOS. If Forge is killed right at the moment of a ±15 s change with no signal, the Worker keeps the earlier end time. The Worker holds one subscription (the last phone to turn alerts on).
-- Countdown (13): one date per test (no separate battery dates); the connector's MCP tools do not return targets or dates yet; not seen in a browser or on a phone. The date input is the native picker.
-- Exercise page (9b): typechecked, unit-tested and built, not opened in a browser or on an iPhone; check chart readability and the three segments at phone width. Records use exact rep counts only (a heavier 5 does not fill the 3-rep row). Badges show PRs from the last 30 days (constant). The Insights tier thresholds remain the app's own rough multiples: ask the user what felt off before changing them.
-- Settings has a bar and plates editor for the default equipment profile only; other profiles are in Coach → Training profile. The pair-total toggle lives in Settings.
-- Editing a past workout's times does not move its sets' completion times, and it does not re-evaluate a linked planned session or PR history beyond normal recompute.
-- Superset rounds are not enforced or visually sequenced; supersets only affect when the rest timer starts.
-- `navigator.vibrate` is unsupported on iOS Safari. The rest alarm is now an audio file (see Decisions) that should sound while locked, but this relies on iOS letting a home-screen app keep playing audio in the background: UNVERIFIED on a device. If it fails, the fallback is web push from the later Cloudflare Worker. While the alarm audio plays, iOS may show Forge on the lock screen's now-playing card.
-- Rest alarm: the silent switch mutes the default 'Sound' mode (use 'Loud' to override, which pauses music). A rest of 5 minutes builds a ~2.4 MB in-memory file per set; fine for a phone.
-- Reorder is up/down buttons, not drag-and-drop (no new dependency approved).
-- Finish drops unticked sets and exercises with no completed sets (documented behaviour); undo is available for 20 s after finishing (snackbar) or from Backup.
-- Discard soft-deletes the workout (goes to the Trash screen under Backup).
-- History list is read-only and loads the latest 30 workouts without virtualization.
-- Routine and program target editors label weights in lb for every exercise and do not convert for a kg profile (only the logging screen and History convert for display).
-- Library pattern/loadModel/rest values are name-based heuristics (`exerciseMapper.ts`); some library entries will be mis-classified. Fix per exercise in the editor; bump `LIBRARY_VERSION` only to add missing exercises (existing ones are never overwritten).
-- Exercise library JSON (~790 KB, 150 KB gzip) is a lazy chunk, precached by the service worker; The size warning limit is raised to 800 kB for it and the Recharts chunk.
-- Library exercises (not just custom) can be deleted from the editor; deleted ones are not re-seeded.
-- App icon: a red-hot barbell on an anvil (2026-11-26). Source `public/icon-full.svg` (full bleed, used for the PNGs) and `public/icon.svg` (rounded, browser tab); regenerate PNGs with `node scripts/build-icons.cjs public`. iPhone only picks up a new Home Screen icon after the app is removed and added again.
-- Google Fonts load from the network on first visit and are runtime-cached; if first load is offline the system fallback fonts are used.
-- Strong import has only been exercised with synthetic CSVs (tests + a browser run); the real Strong export's column names, distance units and date format are unverified. Try the user's real file first and report anything that looks off.
-- Strong import: a whole import can be undone only while it is the latest undo entry; "Past imports" only changes dumbbell conventions, and re-applying overwrites any manual edits to those sets.
-- Imported exercises (14): muscles and pattern are guesses from the library or the name (see Settings → Review exercise muscles); names with no rule stay empty and need the library editor. Rules are English keywords only; the review screen cannot edit a single suggestion (untick it and use the library). The review lists only exercises with NO primary muscle, so a wrong earlier guess is not listed again.
-- Strong import holds the whole file in memory and builds all entities in one transaction; fine for a few years of data, not tested on tens of thousands of sets.
-- Preview lists every distinct exercise name with native selects; a long list (hundreds) has no search or bulk-apply.
-- Backup and restore were tested with fake-indexeddb and headless Chromium (download path); the iPhone share-sheet path is untested on a device.
-- Whole backup is built in memory as one JSON string; fine for years of personal data. Restore does not validate field shapes beyond `id` per row.
-- Replace restore does not touch progress photos, undo or meta; after replace the library seed re-runs idempotently by `sourceRef`.
-- Strong CSV export drops per-set notes (Forge has none) and writes the exercise note on every row.
-- Undo only reverts the latest recorded action and assumes nothing later depends on it: undoing an import after logging workouts with its new exercises can leave dangling references (the stack order normally prevents it).
-- Undoing "Finished workout" reopens it as the active workout; undoing "Saved workout edits" restores dropped sets but does not reopen the editor.
-- Replace-restore has no undo and no automatic pre-restore snapshot; take a backup first.
-- Trash and undo screens live under Train → Backup & restore; there is no top-level Settings screen yet.
-- Reminder snackbar/undo bar and trash were verified in headless Chromium only; not on a device.
-- Routine editor: weight targets are a plain number in the exercise's increment unit (lb shown for all); percent-of-e1RM targets exist in the type but have no editor until 3d. Progression rule on a routine exercise is not editable yet (3d).
-- Routine editor uses up/down buttons, no drag and drop. Leaving via Cancel asks first, but switching tabs with the bottom bar still drops the draft (the editor unmounts).
-- Trashed routines are now restorable from the Trash screen (30-day purge). Programs are soft-deleted with undo only, no Trash entry.
-- Routine screens were verified in headless Chromium only (create, start); not on a device.
-- Restoring a deleted workout from the Trash screen does not relink its planned session (undo does).
-- Planned sessions are linked only when the workout was started from the session; a workout logged freehand is never matched to a plan automatically.
-- Calendar loads every finished workout into memory (fine for years of personal data); heatmap and calendar were checked in headless Chromium only.
-- Program editor keeps its draft in memory only (Cancel asks first; switching tabs loses it); no drag and drop; scheduled dates per session are stored but have no editor.
-- Program screens were verified in headless Chromium only (create, activate, version, start); not on a device.
-- Progression uses only the last session, so one bad day lowers or holds the next suggestion; a best-recent e1RM option can come with M4. `TargetSet.percentE1rm` (per-set percent) exists in the type but has no editor and is not applied; use the exercise-level % e1RM rule instead.
-- The RPE rule treats RPE as reps in reserve = 10 − RPE and Epley beyond ~12 reps is unreliable; suggestions are estimates.
-- Strength tab (4a) was typechecked, unit-tested and built but not opened in a browser or on a device; check the chart on the phone.
-- PR timeline and e1RM series recompute from all of an exercise's sets on open (fine for personal data). The Strength list shows only exercises with completed non-warm-up sets, including ones with no usable load (they show an explanation).
-- Rep PRs only track the listed rep counts (7, 9, 11 are skipped) and are not credited across counts (a heavier 5 does not set a 3-rep PR).
-- Progress tab volume panel and Strength plateau flags were typechecked, unit-tested and built, not opened in a browser or on a device. The plateau window (6 weeks) and minimum sessions (3) are not editable yet.
-- Strength tab loads every set into memory twice (list + plateau data); fine for personal data.
-- Strength score setup and weigh-in entry were checked only for display (headless Chromium, seeded data); the setup editor (add lift, edit thresholds) was typechecked but not clicked through. Weigh-ins can now be edited or deleted on the Progress tab (5a).
-- Tier templates assume a trained adult male; the profile `sex` field is not used yet. Edit thresholds per lift.
-- Bodyweight lifts (pull-ups, dips) have no template; add them with any template and edit the thresholds.
-- Balance thresholds (1.5×) and window (4 weeks) are fixed constants with no setting; unilateral and carry patterns are not counted. The balance cards were typechecked and unit-tested, and the page rendered without errors, but I only inspected the body map visually.
-- Body map regions are tap-sized shapes with hover/long-press titles only; tapping a region does nothing yet.
-- Bodyweight panel (5a): weight-only (no body fat or measurements yet, though `BodyMetricKind` has them); range pills are 30 d / 90 d / 1 yr / All; the date field is the browser's native picker (not tested on iPhone Safari). Deleting a weigh-in is undoable.
-- Fitness tests (5b): deleting results or tests is undoable (latest action only); a custom test's measure cannot be changed after creation; built-in tests cannot be renamed; results are not linked to conditioning workouts yet (`workoutId` unused); the date input is the native picker (not tested on iPhone Safari).
-- Conditioning (5c-i): the Panel was unit- and store-tested but not seen with real data in a browser (it only renders once a session exists). The exercise picker in a conditioning session is the normal one (not filtered to time/distance exercises); library cardio entries are classed as time/distance by name heuristics. Fitness test results are not linked to conditioning sessions. Rounds/intervals have no structure beyond one set per effort; rest between efforts uses the exercise's default rest timer.
-- Photos (5c-ii): not tested on a real iPhone (camera capture, HEIC pickup, share/save). iOS Safari can evict site data for PWAs that are not installed to the Home Screen; photos are in no backup, so the panel tells the user to keep copies. `clearAllData` (used in restore-replace tests) wipes photos too, but app restore never calls it. Full-size blobs are decoded for thumbnails (no separate thumbnail), fine for dozens of photos. The viewer is a simple overlay: no swipe between photos, no pinch zoom beyond the browser default.
-- Coach (6a): the summary and the profile editor were checked in headless Chromium only (not on an iPhone). Copy uses `navigator.clipboard`; if blocked, the text is selected and the user is told to copy by hand. The summary has no conditioning detail, readiness or photo info, and no per-session workout log; it is a rolled-up view, so Claude cannot see individual sets. Profile editor has no unsaved-changes prompt. The weight and length units and the e1RM formula are still not editable in any Settings screen.
-- Coach (6b): checked in headless Chromium only. Diff compares position, so inserting a session early in a week shows as changes to every later day. Per-set RPE/rest edits other than targets and rest are not diffed (notes, supersets, progression rule changes are saved but not shown in the diff). A proposal cannot create exercises; add them in the library first. There is no rollback screen for AI versions yet (the old version is archived and kept; `AiDecision.status` `rolledBack` is unused). No unsaved-text protection: pasted text is lost if you leave the tab's screen state.
-- Achievements (7a): no UI yet. `sync()` re-reads all training data each call (fine for personal data). A lift milestone needs the lift on the strength-score list; imported history is credited on first sync, all unseen.
-- Gamification (7b): Home and the summary were checked in headless Chromium with an empty database only (cards with data are covered by repository tests, not seen visually). Home shows the 6 newest achievements with no full list screen. Live PR check re-reads the exercise's history on each tick (fine for personal data). The summary sheet is lost if the app is closed before tapping Done (achievements still appear on Home as New).
-- Settings/onboarding (8a): checked in headless Chromium only. Changing the weight unit does not convert existing sets or bodyweight entries (they keep their unit; analytics convert). The theme choice is stored both in localStorage and on the profile. Onboarding pre-fills the user's default goals; the confirm dialog has no focus trap. Increment unit in the exercise form is still lb-only.
-- Polish (8b): offline was tested in headless Chromium only; not on an iPhone. Not yet deployed to Cloudflare. A keyboard focus trap in dialogs and a full screen-reader pass (VoiceOver) were not done; contrast was computed for the tokens, not measured on every screen. History still loads 30 rows with no virtualization.
-- Sync (10a): worker tests need Node 22+ (node:sqlite). The Worker's CORS is open (`*`); safe because auth is a bearer token, no cookies. A push with one bad row is rejected whole. The D1 SQL is tested on SQLite, not on real D1.
-- Sync (10b): sync runs only on tap (no background or on-open sync yet). Rows written by restore or import keep old `updatedAt`, so use Re-upload everything after them. Rows pulled from the server are re-sent once (server skips them as ties). Hard deletes (trash purge) and the undo of a hard delete do not propagate. A second device would receive duplicate seeded library exercises (different IDs); only one device is supported for now. Token is stored unencrypted in IndexedDB.
-- Connector (10c): token is in the URL path, so it can show up in logs or browser history; rotate with `wrangler secret put SYNC_TOKEN`. Every tool call reads whole tables from D1 (fine for one user, would need limits for big data). Dates and weeks are UTC, not the user's time zone. Hard-set weekly totals come from the app's domain code, so they match the app only if the Worker and app stay in sync. Photos, fitness tests and conditioning are not exposed yet.
-- Proposals (10d): editing the pasted text of an inbox proposal detaches it from its inbox row, so approving the edited text logs a new decision and the original stays pending until rejected. Proposals reach the app only on sync (tap Check for proposals); no push notification. The program format prompt is part of the tool description, so it is sent to Claude on every connection.
-- Next up (11a): the card shows only on Home and needs an active program or a finished routine workout; a program session with no exercises shows an empty list. The preview is computed when Home opens and after a unit change or workout end, not live.
-- Suggested chip (11b): only exercises started from a routine or program with a progression rule get a chip; exercises added by hand do not. Workouts started before this change keep the old note text and have no chip.
-- Warm-ups (11c): percentages and reps are fixed (not editable per user yet); only barbell exercises with the total load model get the button; the button hides once any warm-up set exists.
+- Lock-screen alerts use the iPhone's standard notification sound (no custom bell). The Worker holds one push subscription (the last phone to turn alerts on). A rest that ends while Forge is open may flash a notification briefly.
+- The in-app bell cannot ring with the phone locked in "Sound" mode (iOS silences it); "Loud" mode can but pauses music. Lock-screen alerts cover this.
+- Food list: about 7,000 USDA foods with USDA wording; no brands or barcodes. Search has no popularity signal, so type more words ("white rice cooked"). Volume units exist only where USDA gives a cup/tbsp/tsp/fl oz weight. Logged entries cannot be edited (delete and re-add).
+- Per-set rest is matched by position, so inserting or removing sets mid-workout can shift which rest applies.
+- Planned sessions link only when the workout was started from the session; a freehand workout is never matched to a plan.
+- Editing a past workout's times does not move its sets' completion times.
+- Supersets only affect when the rest timer starts; rounds are not sequenced.
+- Auto warm-ups use the default equipment profile's bar and plates (an exercise's own bar weight is respected). The plate line uses the same bar and plates.
+- Changing the weight unit does not rewrite stored sets or weigh-ins; every screen converts for display.
+- Tier templates are rough multiples for a trained adult male; edit thresholds per lift. Body map regions are schematic and not tappable.
+- Sync: one device is supported (a second device would get duplicate seeded library exercises). Hard deletes (trash purge) do not propagate. The token sits unencrypted in IndexedDB and in the connector URL; rotate with `wrangler secret put SYNC_TOKEN`.
+- The Worker's dates are UTC, so a late-evening workout can land on the next day in Claude's tools and the weekly email.
+- The weekly email reads the cloud copy, so it is only as fresh as the last sync. Without a verified domain it can only go to the Resend sign-up address.
+- Readiness: one check-in per day (editing today's under Progress updates it); there is no reminder outside a workout start.
+- Year in review counts finished workouts by their local start date; e1RM gains need at least one session in the year.
+- Undo reverts only the latest recorded action. Replace-restore has no undo; take a backup first. Progress photos are in no backup.
+- Strong import holds the whole file in memory; fine for years of data.
+- Library classification is name-based; fix odd entries per exercise in the editor.
+- Removing the Home Screen app on iOS deletes local data; use cloud restore (restore code) or a JSON backup.
