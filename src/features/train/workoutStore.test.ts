@@ -303,14 +303,49 @@ describe('workout store', () => {
       return (await workoutRepo.listHistory())[0]!;
     };
 
-    it('edits a finished workout in place, keeps its end time, starts no rest timer, survives reload', async () => {
+    it('on load, asks about an unfinished workout idle for hours and closes older extra ones', async () => {
+      const { db } = await import('../../db/schema');
+      const bench = await exerciseRepo.create({ ...base, name: 'Bench' });
+      const old = Date.now() - 30 * 60 * 60 * 1000;
+      // Three open workouts: one used 5 h ago with a set, one empty from yesterday, one from 2 days ago with a set.
+      const mk = async (name: string, ageH: number, withSet: boolean) => {
+        const w = await workoutRepo.start({ name });
+        if (withSet) {
+          const we = await workoutRepo.addExercise(w.id, bench.id);
+          await workoutRepo.addSet(we.id, { weight: 100, reps: 5, unit: 'lb', completedAt: new Date(Date.now() - ageH * 3600e3).toISOString() });
+        }
+        const t = new Date(Date.now() - ageH * 3600e3).toISOString();
+        await db.workouts.update(w.id, { startedAt: t, updatedAt: t });
+        await db.sets.where('workoutId').equals(w.id).modify({ updatedAt: t });
+        return w.id;
+      };
+      const recentish = await mk('Five hours ago', 5, true);
+      const empty = await mk('Yesterday empty', 24, false);
+      const older = await mk('Two days ago', 48, true);
+      void old;
+
+      useWorkout.setState({ loaded: false, workout: undefined, rows: [] });
+      await useWorkout.getState().load();
+      expect(useWorkout.getState().workout).toBeUndefined(); // not opened automatically
+      expect(useWorkout.getState().staleWorkout).toMatchObject({ id: recentish, completedSets: 1 });
+      expect((await workoutRepo.get(empty))?.deletedAt).toBeTruthy(); // empty extra: discarded (trash)
+      expect((await workoutRepo.get(older))?.endedAt).toBeTruthy(); // extra with sets: finished
+
+      await useWorkout.getState().finishStale();
+      expect((await workoutRepo.get(recentish))?.endedAt).toBeTruthy();
+      expect(await workoutRepo.getActive()).toBeUndefined();
+    });
+
+    it('edits a finished workout in place, keeps its end time, starts no rest timer; a reload does not reopen it', async () => {
       const done = await logOne();
       await useWorkout.getState().openPast(done.id);
       expect(useWorkout.getState().workout?.id).toBe(done.id);
 
+      // Reload mid-edit: edits are saved as they happen, so the finished workout is NOT shown as in progress.
       useWorkout.setState({ loaded: false, workout: undefined, rows: [] });
-      await useWorkout.getState().load(); // reload mid-edit resumes the edit
-      expect(useWorkout.getState().workout?.id).toBe(done.id);
+      await useWorkout.getState().load();
+      expect(useWorkout.getState().workout).toBeUndefined();
+      await useWorkout.getState().openPast(done.id);
 
       await useWorkout.getState().updateSet(sets()[0]!.id, { weight: 140 });
       await useWorkout.getState().addSet(useWorkout.getState().rows[0]!.we.id);

@@ -28,6 +28,18 @@ export const workoutRepo = {
     return open.sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0];
   },
 
+  /** Every unfinished, non-deleted workout with its last activity (start, workout change, any set change) and logged sets. */
+  async openWorkouts(): Promise<{ workout: Workout; lastActivityMs: number; completedSets: number }[]> {
+    const open = await db.workouts.filter((w) => !w.endedAt && !w.deletedAt).toArray();
+    return Promise.all(
+      open.map(async (workout) => {
+        const sets = await db.sets.where('workoutId').equals(workout.id).filter((s) => !s.deletedAt).toArray();
+        const times = [workout.startedAt, workout.updatedAt, ...sets.flatMap((s) => [s.updatedAt, s.completedAt ?? s.updatedAt])].map((t) => Date.parse(t)).filter((n) => !Number.isNaN(n));
+        return { workout, lastActivityMs: Math.max(...times), completedSets: sets.filter((s) => s.completedAt).length };
+      }),
+    );
+  },
+
   /** Move a workout to the trash and record an undo entry. */
   async deleteUndoable(id: ID, label = 'Deleted workout'): Promise<void> {
     // A planned session linked to this workout goes back to "not done" (undo restores the link).

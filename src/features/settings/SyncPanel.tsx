@@ -58,6 +58,7 @@ export function SyncPanel() {
           <input className={input} inputMode="url" autoCapitalize="none" autoCorrect="off" placeholder="Worker URL (https://…workers.dev)" aria-label="Worker URL" value={url} onChange={(e) => setUrl(e.target.value)} />
           <input className={input} type="password" autoCapitalize="none" autoCorrect="off" placeholder="Sync token" aria-label="Sync token" value={token} onChange={(e) => setToken(e.target.value)} />
           <button type="button" className={btn} disabled={busy || !/^https:\/\//.test(url.trim()) || token.trim().length < 16} onClick={save}>Connect and sync</button>
+          <p className="text-xs text-muted">The Worker URL ends in workers.dev. The token is the SYNC_TOKEN you set with wrangler; it is also the last part of your Forge connector URL in Claude (Settings → Connectors), after /mcp/. Once connected, a restore code appears here.</p>
           {status?.lastError && <p role="alert" className="text-sm text-accent-text">{status.lastError}</p>}
         </div>
       )}
