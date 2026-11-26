@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useLeaveGuard } from '../../components/useLeaveGuard';
-import { exerciseRepo, routineRepo } from '../../db/repositories';
+import { exerciseRepo, profileRepo, routineRepo } from '../../db/repositories';
+import { UnitField } from '../../components/UnitField';
+import { convertWeight, distanceUnitFor, metresTo, toMetres, type DistanceUnit } from '../../domain/units';
 import { moveTo } from '../../domain/order';
 import { formatRest, parseRest } from '../../domain/restTimer';
 import { SortableList } from '../../components/SortableList';
 import { defaultTarget, describeTargets, sanitizeExercises } from '../../domain/routine';
 import { toggleSupersetLink } from '../../domain/superset';
-import type { Exercise, ID, ProgressionRule, Routine, RoutineExercise, SetType, TargetSet } from '../../domain/types';
+import type { Exercise, ID, ProgressionRule, Routine, RoutineExercise, SetType, TargetSet, WeightUnit } from '../../domain/types';
 import { SET_TYPES } from '../../domain/logging';
 import { ExerciseBrowser } from '../exercises/ExerciseBrowser';
 import { ExerciseForm } from '../exercises/ExerciseForm';
@@ -95,6 +97,19 @@ export function ExercisesEditor({ heading, nameLabel = 'Name', namePlaceholder, 
   const [sub, setSub] = useState<'none' | 'pick' | 'create'>('none');
   const [error, setError] = useState('');
   const guard = useLeaveGuard({ name, notes, items }, onCancel);
+  const [wUnit, setWUnit] = useState<WeightUnit>('lb');
+  const [dUnit, setDUnit] = useState<DistanceUnit>('m');
+  useEffect(() => {
+    void profileRepo.get().then((p) => {
+      setWUnit(p.weightUnit);
+      setDUnit(distanceUnitFor(p.lengthUnit));
+    });
+  }, []);
+  /** Weight typed in the profile unit is stored with that unit; distance typed in yd/m is stored in metres. */
+  const setWeight = (i: number, n: number, v: number | undefined) =>
+    setItems((cur) => cur.map((e, k) => (k !== i ? e : { ...e, targets: e.targets.map((x, m) => { if (m !== n) return x; const { weight: _w, unit: _u, ...rest } = x; return v === undefined ? rest : { ...rest, weight: v, unit: wUnit }; }) })));
+  const setDistance = (i: number, n: number, v: number | undefined) =>
+    setItems((cur) => cur.map((e, k) => (k !== i ? e : { ...e, targets: e.targets.map((x, m) => { if (m !== n) return x; const { distanceM: _d, ...rest } = x; return v === undefined ? rest : { ...rest, distanceM: v }; }) })));
 
   useEffect(() => {
     void exerciseRepo.list().then((list) => setById(new Map(list.map((e) => [e.id, e]))));
@@ -237,13 +252,13 @@ export function ExercisesEditor({ heading, nameLabel = 'Name', namePlaceholder, 
               {timed ? (
                 <>
                   <span className="flex-1 text-center">Sec</span>
-                  <span className="flex-1 text-center">Metres</span>
+                  <span className="flex-1 text-center">{dUnit === 'yd' ? 'Yards' : 'Metres'}</span>
                 </>
               ) : (
                 <>
                   <span className="flex-1 text-center">Reps</span>
                   <span className="flex-1 text-center">Max</span>
-                  {showWeight && <span className="flex-1 text-center">{ex?.incrementUnit ?? 'lb'}</span>}
+                  {showWeight && <span className="flex-1 text-center">{wUnit}</span>}
                 </>
               )}
               <span className="flex-1 text-center">RPE</span>
@@ -263,13 +278,13 @@ export function ExercisesEditor({ heading, nameLabel = 'Name', namePlaceholder, 
                 {timed ? (
                   <>
                     <input aria-label={`Set ${n + 1} seconds`} className={small} inputMode="numeric" value={t.durationSec ?? ''} onChange={(e) => setNum(i, n, 'durationSec', e.target.value)} />
-                    <input aria-label={`Set ${n + 1} metres`} className={small} inputMode="decimal" value={t.distanceM ?? ''} onChange={(e) => setNum(i, n, 'distanceM', e.target.value)} />
+                    <UnitField label={`Set ${n + 1} distance (${dUnit})`} className={small} value={t.distanceM} toDisplay={(m) => metresTo(m, dUnit)} fromDisplay={(v) => toMetres(v, dUnit)} onChange={(v) => setDistance(i, n, v)} />
                   </>
                 ) : (
                   <>
                     <input aria-label={`Set ${n + 1} reps`} className={small} inputMode="numeric" value={t.reps ?? ''} onChange={(e) => setNum(i, n, 'reps', e.target.value)} />
                     <input aria-label={`Set ${n + 1} max reps`} className={small} inputMode="numeric" value={t.repsMax ?? ''} onChange={(e) => setNum(i, n, 'repsMax', e.target.value)} />
-                    {showWeight && <input aria-label={`Set ${n + 1} weight`} className={small} inputMode="decimal" value={t.weight ?? ''} placeholder="last" onChange={(e) => setNum(i, n, 'weight', e.target.value)} />}
+                    {showWeight && <UnitField label={`Set ${n + 1} weight (${wUnit})`} className={small} placeholder="last" value={t.weight} toDisplay={(w) => convertWeight(w, t.unit ?? wUnit, wUnit)} fromDisplay={(v) => v} onChange={(v) => setWeight(i, n, v)} />}
                   </>
                 )}
                 <input aria-label={`Set ${n + 1} RPE`} className={small} inputMode="decimal" value={t.rpe ?? ''} onChange={(e) => setNum(i, n, 'rpe', e.target.value)} />

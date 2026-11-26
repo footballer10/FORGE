@@ -25,3 +25,16 @@ describe('platesPerSide', () => {
     expect(platesPerSide(100, 20, [25, 20, 15, 10, 5, 2.5, 1.25]).perSide).toEqual([25, 15]);
   });
 });
+
+describe('plateLine', () => {
+  it('groups repeated plates and marks loads that cannot be made', async () => {
+    const { plateLine } = await import('./plates');
+    const lb = [45, 35, 25, 10, 5, 2.5];
+    expect(plateLine(225, 45, lb)).toBe('45×2');
+    expect(plateLine(250, 45, lb)).toBe('45×2 10 2.5');
+    expect(plateLine(45, 45, lb)).toBe('Bar');
+    expect(plateLine(47, 45, lb)).toBe('Bar+');
+    expect(plateLine(30, 45, lb)).toBe('');
+    expect(plateLine(136, 45, lb)).toBe('45+');
+  });
+});

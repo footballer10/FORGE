@@ -8,11 +8,12 @@ const wk = (weekStart: string, days: number, target = 3): WeekResult => ({ weekS
 const set = (day: string, pattern: VolumeSet['pattern']): VolumeSet => ({ day, primary: [], secondary: [], pattern, volume: 0 });
 const base: InsightInput = { today, unit: 'lb', lifts: [], sets: [], weeks: [], target: 3 };
 
+// Inside the last 4 weeks (from 2026-10-28): the first session is the best, nothing beats it after.
 const flat = (best: number) => [
-  { date: '2026-08-01', e1rm: best },
-  { date: '2026-10-20', e1rm: best - 5 },
-  { date: '2026-11-03', e1rm: best - 5 },
-  { date: '2026-11-17', e1rm: best - 10 },
+  { date: '2026-07-01', e1rm: best + 40 }, // older and higher: ignored
+  { date: '2026-10-29', e1rm: best },
+  { date: '2026-11-05', e1rm: best - 5 },
+  { date: '2026-11-19', e1rm: best - 10 },
 ];
 
 describe('insights', () => {
@@ -24,7 +25,7 @@ describe('insights', () => {
     expect(n?.text).toContain('Bench');
     expect(n?.text).toContain('225 lb');
     expect(n?.text).toContain('3 sessions');
-    expect(n?.detail).toContain('before 225');
+    expect(n?.detail).toContain('first 225');
   });
 
   it('does not flag a lift that is still gaining', () => {

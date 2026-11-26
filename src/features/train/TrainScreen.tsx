@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useUi } from '../../app/uiStore';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import type { Exercise, ID, Routine } from '../../domain/types';
@@ -28,8 +28,18 @@ type View =
   | { kind: 'form'; exercise?: Exercise; returnTo: 'library' | 'pick'; swapWeId?: ID }
   | { kind: 'pick'; swapWeId?: ID };
 
-export function TrainScreen() {
+/**
+ * Train stays mounted while other tabs are open (AppShell hides it), so a half-edited routine or
+ * program survives a tab switch. Lists and the workout view reload each time the tab comes back.
+ */
+export function TrainScreen({ visible = true }: { visible?: boolean }) {
   const [view, setView] = useState<View>({ kind: 'home' });
+  const [visits, setVisits] = useState(0);
+  const wasVisible = useRef(visible);
+  useEffect(() => {
+    if (visible && !wasVisible.current) setVisits((v) => v + 1);
+    wasVisible.current = visible;
+  }, [visible]);
   const openBackup = useUi((s) => s.openBackup);
   useEffect(() => {
     if (openBackup) {
@@ -94,10 +104,10 @@ export function TrainScreen() {
   }
 
   if (!loaded) return <div className="min-h-full" />;
-  if (active) return <ActiveWorkout onAddExercise={() => setView({ kind: 'pick' })} onSwapExercise={(swapWeId) => setView({ kind: 'pick', swapWeId })} />;
+  if (active) return <ActiveWorkout key={visits} onAddExercise={() => setView({ kind: 'pick' })} onSwapExercise={(swapWeId) => setView({ kind: 'pick', swapWeId })} />;
 
   return (
-    <div className="flex min-h-full flex-col pb-6">
+    <div key={visits} className="flex min-h-full flex-col pb-6">
       <ScreenHeader title="Start workout" />
       <ProgramList onOpen={(programId) => setView({ kind: 'program', programId })} onNew={() => setView({ kind: 'programEdit' })} onStarted={() => setView({ kind: 'home' })} />
       <RoutineList onEdit={(routine) => setView({ kind: 'routine', ...(routine ? { routine } : {}) })} onStarted={() => setView({ kind: 'home' })} />

@@ -10,6 +10,7 @@ import { trashRepo } from '../db/repositories';
 import { RestTimer } from '../features/train/RestTimer';
 import { WorkoutBar } from './WorkoutBar';
 import { StaleWorkoutPrompt } from '../features/train/StaleWorkoutPrompt';
+import { ReadinessPrompt } from '../features/readiness/ReadinessPrompt';
 import { useWakeLock } from '../features/train/useWakeLock';
 import { useWorkout } from '../features/train/workoutStore';
 import { syncRestAudio, unlockRestAudio } from '../features/train/restAudio';
@@ -23,7 +24,6 @@ const NutritionScreen = lazy(() => import('../features/nutrition/NutritionScreen
 const SettingsScreen = lazy(() => import('../features/settings/SettingsScreen').then((m) => ({ default: m.SettingsScreen })));
 const SCREENS = {
   home: HomeScreen,
-  train: TrainScreen,
   strength: StrengthScreen,
   progress: ProgressScreen,
   nutrition: NutritionScreen,
@@ -33,7 +33,8 @@ export function AppShell() {
   const tab = useUi((s) => s.tab);
   const theme = useUi((s) => s.theme);
   const settingsOpen = useUi((s) => s.settingsOpen);
-  const Screen = SCREENS[tab];
+  const Screen = tab === 'train' ? null : SCREENS[tab];
+  const trainVisible = tab === 'train' && !settingsOpen;
   const workoutActive = useWorkout((s) => !!s.workout);
 
   // Keep the screen on for the whole workout, whichever tab is open.
@@ -85,13 +86,18 @@ export function AppShell() {
     <div className="flex h-full flex-col">
       <main className="pt-safe px-safe flex-1 overflow-y-auto overscroll-contain">
         <Suspense fallback={<p className="py-6 text-sm text-muted" role="status">Loading…</p>}>
-          {settingsOpen ? <SettingsScreen /> : <Screen />}
+          {/* Train is never unmounted, so editor drafts survive switching tabs or opening Settings. */}
+          <div hidden={!trainVisible} className={trainVisible ? 'contents' : undefined}>
+            <TrainScreen visible={trainVisible} />
+          </div>
+          {settingsOpen ? <SettingsScreen /> : Screen ? <Screen /> : null}
         </Suspense>
       </main>
       <WorkoutSummarySheet />
       <Onboarding />
       <UndoBar />
       <StaleWorkoutPrompt />
+      <ReadinessPrompt />
       <WorkoutBar />
       <RestTimer />
       <TabBar />

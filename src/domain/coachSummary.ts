@@ -78,6 +78,8 @@ export interface CoachSummaryInput {
   formula: E1rmFormula;
   profile: SummaryProfile;
   bodyweight?: { latest: number; latestDate: string; trend: number; change28?: number };
+  /** Readiness check-ins in the window (see domain/readiness). */
+  readiness?: { checkIns: number; avg7?: number; avgWindow?: number; avgSleepHours?: number; latest?: { date: string; score: number; sleepHours?: number; soreness?: number; energy?: number } };
   sessions: number;
   conditioningSessions: number;
   hardSets: number;
@@ -160,7 +162,7 @@ export function buildCoachSummary(i: CoachSummaryInput): string {
   if (i.balance[0]) out.push(`Rule: ${i.balance[0].rule}`);
 
   out.push(``, `## Lifts`);
-  out.push(`e1RM uses ${i.formula} on sets of 1-12 reps, best set per workout (a workout with only 13-20 rep sets gets a rough estimate). Plateau = no e1RM gain in 6 weeks, at least 3 sessions in that time.`);
+  out.push(`e1RM uses ${i.formula} on sets of 1-12 reps, best set per workout (a workout with only 13-20 rep sets gets a rough estimate). Plateau = no e1RM gain within the last 4 weeks, at least 3 sessions in that time.`);
   if (i.lifts.length) {
     for (const l of i.lifts) {
       const trend = l.e1rmNow !== undefined ? `e1RM ${num(l.e1rmNow)} ${u}${l.e1rmBefore !== undefined ? ` (best before window ${num(l.e1rmBefore)})` : ' (no earlier value)'}` : l.e1rmBefore !== undefined ? `no e1RM set in the window (best before ${num(l.e1rmBefore)} ${u})` : 'no e1RM (reps over 12 or load unknown)';
@@ -182,6 +184,18 @@ export function buildCoachSummary(i: CoachSummaryInput): string {
     const b = i.bodyweight;
     out.push(`- Bodyweight: ${num(b.latest)} ${u} on ${b.latestDate}; trend ${num(b.trend)} ${u} (EWMA, α 0.1 per day)${b.change28 !== undefined ? `; ${b.change28 >= 0 ? '+' : ''}${num(b.change28)} ${u} over 28 days` : ''}`);
   } else out.push(`- no weigh-ins`);
+  if (i.readiness && i.readiness.checkIns) {
+    const r = i.readiness;
+    const l = r.latest;
+    const parts = [
+      `${r.checkIns} check-ins`,
+      r.avg7 !== undefined ? `last 7 days ${num(r.avg7)}/5` : '',
+      r.avgWindow !== undefined ? `window ${num(r.avgWindow)}/5` : '',
+      r.avgSleepHours !== undefined ? `avg sleep ${num(r.avgSleepHours)} h` : '',
+    ].filter(Boolean);
+    out.push(`- Readiness (avg of sleep points = hours − 4 capped 1–5, 6 − soreness, energy; 1–5): ${parts.join('; ')}`);
+    if (l) out.push(`- Latest check-in ${l.date}: ${[l.sleepHours !== undefined && `${l.sleepHours} h sleep`, l.soreness !== undefined && `soreness ${l.soreness}/5`, l.energy !== undefined && `energy ${l.energy}/5`].filter(Boolean).join(', ')} → ${num(l.score)}/5`);
+  } else out.push(`- no readiness check-ins`);
 
   out.push(``, `## Fitness tests`);
   if (i.tests.length) for (const t of i.tests) out.push(`- ${[`${t.name}: ${t.latest ? `latest ${t.latest} (${t.latestDate}); best ${t.best}` : 'no results yet'}`, t.goal && `goal: ${t.goal}`].filter(Boolean).join('; ')}`);

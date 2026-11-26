@@ -1,5 +1,6 @@
 import { SET_TYPES, formatDuration, formatSet, type SetField } from '../../domain/logging';
 import type { LoadModel, SetEntry } from '../../domain/types';
+import { metresTo, type DistanceUnit } from '../../domain/units';
 
 interface Props {
   set: SetEntry;
@@ -17,15 +18,20 @@ interface Props {
   pairTotal?: number;
   /** Rep PR just set: short highlight. */
   pr?: boolean;
+  /** Distance display unit (stored in metres). */
+  distUnit?: DistanceUnit;
+  /** Per-side plates under a barbell weight, e.g. "45×2 10". */
+  plates?: string;
 }
 
-function display(set: SetEntry, field: SetField): string {
+function display(set: SetEntry, field: SetField, dist: DistanceUnit = 'm'): string {
   const v = set[field];
   if (v === undefined) return '—';
+  if (field === 'distanceM') return String(Math.round(metresTo(v, dist) * 10) / 10);
   return field === 'durationSec' ? formatDuration(v) : String(Math.round(v * 100) / 100);
 }
 
-export function SetRow({ set, index, ordinal, fields, loadModel, previous, editing, onEdit, onOpenDetails, onToggle, pairTotal, pr }: Props) {
+export function SetRow({ set, index, ordinal, fields, loadModel, previous, editing, onEdit, onOpenDetails, onToggle, pairTotal, pr, distUnit = 'm', plates }: Props) {
   const done = !!set.completedAt;
   const badge = SET_TYPES.find((t) => t.type === set.type)?.short || String(ordinal ?? index + 1);
   return (
@@ -40,17 +46,19 @@ export function SetRow({ set, index, ordinal, fields, loadModel, previous, editi
         {(set.rpe !== undefined || set.rir !== undefined) && <span className="text-xs text-accent-text">•</span>}
       </button>
       <span className="num w-20 shrink-0 truncate text-sm text-muted" aria-label="Previous session">
-        {previous ? formatSet(previous, loadModel, previous.unit) : '—'}
+        {previous ? formatSet(previous, loadModel, previous.unit, distUnit) : '—'}
       </span>
       {fields.map((f) => (
         <button
           key={f}
           type="button"
           onClick={() => onEdit(f)}
-          aria-label={`${f} ${display(set, f)}`}
-          className={`num min-h-tap flex-1 rounded-card border text-2xl ${editing === f ? 'border-accent' : 'border-line'} ${done ? 'text-muted' : 'text-fg'}`}
+          aria-label={`${f} ${display(set, f, distUnit)}`}
+          className={`num relative min-h-tap flex-1 rounded-card border text-2xl ${editing === f ? 'border-accent' : 'border-line'} ${done ? 'text-muted' : 'text-fg'}`}
         >
-          {display(set, f)}
+          {display(set, f, distUnit)}
+          {/* Pinned to the bottom edge so the row keeps its height. */}
+          {f === 'weight' && plates && <span className="pointer-events-none absolute inset-x-0 bottom-0.5 truncate px-1 font-sans text-[10px] leading-none text-muted" aria-hidden>{plates}</span>}
           {f === 'weight' && pairTotal !== undefined && <span className="block text-xs text-muted">{Math.round(pairTotal * 100) / 100} total</span>}
         </button>
       ))}

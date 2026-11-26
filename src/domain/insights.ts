@@ -8,7 +8,7 @@ import type { WeightUnit } from './types';
  * behind it; `detail` repeats the rule and inputs so nothing is a black box. Pure: no storage.
  */
 
-export const PLATEAU_WEEKS = 6;
+export const PLATEAU_WEEKS = 4;
 export const BALANCE_WEEKS = 4;
 export const MAX_NOTES = 3;
 
@@ -57,8 +57,8 @@ function plateauNotes(i: InsightInput): Insight[] {
       note: {
         id: `plateau:${l.exerciseId}:${p.since}`,
         kind: 'plateau',
-        text: `${l.name}: no e1RM gain in ${PLATEAU_WEEKS} weeks (best ${n0(p.bestBefore)} ${i.unit} on ${p.since}, ${n0(p.bestRecent)} ${i.unit} since, ${plural(p.sessionsInWindow, 'session')}).`,
-        detail: `Plateau = the best e1RM in the last ${PLATEAU_WEEKS} weeks does not beat the best before them, with at least 3 sessions in that window. Inputs: before ${n0(p.bestBefore)}, recent ${n0(p.bestRecent)}, sessions ${p.sessionsInWindow}.`,
+        text: `${l.name}: no e1RM gain in the last ${PLATEAU_WEEKS} weeks (${n0(p.bestBefore)} ${i.unit} on ${p.since}, best since ${n0(p.bestRecent)} ${i.unit}, ${plural(p.sessionsInWindow, 'session')}).`,
+        detail: `Plateau = within the last ${PLATEAU_WEEKS} weeks only, no session beat the first one in that window, with at least 3 sessions. Older history is ignored. Inputs: first ${n0(p.bestBefore)}, best since ${n0(p.bestRecent)}, sessions ${p.sessionsInWindow}.`,
       },
     });
   }

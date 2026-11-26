@@ -2,8 +2,8 @@ import { addDays, localDateKey } from './calendar';
 import type { E1rmPoint, LiftSet, PrEvent } from './prs';
 import type { ID, SetEntry, WeightUnit } from './types';
 
-/** Rep counts shown in the Records segment. Same rule as rep PRs: the heaviest load at exactly that many reps. */
-export const RECORD_REPS = [1, 3, 5, 8, 10] as const;
+/** Rep counts shown in the Records segment. Same rule as rep PRs: the heaviest load lifted for that many reps or more. */
+export const RECORD_REPS = [1, 3, 5, 8, 10, 12, 15] as const;
 
 export interface RepRecord {
   reps: number;
@@ -11,13 +11,13 @@ export interface RepRecord {
   date: string;
 }
 
-/** Heaviest effective load at exactly N reps for each N in `RECORD_REPS` (earliest date wins a tie). Reps with no sets are omitted. */
+/** Heaviest effective load at N reps or more for each N in `RECORD_REPS` (a heavier 5 counts for 3); earliest date wins a tie. Counts with no sets are omitted. */
 export function repRecords(lifts: readonly LiftSet[]): RepRecord[] {
   const out: RepRecord[] = [];
   for (const reps of RECORD_REPS) {
     let best: RepRecord | undefined;
     for (const s of lifts) {
-      if (s.reps !== reps) continue;
+      if (s.reps < reps) continue;
       if (!best || s.load > best.load || (s.load === best.load && s.date < best.date)) best = { reps, load: s.load, date: s.date };
     }
     if (best) out.push(best);

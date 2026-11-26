@@ -1,12 +1,13 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { Keypad } from '../../components/Keypad';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
-import { convertWeight } from '../../domain/units';
+import { convertWeight, metresTo, toMetres } from '../../domain/units';
+import { plateLine } from '../../domain/plates';
 import { displayWeight } from '../../domain/load';
 import { fieldsFor, inUnit, suggestionTarget, type SetField } from '../../domain/logging';
 import { describeTargets } from '../../domain/routine';
 import { collapsedSummary, currentExerciseId, foldWarmups } from '../../domain/workoutView';
-import type { EquipmentProfile, ID } from '../../domain/types';
+import type { EquipmentProfile, ID, SetEntry } from '../../domain/types';
 import { SetRow } from './SetRow';
 import { ExerciseSheet } from './ExerciseSheet';
 import { SetSheet } from './SetSheet';
@@ -46,7 +47,7 @@ function Elapsed({ startedAt }: { startedAt: string }) {
 export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
   const {
     prSetIds, workout, rows, unit, updateSet, toggleComplete, fillSuggested, addWarmups, addSet, removeSet, removeExercise, finish, discard,
-    setWorkoutNotes, setExerciseNote, setStickyNote, setExerciseOrder, toggleSuperset, showPairTotal, equipment,
+    setWorkoutNotes, setExerciseNote, setStickyNote, setExerciseOrder, toggleSuperset, showPairTotal, equipment, distUnit, platesInline,
   } = useWorkout();
   const [edit, setEdit] = useState<{ setId: ID; field: SetField } | null>(null);
   const [details, setDetails] = useState<ID | null>(null);
@@ -71,10 +72,11 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
   const plateRow = plates ? rows.find((r) => r.we.id === plates) : undefined;
   const menuRow = menuIndex >= 0 ? rows[menuIndex] : undefined;
 
+  const fieldLabel = (f: SetField) => (f === 'distanceM' && distUnit === 'yd' ? 'Yards' : FIELD_LABEL[f]);
   const stepFor = (row: ExerciseRow, field: SetField): number => {
     if (field === 'weight') return Math.round(convertWeight(row.exercise.weightIncrement, row.exercise.incrementUnit, unit) * 100) / 100;
     if (field === 'durationSec') return 5;
-    if (field === 'distanceM') return 50;
+    if (field === 'distanceM') return distUnit === 'yd' ? 10 : 50;
     return 1;
   };
 
@@ -167,7 +169,7 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
               <span className="min-w-tap text-center">Set</span>
               <span className="w-20 shrink-0">Previous</span>
               {fields.map((f) => (
-                <span key={f} className="flex-1 text-center">{f === 'weight' ? `${WEIGHT_HEADER[row.exercise.loadModel] ?? 'Weight'} (${unit})` : FIELD_LABEL[f]}</span>
+                <span key={f} className="flex-1 text-center">{f === 'weight' ? `${WEIGHT_HEADER[row.exercise.loadModel] ?? 'Weight'} (${unit})` : fieldLabel(f)}</span>
               ))}
               <span className="min-w-[48px]" />
             </div>
@@ -184,8 +186,8 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
               )}
               {row.sets.map((x, i) =>
                 fold && x.type === 'warmup' ? null : (
+                  <Fragment key={x.id}>
                   <SetRow
-                    key={x.id}
                     set={inUnit(x, unit)}
                     index={i}
                     ordinal={row.sets.slice(0, i).filter((s) => s.type !== 'warmup').length + 1}
@@ -196,12 +198,28 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
                     onEdit={(field) => setEdit({ setId: x.id, field })}
                     onOpenDetails={() => setDetails(x.id)}
                     pr={!!x.completedAt && prSetIds.includes(x.id)}
+                    distUnit={distUnit}
+                    {...(platesInline && isPlateLoaded(row) && x.weight ? { plates: plateLine(inUnit(x, unit).weight!, barFor(row, equipment, unit), platesFor(equipment, unit)) } : {})}
                     pairTotal={showPairTotal && row.exercise.loadModel === 'perImplement' ? displayWeight(x, row.exercise, true, unit) : undefined}
                     onToggle={() => {
                       setEdit(null);
                       void toggleComplete(x.id);
                     }}
                   />
+                  {x.id === nextSetId(row, currentId) && fields.includes('weight') && (
+                    <QuickStrip
+                      last={lastDoneBefore(row, i)}
+                      step={stepFor(row, 'weight')}
+                      unit={unit}
+                      onSame={(l) => void updateSet(x.id, { ...(l.weight !== undefined ? { weight: l.weight, unit: l.unit } : {}), ...(l.reps !== undefined ? { reps: l.reps } : {}) })}
+                      onStep={(d) => {
+                        const base = inUnit(x, unit).weight ?? (() => { const l = lastDoneBefore(row, i); return l ? inUnit(l, unit).weight : undefined; })();
+                        if (base === undefined) return;
+                        void updateSet(x.id, { weight: Math.max(0, Math.round((base + d) * 100) / 100), unit });
+                      }}
+                    />
+                  )}
+                  </Fragment>
                 ),
               )}
             </div>
@@ -249,12 +267,12 @@ export function ActiveWorkout({ onAddExercise, onSwapExercise }: Props) {
       {edit && editRow && editSet && (
         <Keypad
           key={`${edit.setId}:${edit.field}`}
-          label={`${FIELD_LABEL[edit.field]} · ${editRow.exercise.name}`}
-          value={inUnit(editSet, unit)[edit.field]}
+          label={`${fieldLabel(edit.field)} · ${editRow.exercise.name}`}
+          value={edit.field === 'distanceM' && editSet.distanceM !== undefined ? Math.round(metresTo(editSet.distanceM, distUnit) * 10) / 10 : inUnit(editSet, unit)[edit.field]}
           step={stepFor(editRow, edit.field)}
           allowDecimal={edit.field === 'weight'}
-          onChange={(v) => void updateSet(edit.setId, edit.field === 'weight' ? { weight: v, unit } : { [edit.field]: v })}
-          nextLabel={nextField(fieldsFor(editRow.exercise.loadModel), edit.field) ? FIELD_LABEL[nextField(fieldsFor(editRow.exercise.loadModel), edit.field)!] : 'Done'}
+          onChange={(v) => void updateSet(edit.setId, edit.field === 'weight' ? { weight: v, unit } : edit.field === 'distanceM' ? { distanceM: v === undefined ? v : toMetres(v, distUnit) } : { [edit.field]: v })}
+          nextLabel={nextField(fieldsFor(editRow.exercise.loadModel), edit.field) ? fieldLabel(nextField(fieldsFor(editRow.exercise.loadModel), edit.field)!) : 'Done'}
           onNext={() => {
             const n = nextField(fieldsFor(editRow.exercise.loadModel), edit.field);
             setEdit(n ? { setId: edit.setId, field: n } : null);
@@ -353,6 +371,35 @@ function plateTarget(row: ExerciseRow, unit: 'lb' | 'kg'): number {
   const s = row.sets.find((x) => !x.completedAt && x.weight !== undefined) ?? [...row.sets].reverse().find((x) => x.weight !== undefined);
   return s?.weight === undefined ? 0 : Math.round(convertWeight(s.weight, s.unit, unit) * 100) / 100;
 }
+
+/** The set you are about to do: the first unfinished set of the current exercise. */
+function nextSetId(row: ExerciseRow, currentId: ID | undefined): ID | undefined {
+  return row.we.id === currentId ? row.sets.find((s) => !s.completedAt)?.id : undefined;
+}
+
+/** Last completed set before index `i`, same kind (warm-up or working) when there is one. */
+function lastDoneBefore(row: ExerciseRow, i: number): SetEntry | undefined {
+  const done = row.sets.slice(0, i).filter((s) => s.completedAt && (s.weight !== undefined || s.reps !== undefined));
+  const warm = row.sets[i]?.type === 'warmup';
+  return [...done].reverse().find((s) => (s.type === 'warmup') === warm) ?? done[done.length - 1];
+}
+
+/** One-tap adjustments for the next set only: copy the last set, or step the weight by the exercise increment. */
+function QuickStrip({ last, step, unit, onSame, onStep }: { last?: SetEntry; step: number; unit: 'lb' | 'kg'; onSame: (l: SetEntry) => void; onStep: (d: number) => void }) {
+  const btn = 'min-h-tap rounded-card border border-line px-3 text-sm text-muted';
+  const shown = last ? inUnit(last, unit) : undefined;
+  return (
+    <div className="flex gap-2 pl-[52px] pr-[56px]">
+      <button type="button" className={`${btn} num flex-1 truncate`} disabled={!last} onClick={() => last && onSame(last)} aria-label="Same as last set">
+        {shown ? `Same · ${shown.weight ?? '—'}×${shown.reps ?? '—'}` : 'Same as last'}
+      </button>
+      <button type="button" className={`${btn} num`} onClick={() => onStep(-step)} aria-label={`Minus ${step} ${unit}`}>−{step}</button>
+      <button type="button" className={`${btn} num`} onClick={() => onStep(step)} aria-label={`Plus ${step} ${unit}`}>+{step}</button>
+    </div>
+  );
+}
+
+const isPlateLoaded = (row: ExerciseRow) => row.exercise.equipment === 'barbell' && row.exercise.loadModel === 'total';
 
 /** Bar weight for a barbell exercise in `unit`: the exercise's own bar, else the equipment profile's, else 45 lb. */
 function barFor(row: ExerciseRow, equipment: EquipmentProfile | undefined, unit: 'lb' | 'kg'): number {

@@ -16,6 +16,7 @@ const PREVIEW = 3;
  */
 export function HistoryList() {
   const unit = useWorkout((s) => s.unit);
+  const dist = useWorkout((s) => s.distUnit);
   const openPast = useWorkout((s) => s.openPast);
   const duplicate = useWorkout((s) => s.duplicate);
   const [items, setItems] = useState<FullWorkout[] | null>(null);
@@ -89,7 +90,7 @@ export function HistoryList() {
                       return (
                         <span key={e.id} className="flex justify-between gap-2">
                           <span className="truncate">{ex?.name ?? 'Exercise'}</span>
-                          <span className="num shrink-0 text-muted">{best && ex ? formatSet(inUnit(best, unit), ex.loadModel, unit) : ''}</span>
+                          <span className="num shrink-0 text-muted">{best && ex ? formatSet(inUnit(best, unit), ex.loadModel, unit, dist) : ''}</span>
                         </span>
                       );
                     })}
@@ -108,7 +109,7 @@ export function HistoryList() {
                         <li key={e.id}>
                           <span className="block font-medium">{ex?.name ?? 'Exercise'}</span>
                           <span className="num block text-muted">
-                            {ex ? working.map((s) => formatSet(inUnit(s, unit), ex.loadModel, unit)).join(' · ') : ''}
+                            {ex ? working.map((s) => formatSet(inUnit(s, unit), ex.loadModel, unit, dist)).join(' · ') : ''}
                             {p.warmupsDone > 0 ? ` (+${p.warmupsDone} warm-up)` : ''}
                           </span>
                         </li>

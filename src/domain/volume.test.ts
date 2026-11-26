@@ -65,16 +65,18 @@ describe('compareWindows', () => {
 
 describe('detectPlateau', () => {
   const s = (date: string, e1rm: number) => ({ date: `${date}T12:00:00`, e1rm });
-  it('flags no gain over the window with enough sessions', () => {
-    const r = detectPlateau([s('2026-01-05', 200), s('2026-03-01', 195), s('2026-03-08', 198), s('2026-03-15', 200)], '2026-03-20', 4);
-    expect(r).toMatchObject({ plateau: true, bestBefore: 200, bestRecent: 200, sessionsInWindow: 3 });
+  it('flags no gain within the last 4 weeks: nothing after the first session in the window beats it', () => {
+    const r = detectPlateau([s('2026-01-05', 260), s('2026-03-01', 200), s('2026-03-08', 198), s('2026-03-15', 200)], '2026-03-20', 4);
+    expect(r).toMatchObject({ plateau: true, bestBefore: 200, bestRecent: 200, sessionsInWindow: 3, since: '2026-03-01' });
+  });
+  it('coming back after a lay-off and climbing is not a plateau, even below an old best', () => {
+    expect(detectPlateau([s('2025-09-01', 315), s('2026-03-01', 185), s('2026-03-08', 195), s('2026-03-15', 205)], '2026-03-20', 4).plateau).toBe(false);
   });
   it('a new best inside the window is not a plateau', () => {
-    expect(detectPlateau([s('2026-01-05', 200), s('2026-03-01', 195), s('2026-03-08', 205), s('2026-03-15', 200)], '2026-03-20', 4).plateau).toBe(false);
+    expect(detectPlateau([s('2026-03-01', 195), s('2026-03-08', 205), s('2026-03-15', 200)], '2026-03-20', 4).plateau).toBe(false);
   });
-  it('too few sessions (a lay-off) or no earlier history is not a plateau', () => {
+  it('too few sessions in the window is not a plateau', () => {
     expect(detectPlateau([s('2026-01-05', 200), s('2026-03-15', 190)], '2026-03-20', 4).plateau).toBe(false);
-    expect(detectPlateau([s('2026-03-01', 195), s('2026-03-08', 198), s('2026-03-15', 200)], '2026-03-20', 4).plateau).toBe(false);
   });
 });
 

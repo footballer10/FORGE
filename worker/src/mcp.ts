@@ -4,6 +4,7 @@
  * token travels in the path). A Bearer header on /mcp is accepted too.
  */
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { READINESS_FORMULA } from '../../src/domain/readiness';
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js';
 import { z } from 'zod';
 import type { D1Like, Env } from './sync';
@@ -18,16 +19,16 @@ async function readTable<R>(db: D1Like, table: string): Promise<R[]> {
 }
 
 export async function loadData(db: D1Like): Promise<Data> {
-  const [profiles, exercises, workouts, workoutExercises, sets, programs, programWeeks, plannedSessions, bodyMetrics, aiDecisions, nutritionEntries, fitnessTests, testResults] = await Promise.all([
+  const [profiles, exercises, workouts, workoutExercises, sets, programs, programWeeks, plannedSessions, bodyMetrics, aiDecisions, nutritionEntries, fitnessTests, testResults, readiness] = await Promise.all([
     readTable<Data['profile'] & object>(db, 'profile'), readTable<Data['exercises'][number]>(db, 'exercises'),
     readTable<Data['workouts'][number]>(db, 'workouts'), readTable<Data['workoutExercises'][number]>(db, 'workoutExercises'),
     readTable<Data['sets'][number]>(db, 'sets'), readTable<Data['programs'][number]>(db, 'programs'),
     readTable<Data['programWeeks'][number]>(db, 'programWeeks'), readTable<Data['plannedSessions'][number]>(db, 'plannedSessions'),
     readTable<Data['bodyMetrics'][number]>(db, 'bodyMetrics'), readTable<Data['aiDecisions'][number]>(db, 'aiDecisions'),
     readTable<Data['nutritionEntries'][number]>(db, 'nutritionEntries'), readTable<Data['fitnessTests'][number]>(db, 'fitnessTests'),
-    readTable<Data['testResults'][number]>(db, 'testResults'),
+    readTable<Data['testResults'][number]>(db, 'testResults'), readTable<NonNullable<Data['readiness']>[number]>(db, 'readiness'),
   ]);
-  return { profile: profiles[0], exercises, workouts, workoutExercises, sets, programs, programWeeks, plannedSessions, bodyMetrics, aiDecisions, nutritionEntries, fitnessTests, testResults };
+  return { profile: profiles[0], exercises, workouts, workoutExercises, sets, programs, programWeeks, plannedSessions, bodyMetrics, aiDecisions, nutritionEntries, fitnessTests, testResults, readiness };
 }
 
 const text = (value: unknown) => ({ content: [{ type: 'text' as const, text: JSON.stringify(value, null, 1) }] });
@@ -48,6 +49,8 @@ export function buildServer(db: D1Like): McpServer {
   tool('get_active_program', 'The active training program: weeks, sessions and exercise targets.', {}, (d) => T.getActiveProgram(d));
   tool('get_bodyweight', 'Bodyweight entries, newest first.', { limit: z.number().int().min(1).max(200).optional() }, (d, a) => T.getBodyweight(d, a.limit));
   tool('get_nutrition', 'Daily calories and protein the user logged (last N days, default 14), with their typed targets and averages over logged days.', { days: z.number().int().min(1).max(90).optional() }, (d, a) => T.getNutrition(d, a.days));
+  tool('get_readiness', `Daily readiness check-ins (sleep hours, soreness 1–5, energy 1–5) for the last N days (default 28), newest first, with a 1–5 score per day and averages. ${READINESS_FORMULA}`,
+    { days: z.number().int().min(1).max(180).optional() }, (d, a) => T.getReadiness(d, a.days));
   tool('get_fitness_tests', 'Fitness tests (academy PFT events and others) with the user\'s typed target, test date and recent results. Times are seconds, distances metres, heights cm.', {}, (d) => T.getFitnessTests(d));
   tool('get_proposals', 'Your past program proposals and what the user decided (proposed, approved, rejected).', { limit: z.number().int().min(1).max(30).optional() }, (d, a) => T.listProposals(d, a.limit));
 

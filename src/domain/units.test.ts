@@ -22,3 +22,14 @@ describe('units', () => {
     expect(formatWeight({ value: 135, unit: 'lb' })).toBe('135 lb');
   });
 });
+
+describe('set distances', () => {
+  it('uses yards for an imperial profile and stores metres', async () => {
+    const { distanceUnitFor, metresTo, toMetres } = await import('./units');
+    expect(distanceUnitFor('in')).toBe('yd');
+    expect(distanceUnitFor('cm')).toBe('m');
+    expect(metresTo(36.576, 'yd')).toBeCloseTo(40, 6);
+    expect(toMetres(40, 'yd')).toBeCloseTo(36.576, 6);
+    expect(metresTo(400, 'm')).toBe(400);
+  });
+});

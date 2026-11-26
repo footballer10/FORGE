@@ -80,19 +80,26 @@ export interface PrEvent {
   reps?: number;
   value: number;
   previous: number;
+  /**
+   * A rep record set by a set with MORE reps (a heavier 5 is also a 3-rep best). Saved quietly:
+   * `detectPrs` leaves these out unless asked, so they never show as a new PR.
+   */
+  implied?: boolean;
 }
 
-/** Rep counts tracked for rep-range PRs. */
-export const PR_REP_RANGE = [1, 2, 3, 4, 5, 6, 8, 10, 12] as const;
+/** Rep records are tracked for every count from 1 to this. */
+export const PR_MAX_REPS = 20;
 
 /**
  * Personal records in time order, workout by workout. A record needs an earlier value to beat,
  * so the very first value of each kind is a baseline, not a PR. Ties are not PRs.
- * - rep: heaviest load at exactly N reps (N in `PR_REP_RANGE`).
+ * - rep: heaviest load at N reps OR MORE, for N = 1 to `PR_MAX_REPS` (a heavier 5 is also a best for 1 to 4 reps).
+ *   Only the rep count of the set itself is reported; the lower counts it also beats are `implied`
+ *   and returned only with `includeImplied`.
  * - e1rm: highest estimate with `formula` (same set choice as `e1rmSeries`).
  * - volume: total load × reps of the exercise in one workout.
  */
-export function detectPrs(sets: readonly LiftSet[], formula: E1rmFormula): PrEvent[] {
+export function detectPrs(sets: readonly LiftSet[], formula: E1rmFormula, opts: { includeImplied?: boolean } = {}): PrEvent[] {
   const byWorkout = new Map<ID, LiftSet[]>();
   for (const s of sets) {
     const arr = byWorkout.get(s.workoutId);
@@ -110,12 +117,15 @@ export function detectPrs(sets: readonly LiftSet[], formula: E1rmFormula): PrEve
 
   for (const w of workouts) {
     // Rep-range PRs.
-    for (const r of PR_REP_RANGE) {
-      const loads = w.list.filter((s) => s.reps === r).map((s) => s.load);
-      if (!loads.length) continue;
-      const top = Math.max(...loads);
+    for (let r = 1; r <= PR_MAX_REPS; r++) {
+      const eligible = w.list.filter((s) => s.reps >= r);
+      if (!eligible.length) continue;
+      const top = Math.max(...eligible.map((s) => s.load));
       const prev = bestRep.get(r);
-      if (prev !== undefined && top > prev) events.push({ kind: 'rep', date: w.date, workoutId: w.id, reps: r, value: top, previous: prev });
+      if (prev !== undefined && top > prev) {
+        const exact = eligible.some((s) => s.reps === r && s.load === top);
+        if (exact || opts.includeImplied) events.push({ kind: 'rep', date: w.date, workoutId: w.id, reps: r, value: top, previous: prev, ...(exact ? {} : { implied: true }) });
+      }
       if (prev === undefined || top > prev) bestRep.set(r, top);
     }
     // e1RM PR.

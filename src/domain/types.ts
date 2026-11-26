@@ -456,6 +456,8 @@ export interface Profile extends BaseEntity {
   overallLifts?: ID[];
   /** Fill warm-up set weights from the first working weight (default on when absent). */
   autoWarmups?: boolean;
+  /** Tiny per-side plate list under barbell weights on the logging screen (default on when absent). */
+  showPlatesInline?: boolean;
   e1rmFormula: E1rmFormula;
   /** Planned training days per week for weekly streaks. */
   plannedDaysPerWeek: number;

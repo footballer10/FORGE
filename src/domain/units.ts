@@ -22,3 +22,11 @@ export function formatWeight(w: Weight, displayUnit: WeightUnit = w.unit, decima
   const v = roundForDisplay(convertWeight(w.value, w.unit, displayUnit), decimals);
   return `${v} ${displayUnit}`;
 }
+
+export const METRES_PER_YARD = 0.9144;
+export type DistanceUnit = 'yd' | 'm';
+
+/** Set distances are typed in yards for an inch/mile profile, metres otherwise. Stored in metres. */
+export const distanceUnitFor = (lengthUnit: 'in' | 'cm'): DistanceUnit => (lengthUnit === 'in' ? 'yd' : 'm');
+export const metresTo = (m: number, unit: DistanceUnit): number => (unit === 'yd' ? m / METRES_PER_YARD : m);
+export const toMetres = (v: number, unit: DistanceUnit): number => (unit === 'yd' ? v * METRES_PER_YARD : v);

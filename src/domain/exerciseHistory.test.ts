@@ -6,7 +6,7 @@ import type { SetEntry } from './types';
 const lift = (setId: string, workoutId: string, date: string, load: number, reps: number): LiftSet => ({ setId, workoutId, date, load, reps });
 
 describe('repRecords', () => {
-  it('takes the heaviest load at exactly each rep count, earliest on a tie', () => {
+  it('takes the heaviest load at each rep count or more (a heavier 5 is also the 3-rep best), earliest on a tie', () => {
     const r = repRecords([
       lift('a', 'w1', '2026-01-01T10:00:00Z', 100, 5),
       lift('b', 'w2', '2026-02-01T10:00:00Z', 110, 5),
@@ -16,6 +16,7 @@ describe('repRecords', () => {
     ]);
     expect(r).toEqual([
       { reps: 1, load: 140, date: '2026-01-01T10:00:00Z' },
+      { reps: 3, load: 110, date: '2026-02-01T10:00:00Z' },
       { reps: 5, load: 110, date: '2026-02-01T10:00:00Z' },
     ]);
   });

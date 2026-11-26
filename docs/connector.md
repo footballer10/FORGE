@@ -32,7 +32,7 @@ After deploying and syncing from the app at least once:
 3. No sign-in is needed. Ask Claude something like "Look at my last 4 weeks of training in Forge".
 If the connector screen refuses the URL, tell me what it says; the fallback is OAuth, which is a bigger change.
 
-Read-only tools: `get_profile`, `list_exercises`, `list_workouts`, `get_exercise_history` (e1RM with formula and unit), `get_weekly_sets` (hard sets per muscle, primary 1 / secondary 0.5), `get_active_program`, `get_bodyweight`, `get_nutrition` (daily calories and protein with your typed targets), `get_fitness_tests` (academy test events with your target, test date and results). `get_proposals` shows what Claude proposed before and what you decided.
+Read-only tools: `get_profile`, `list_exercises`, `list_workouts`, `get_exercise_history` (e1RM with formula and unit), `get_weekly_sets` (hard sets per muscle, primary 1 / secondary 0.5), `get_active_program`, `get_bodyweight`, `get_nutrition` (daily calories and protein with your typed targets), `get_readiness` (daily sleep, soreness and energy check-ins with a 1–5 score and averages), `get_fitness_tests` (academy test events with your target, test date and results). `get_proposals` shows what Claude proposed before and what you decided.
 
 ## Proposals from Claude (10d)
 The one write tool is `propose_program`. It validates the program with the same rules as the app (and checks every exercise name exists in your library), then stores a proposal with status `proposed`. It cannot create or change programs, workouts or any other data, and at most 5 proposals can wait at once. In the app: Coach → Program from Claude → Proposals waiting (tap Check for proposals to sync first), then Review to see the diff, and Approve or Reject. Approving uses the normal flow (new version of the active program, or a separate draft). Your decision syncs back, so Claude can see it with `get_proposals`. Dates and weeks use UTC, so a late-evening workout can show on the next day. Data is only as fresh as your last Sync now in the app.
@@ -40,7 +40,7 @@ The one write tool is `propose_program`. It validates the program with the same 
 ## Lock-screen rest alerts (milestone 17)
 **Before every redeploy, update your copy first.** In the FORGE folder run `git pull` (or download the latest `main`), otherwise `npx wrangler deploy` uploads the old Worker again. If `git pull` complains that `worker/wrangler.toml` has local changes (your `database_id`), run `git stash`, `git pull`, `git stash pop`, and keep your `database_id` line if asked to resolve a conflict.
 
-Check which version is live: open `https://<your-worker>/api/health` in a browser. An up-to-date Worker answers `{"ok":true,"features":["sync","mcp","nutrition","push"]}`. A plain `{"ok":true}` means the old code is still deployed. If the app says "The Worker answered 404" or "Your Worker is an older version", it is the same problem.
+Check which version is live: open `https://<your-worker>/api/health` in a browser. An up-to-date Worker answers `{"ok":true,"features":["sync","mcp","nutrition","push","readiness","weekly"]}`. A plain `{"ok":true}` means the old code is still deployed. If the app says "The Worker answered 404" or "Your Worker is an older version", it is the same problem.
 
 Makes the rest timer notify you with Forge closed or the phone locked, using Web Push sent by your own Worker. One-time setup, from the repo root unless noted:
 1. `node scripts/vapid-keys.mjs` prints a key pair and the two commands to store it.
@@ -49,6 +49,14 @@ Makes the rest timer notify you with Forge closed or the phone locked, using Web
 4. `npx wrangler deploy` in `worker/`. The first deploy after this change also creates the `RestAlarm` Durable Object (SQLite-backed, on the free plan) through the `[[migrations]]` block.
 5. On the iPhone: Forge must be installed on the Home Screen (iOS 16.4 or later). Open it from there, Settings → Lock-screen rest alerts → On, allow notifications, then "Test: alert in 10 seconds" and lock the phone.
 Routes (all need the Bearer token): `GET /api/push/key`, `POST /api/push/subscribe`, `POST /api/push/unsubscribe`, `PUT /api/rest {endsAt}`, `DELETE /api/rest`. The Worker sends an empty push at `endsAt`; the service worker shows "Rest over". iPhone plays its standard notification sound; a custom bell is not possible. If the phone reports the subscription gone (404/410), the Worker forgets it and you turn the setting off and on again.
+
+## Weekly email (Sunday summary)
+Every Sunday evening (US time; the cron is Monday 01:00 UTC) the Worker emails a summary of Monday to Sunday: sessions, working sets and volume, PRs, nutrition averages against your targets, readiness, and the next sessions of your active program. Warm-ups are excluded. It uses Resend's free plan (3,000 emails a month; this sends about four).
+1. Sign up at resend.com with the address you want the email at, then create an API key (API Keys → Create, "Sending access").
+2. In `worker/`: `npx wrangler secret put RESEND_API_KEY` (paste the key) and `npx wrangler secret put EMAIL_TO` (your sign-up address).
+3. `git pull` in the FORGE folder, then `npx wrangler deploy` in `worker/`. The deploy registers the cron from `[triggers]` in `wrangler.toml`.
+4. Check it: `curl -H "Authorization: Bearer <sync token>" https://<your-worker>/api/weekly` prints this week's text. `curl -X POST -H "Authorization: Bearer <sync token>" https://<your-worker>/api/weekly/send` sends it now.
+Without your own domain, Resend sends from `onboarding@resend.dev` and only to the address you signed up with, which is all Forge needs. To send from your own domain later, verify it in Resend and set `EMAIL_FROM` (for example `[vars] EMAIL_FROM = "Forge <forge@yourdomain.com>"`). Without the two secrets the cron does nothing. The data comes from the cloud copy, so it is as fresh as your last sync.
 
 ## Decisions
 - Auth: one long secret token, no accounts. App sync uses a Bearer header; the connector uses the token in the URL path (`/mcp/<token>`, Bearer also accepted). Not yet tried in the real Claude connector screen.
