@@ -3,6 +3,14 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
+- **Done this session (2026-11-26, milestone 18, food list with portion slider; complete):**
+  - **Data:** `scripts/build-foods.mjs` reads the USDA FoodData Central Foundation Foods and SR Legacy JSON downloads (`node scripts/build-foods.mjs <foundation.json> <sr_legacy.json>`) and writes `src/data/foods.json`: 776 foods, per 100 g kcal/protein/carbs/fat and up to 6 household portions with gram weights, all copied from the USDA files (nothing typed by hand). The script only chooses WHICH foods, from a list of common-food words (up to 2 variants each, plain names and Foundation first; brands, game meats, offal and cut-detail names excluded). Built from Foundation 2026-10-29 and SR Legacy 2018-04. 70 kB (23 kB gzip), lazy chunk. No match in USDA for kefir, cantaloupe, sports drink.
+  - **Pure code** `domain/foods.ts` (+ 16 tests incl. checks on the bundled file): `scaleFood` (value per 100 g × grams ÷ 100), `searchFoods` (every typed word starts a word of the name; recent foods first, then plainer names), `recentFoodIds` (from logged entries, no new table), `sliderSpec`, `snapGrams` (to a portion within 3 g or 3%, else 5 g), `defaultGrams` (portion nearest 100 g), `entryLabel`.
+  - **Entries:** `NutritionEntry` gained optional `foodId` (`fdc:<id>`) and `grams`; no schema bump, sync and backup are generic. Repository test added.
+  - **UI:** Nutrition → "Search the food list" opens a full-screen sheet (`features/nutrition/FoodPicker.tsx`): search (recent foods when empty), tap a food, slider with ±5 g buttons and portion chips, live calories/protein/carbs/fat, the formula and the USDA credit, "Add · N kcal". Typed entry and quick foods are unchanged below it. Verified in a 390 px headless Chromium (search, slider, add, entry listed); not on an iPhone.
+  - **Environment:** the sandbox blocked USDA, so a personal "forge" environment allowing `fdc.nal.usda.gov` was created with your approval.
+  - Tests (512) and build pass.
+- **Next session:** milestone 19 is not planned. If the device test of 17 (lock-screen alerts) shows problems, fix those first; otherwise pick from the Ideas backlog or the Known issues.
 - **Done this session (2026-11-26, milestone 17, Web Push rest alerts; split 17a Worker, 17b app; both done in code):**
   - **17a (Worker):** `worker/src/vapid.ts` (ES256 VAPID JWT with WebCrypto, key import/generation, tested by verifying the signature with the public key), `restAlarm.ts` (`RestScheduler` over a minimal storage interface plus the thin `RestAlarm` Durable Object: stores the subscription and `endsAt`, sets an alarm, sends one payload-less push with `Authorization: vapid ...`, `TTL 60`, `Urgency high`; forgets the subscription on 404/410; ignores a rest more than 35 min ahead or over a minute past; re-waits if the alarm fires early), `pushRoutes.ts` (token-protected `GET /api/push/key`, `POST /api/push/subscribe|unsubscribe`, `PUT|DELETE /api/rest`; 503 with a clear message until the keys and the Durable Object exist), CORS now allows PUT and DELETE. Subscription endpoints must be https on a known push host (Apple, Google, Mozilla, Windows). `scripts/vapid-keys.mjs` generates the keys. `wrangler.toml` gained the `REST` binding and the `new_sqlite_classes` migration; `wrangler deploy --dry-run` bundles.
   - **17b (app):** `public/push-handler.js` loaded through workbox `importScripts` (push shows "Rest over" with a tag; if Forge is open and visible its banner is closed after 1.5 s because the in-app bell already rang; tap focuses or opens the app). `domain/restPush.ts` (request builders, key decoding, "why unavailable" text) and `features/train/restPush.ts` (permission from a tap, subscribe, register, schedule, cancel; all silent and best effort). `RestTimer` sends `PUT` when a rest starts and on ±15 s, and `DELETE` on skip or discard (not when the rest ran to its end). Settings: "Lock-screen rest alerts" toggle with a 10-second test. The old "planned" wording is gone. Docs in `docs/connector.md`.
@@ -80,6 +88,7 @@ Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 - Reorder (14): up/down buttons stay; drag-and-drop would need a dependency (not approved).
 - Fitness-test countdown (13): one target and one test date per test, stored on the test (target in base units, shown in the profile length unit). Gap = target − best (higher is better) or best − target (lower is better), floored at 0; measured against the BEST result, not the latest. A past date shows "N days ago". The Worker/connector does not expose targets yet (the Copy summary does).
 - Insights (12a): max 3 notes on Home, order missed week, imbalance, plateaus (longest first). Dismissed note ids live in localStorage, not the database (display preference; no sync or schema change). 'Missed' ignores long breaks (nothing the week before). Weekly review (12b) copies from Coach; the connector path is separate and unchanged.
+- Food list (18): per-100 g values from USDA FoodData Central Foundation + SR Legacy (public domain), copied by `scripts/build-foods.mjs`; the script's word list decides which foods are included, never any value. Amount = value per 100 g × grams ÷ 100, calories rounded to whole, macros to 0.1 g. Slider 5 g to max(500 g, 4 × biggest portion), snaps to portions. Recent foods come from the user's own entries. No new dependency.
 - Hosting: Cloudflare Pages, Vite `base: '/'`.
 - Week starts Monday.
 - Strong dumbbells logged as pair totals → import halves by default.
@@ -335,16 +344,17 @@ Goal: the rest timer alerts even when Forge is closed or the iPhone is locked. A
 
 ## Milestone 18 — Food list with portion slider
 Goal: pick a food from a list, set the amount with a slider, see calories/protein/carbs/fat live, add it.
-- [ ] Data: ~500–1000 common foods from USDA FoodData Central (Foundation + SR Legacy, public domain): per-100 g kcal/protein/carbs/fat and household portions. Reproducible script in `scripts/` writing `src/data/foods.json` (lazy-loaded). Credit USDA. If the download is blocked, ask the user; never type values from memory.
-- [ ] Pure search (recent first) and scaling-by-grams functions with tests.
-- [ ] `NutritionEntry` gains optional `foodId` and `grams` (backward compatible; sync and backup are generic).
-- [ ] UI: search → list → sheet with a slider snapping to portions or 5–10 g steps, live macros, Add. Keep typed entry and quick foods. Keep the main screen uncluttered.
+- [x] (done) Data: ~500–1000 common foods from USDA FoodData Central (Foundation + SR Legacy, public domain): per-100 g kcal/protein/carbs/fat and household portions. Reproducible script in `scripts/` writing `src/data/foods.json` (lazy-loaded). Credit USDA. If the download is blocked, ask the user; never type values from memory.
+- [x] (done) Pure search (recent first) and scaling-by-grams functions with tests.
+- [x] (done) `NutritionEntry` gains optional `foodId` and `grams` (backward compatible; sync and backup are generic).
+- [x] (done) UI: search → list → sheet with a slider snapping to portions or 5–10 g steps, live macros, Add. Keep typed entry and quick foods. Keep the main screen uncluttered.
 - Model: Sonnet, high effort.
 
 ## Ideas backlog (not scheduled)
 Auto warm-up ramp from the working weight; weekly volume landmarks per muscle; program library (5/3/1, linear progression) as importable JSON; muscle recovery view; Claude "what should I train today" proposals (after M10); beep-test and interval timers; light nutrition (daily calories and protein plus bodyweight trend to estimate maintenance); detailed set-by-set export for Claude (superseded by M10).
 
 ## Known issues
+- Food list (18): 776 common foods, not the full USDA database (no branded foods, no barcode scan); names are USDA's wording ("Beef, ground, 85% lean meat / 15% fat, raw"). Raw versus cooked entries are separate foods; pick the one you weighed. Portion labels are USDA's (some are long). Entries from the list keep the name text they had when added; editing a food later is not possible (delete and re-add). Not tried on an iPhone (the range input's thumb size and keyboard behaviour). Quick foods cannot be created from a list food yet.
 - Conditioning sets show distance in metres (40 yd shows as 36.58 m); the set row has no yard/mile display yet.
 - Auto warm-ups use the default equipment profile's bar and plates; an exercise-specific bar weight is respected. Machine and cable warm-ups round to the exercise increment only.
 - The in-app bell cannot ring with the screen locked in "Sound" mode (iOS silences ambient audio on lock); "Loud" mode can but pauses music. Lock-screen alerts (milestone 17, Settings) are the fix once the Worker is set up; untested on a device.

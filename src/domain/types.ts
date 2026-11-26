@@ -391,6 +391,9 @@ export interface NutritionEntry extends BaseEntity {
   proteinG?: number;
   carbsG?: number;
   fatG?: number;
+  /** Set when the entry came from the bundled USDA food list (`fdc:<id>`), with the amount eaten. */
+  foodId?: string;
+  grams?: number;
 }
 
 /** A food the user eats often, one tap to add. */
