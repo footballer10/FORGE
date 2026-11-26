@@ -40,6 +40,40 @@ beforeEach(async () => {
 });
 
 describe('syncRepo', () => {
+  it('restores a fresh install from the cloud without duplicate exercises or a blank profile winning', async () => {
+    const srv = fakeServer();
+    // Phone before the app was removed: data synced to the cloud.
+    await syncRepo.configure('https://w.test', 'secret-token-1234567');
+    const squat = await exerciseRepo.create({ ...ex, sourceRef: 'Barbell_Squat' });
+    const { profileRepo, workoutRepo } = await import('./index');
+    await profileRepo.update({ position: 'Fullback', plannedDaysPerWeek: 3 });
+    const w = await workoutRepo.start({ name: 'A Day' });
+    await workoutRepo.finish(w.id);
+    await syncRepo.sync(srv.f);
+
+    // App removed and added again: everything local is gone; first launch seeds a new library row and a default profile.
+    await clearAllData();
+    await exerciseRepo.create({ ...ex, sourceRef: 'Barbell_Squat' });
+    await profileRepo.update({ plannedDaysPerWeek: 5 });
+
+    const r = await syncRepo.restoreFromCloud('https://w.test', 'secret-token-1234567', srv.f);
+    expect(r.error).toBeUndefined();
+    const all = await exerciseRepo.list();
+    expect(all.map((e) => e.id)).toEqual([squat.id]); // the cloud's exercise, no duplicate
+    expect((await profileRepo.get()).plannedDaysPerWeek).toBe(3); // the cloud profile, not the blank one
+    expect(await workoutRepo.listHistory()).toHaveLength(1);
+    expect((await syncRepo.status()).configured).toBe(true);
+  });
+
+  it('refuses to wipe a phone that already has workouts', async () => {
+    const { workoutRepo } = await import('./index');
+    const w = await workoutRepo.start({ name: 'Here' });
+    await workoutRepo.finish(w.id);
+    const r = await syncRepo.restoreFromCloud('https://w.test', 'secret-token-1234567', fakeServer().f);
+    expect(r.error).toMatch(/already has workouts/);
+    expect(await workoutRepo.listHistory()).toHaveLength(1);
+  });
+
   it('does nothing until configured', async () => {
     expect((await syncRepo.sync(fakeServer().f)).error).toMatch(/not set up/);
     expect((await syncRepo.status()).configured).toBe(false);
