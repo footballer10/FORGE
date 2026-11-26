@@ -522,6 +522,23 @@ describe('progression on start', () => {
     await useWorkout.getState().setAutoWarmup(true);
   });
 
+  it('starts a conditioning preset with distances and per-effort rests, creating the Run exercise once', async () => {
+    const { CONDITIONING_PRESETS } = await import('../../domain/conditioningPresets');
+    const intervals = CONDITIONING_PRESETS.find((p) => p.id === 'intervals-400m')!;
+    expect(await useWorkout.getState().startConditioningPreset(intervals)).toBe(true);
+    const st = useWorkout.getState();
+    expect(st.workout).toMatchObject({ name: 'Intervals', kind: 'conditioning' });
+    expect(st.rows[0]!.exercise).toMatchObject({ name: 'Run', loadModel: 'timeDistance' });
+    expect(sets().map((s) => s.distanceM)).toEqual([400, 400, 400, 400, 400, 400]);
+    expect(await useWorkout.getState().startConditioningPreset(intervals)).toBe(false); // one already open
+    await useWorkout.getState().updateSet(sets()[0]!.id, { durationSec: 75 });
+    await useWorkout.getState().toggleComplete(sets()[0]!.id);
+    expect(useWorkout.getState().restTotalSec).toBe(90);
+    await useWorkout.getState().discard();
+    await useWorkout.getState().startConditioningPreset(intervals);
+    expect((await exerciseRepo.list()).filter((e) => e.name === 'Run')).toHaveLength(1);
+  });
+
   it('fillSuggested fills the next open working set only', async () => {
     const bench = await exerciseRepo.create({ ...base, name: 'Bench' });
     await useWorkout.getState().start();

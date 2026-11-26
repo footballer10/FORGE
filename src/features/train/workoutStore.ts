@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { achievementsRepo, exerciseRepo, metaRepo, nowIso, plannedSessionRepo, profileRepo, routineRepo, undoRepo, workoutRepo } from '../../db/repositories';
 import { convertWeight } from '../../domain/units';
 import { autoWarmupWeights, buildWarmups, warmupKitFor } from '../../domain/warmup';
+import type { ConditioningExerciseName, ConditioningPreset } from '../../domain/conditioningPresets';
 import { canComplete, prefillDrafts, suggestionTarget } from '../../domain/logging';
 import { moveItem } from '../../domain/order';
 import { restAfterExercise, toggleSupersetLink } from '../../domain/superset';
@@ -35,6 +36,8 @@ interface State {
   /** Recompute warm-up weights for one exercise, or all of them. Completed and hand-typed warm-ups are kept. */
   autoFillWarmups: (workoutExerciseId?: ID) => Promise<void>;
   setAutoWarmup: (on: boolean) => Promise<void>;
+  /** Start a conditioning session from a preset (sprints, intervals, test runs). False if a workout is already open. */
+  startConditioningPreset: (preset: ConditioningPreset) => Promise<boolean>;
   /** Sets that just set a rep PR (brief highlight; memory only). */
   prSetIds: ID[];
   /** Workout just finished (not an edit): the summary sheet shows it. */
@@ -88,6 +91,18 @@ interface State {
 
 /** meta key holding the ID of a finished workout that is being edited (survives reload). */
 const EDITING_KEY = 'editingWorkoutId';
+
+/** The time/distance exercise a preset logs to; created once as a custom exercise if the library has none by that name. */
+async function ensureConditioningExercise(name: ConditioningExerciseName): Promise<ID> {
+  const found = await exerciseRepo.findByName(name);
+  if (found && found.loadModel === 'timeDistance') return found.id;
+  const created = await exerciseRepo.create({
+    name: found ? `${name} (time/distance)` : name,
+    aliases: [], equipment: 'bodyweight', primaryMuscles: ['quadriceps', 'hamstrings', 'calves'], secondaryMuscles: ['glutes'],
+    pattern: 'conditioning', unilateral: false, defaultRestSec: 90, weightIncrement: 5, incrementUnit: 'lb', loadModel: 'timeDistance', source: 'custom',
+  });
+  return created.id;
+}
 
 /** True when the open workout is a finished one being edited. */
 export const isEditingPast = (w?: Workout) => !!w?.endedAt;
@@ -264,6 +279,19 @@ export const useWorkout = create<State>((set, get) => {
           await workoutRepo.updateSet(s.id, p);
         }
       }
+    },
+
+    async startConditioningPreset(preset) {
+      if (get().workout) return false;
+      const exerciseId = await ensureConditioningExercise(preset.exercise);
+      const w = await workoutRepo.startFromPlan(
+        { name: preset.name, exercises: [{ exerciseId, order: 0, targets: Array.from({ length: preset.count }, () => ({ type: 'working' as const, distanceM: preset.distanceM, restSec: preset.restSec })) }] },
+        get().unit,
+      );
+      await workoutRepo.update(w.id, { kind: 'conditioning' });
+      set({ rows: [], manualWarmups: [] });
+      await refresh(w.id);
+      return true;
     },
 
     async setAutoWarmup(on) {

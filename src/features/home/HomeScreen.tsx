@@ -8,10 +8,11 @@ import { localDateKey } from '../../domain/calendar';
 import type { StreakSummary } from '../../domain/streaks';
 import { NextUpCard } from './NextUpCard';
 import { InsightNotes } from './InsightNotes';
+import { HomeTiles } from './HomeTiles';
 import { HistoryCalendar } from '../train/HistoryCalendar';
 import { HistoryList } from '../train/HistoryList';
 
-/** Home = your training log (like the History/Profile tab in Strong and Hevy): one status line, then workouts. */
+/** Home: status line, next session, three glance tiles and the latest PR, notes, then your workout history. */
 export function HomeScreen() {
   const [streak, setStreak] = useState<StreakSummary>();
   const [mode, setMode] = useState<'list' | 'calendar'>('list');
@@ -52,8 +53,9 @@ export function HomeScreen() {
           {streak.current > 0 && <span className="text-muted"> · {streak.current}-week streak</span>}
         </p>
       )}
-      <InsightNotes />
       <NextUpCard />
+      <HomeTiles />
+      <InsightNotes />
       {academy && (
         <button type="button" onClick={() => useUi.getState().setTab('progress')} className="num mb-3 min-h-tap text-left text-sm text-muted">
           {academy.withTarget > 0 ? `${academy.atTarget} of ${academy.withTarget} academy events at target` : 'Academy tests'}
