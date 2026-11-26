@@ -10,7 +10,7 @@ import { createRepo, newId, nowIso, type NewEntity } from './base';
 
 export { workoutRepo, type FullWorkout } from './workouts';
 export { profileRepo, defaultProfile } from './profile';
-export { nutritionRepo, type FoodInput, type NutritionData } from './nutrition';
+export { nutritionRepo, type FoodInput, type NutritionData, type SavedFoodInput } from './nutrition';
 export { importer } from './importer';
 export { backupRepo, type StrongExportItem } from './backup';
 import { undoRepo } from './undo';

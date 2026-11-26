@@ -1,17 +1,18 @@
 /**
- * Food list maths (pure): parse the bundled USDA data, search it, and scale per-100 g values to an amount.
- * Data: USDA FoodData Central (Foundation Foods and SR Legacy), public domain; see scripts/build-foods.mjs.
+ * Food list maths (pure): parse the bundled USDA data, search it together with the user's own foods and recipes,
+ * and scale a food's values to an amount. Units (grams, cups, pieces, ...) are in `foodUnits.ts`.
+ * Data: USDA FoodData Central (Foundation Foods, SR Legacy and Survey/FNDDS), public domain; see scripts/build-foods.mjs.
  */
-import type { NutritionEntry } from './types';
+import type { NutritionEntry, SavedFood } from './types';
 
 export interface FoodPortion {
   label: string;
   grams: number;
 }
 
-/** A food with its values per 100 g. */
+/** A food with its values per `basis`: 100 g for a list food, one serving for the user's own foods and recipes. */
 export interface Food {
-  /** Stored on a logged entry as `foodId`. */
+  /** Stored on a logged entry as `foodId`: `fdc:<id>` for the USDA list, `my:<id>` for the user's own foods. */
   id: string;
   name: string;
   kcal: number;
@@ -19,7 +20,17 @@ export interface Food {
   carbsG: number;
   fatG: number;
   portions: FoodPortion[];
+  /** Amount the values are for: 100 (grams, the default) or 1 (one serving). */
+  basis?: number;
+  /** Shown beside the name in the list: "Recipe", "My food" (later: a restaurant name). */
+  tag?: string;
+  /** What one serving is, for foods with `basis` 1. */
+  servingLabel?: string;
+  /** Sorted before USDA foods in a search. */
+  mine?: boolean;
 }
+
+export const basisOf = (food: Food): number => food.basis ?? 100;
 
 export interface FoodsFile {
   source: string;
@@ -49,56 +60,143 @@ export interface Macros {
 
 const round = (n: number, d: number) => Math.round(n * 10 ** d) / 10 ** d;
 
-/** Scale a food's per-100 g values to `grams`: value × grams ÷ 100. Calories whole, macros to 0.1 g. */
-export function scaleFood(food: Food, grams: number): Macros {
-  const g = Math.max(0, grams);
+/** Scale a food's values to `amount` base units (grams, or servings): value × amount ÷ basis. Calories whole, macros to 0.1. */
+export function scaleFood(food: Food, amount: number): Macros {
+  const a = Math.max(0, amount) / basisOf(food);
   return {
-    calories: Math.round((food.kcal * g) / 100),
-    proteinG: round((food.proteinG * g) / 100, 1),
-    carbsG: round((food.carbsG * g) / 100, 1),
-    fatG: round((food.fatG * g) / 100, 1),
+    calories: Math.round(food.kcal * a),
+    proteinG: round(food.proteinG * a, 1),
+    carbsG: round(food.carbsG * a, 1),
+    fatG: round(food.fatG * a, 1),
   };
 }
 
-export const SCALING_FORMULA = 'amount = value per 100 g × grams ÷ 100';
+/** The formula shown next to the numbers. */
+export const scalingFormula = (food: Food): string =>
+  basisOf(food) === 100 ? 'amount = value per 100 g × grams ÷ 100 (cups, pieces and ml are first turned into grams)' : 'amount = value per serving × servings';
+
+/** A saved food or recipe as a searchable food: values per serving. */
+export function savedFoodToFood(f: SavedFood): Food {
+  return {
+    id: `my:${f.id}`,
+    name: f.name,
+    kcal: f.calories,
+    proteinG: f.proteinG ?? 0,
+    carbsG: f.carbsG ?? 0,
+    fatG: f.fatG ?? 0,
+    portions: [],
+    basis: 1,
+    tag: f.ingredients?.length ? 'Recipe' : 'My food',
+    ...(f.servingLabel ? { servingLabel: f.servingLabel } : {}),
+    mine: true,
+  };
+}
 
 const words = (s: string) => s.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
 const commas = (s: string) => (s.match(/,/g) ?? []).length;
 
+/** Words people type that USDA writes differently. Each typed word can also be searched as these phrases. */
+export const SEARCH_ALIASES: Record<string, string[]> = {
+  soda: ['soft drink', 'carbonated'],
+  pop: ['soft drink', 'carbonated'],
+  coke: ['cola'],
+  pepsi: ['cola'],
+  fries: ['french fries', 'french fried'],
+  sub: ['submarine'],
+  burger: ['hamburger', 'cheeseburger'],
+  pb: ['peanut butter'],
+  pbj: ['peanut butter jelly'],
+  oj: ['orange juice'],
+  bbq: ['barbecue'],
+  ketchup: ['catsup'],
+  yoghurt: ['yogurt'],
+  mac: ['macaroni'],
+  cilantro: ['coriander'],
+  scallion: ['green onion'],
+  zucchini: ['squash summer'],
+  shake: ['milk shake'],
+  tenders: ['chicken tender'],
+};
+
+/** A typed word matches a name word that starts with it, or with it minus a plural ("eggs" → egg, "fries" → fry). */
+function wordMatches(nameWord: string, token: string): boolean {
+  if (nameWord.startsWith(token)) return true;
+  if (token.length > 3 && token.endsWith('ies') && nameWord.startsWith(`${token.slice(0, -3)}y`)) return true;
+  if (token.length > 3 && token.endsWith('es') && nameWord.startsWith(token.slice(0, -2))) return true;
+  return token.length > 2 && token.endsWith('s') && nameWord.startsWith(token.slice(0, -1));
+}
+
+/** The typed words, plus one variant per alias of a typed word. */
+export function queryVariants(query: string): string[][] {
+  const q = words(query);
+  const out: string[][] = [q];
+  q.forEach((t, i) => {
+    for (const phrase of SEARCH_ALIASES[t] ?? []) out.push([...q.slice(0, i), ...words(phrase), ...q.slice(i + 1)]);
+  });
+  return out.slice(0, 8);
+}
+
+const MIXED = new Set(['and', 'with', 'on', 'in', 'from']);
+
+const nameWords = new WeakMap<Food, string[]>();
+const wordsOf = (f: Food): string[] => {
+  let w = nameWords.get(f);
+  if (!w) nameWords.set(f, (w = words(f.name)));
+  return w;
+};
+
 /**
- * Foods whose name contains every typed word (each as the start of a word). Ranking: recently logged first (in the
- * order given), then names that start with the first typed word, then fewer commas (plainer names), then shorter.
+ * Foods whose name has, for every typed word, a word that starts with it (see `queryVariants` for aliases).
+ * Ranking: recently logged first (in the order given), then the user's own foods and recipes, then names that start
+ * with the first typed word, then fewer commas (plainer names), then shorter.
  * An empty query lists the recent foods only.
  */
-export function searchFoods(foods: readonly Food[], query: string, recentIds: readonly string[] = [], limit = 40): Food[] {
-  const q = words(query);
+export function searchFoods(foods: readonly Food[], query: string, recentIds: readonly string[] = [], limit = 50): Food[] {
+  const variants = queryVariants(query).filter((v) => v.length > 0);
   const recentRank = new Map(recentIds.map((id, i) => [id, i]));
-  if (q.length === 0) {
+  if (variants.length === 0) {
     return recentIds.map((id) => foods.find((f) => f.id === id)).filter((f): f is Food => !!f).slice(0, limit);
   }
-  const hits = foods.filter((f) => {
-    const w = words(f.name);
-    return q.every((t) => w.some((x) => x.startsWith(t)));
-  });
-  const first = q[0] ?? '';
-  const key = (f: Food): [number, number, number, number] => [
-    recentRank.get(f.id) ?? Infinity,
-    words(f.name)[0]?.startsWith(first) ? 0 : 1,
-    commas(f.name),
-    f.name.length,
-  ];
-  return hits
-    .sort((a, b) => {
-      const ka = key(a);
-      const kb = key(b);
-      for (let i = 0; i < ka.length; i++) {
-        const x = ka[i] ?? 0;
-        const y = kb[i] ?? 0;
-        if (x !== y) return x < y ? -1 : 1;
-      }
-      return a.name.localeCompare(b.name);
-    })
-    .slice(0, limit);
+  const single = variants[0]?.length === 1;
+  type Key = [number, number, number, number, number, number, number, number];
+  const scored: { food: Food; key: Key }[] = [];
+  for (const f of foods) {
+    const w = wordsOf(f);
+    let best: Key | undefined;
+    for (const v of variants) {
+      if (!v.every((t) => w.some((x) => wordMatches(x, t)))) continue;
+      const lower = f.name.toLowerCase();
+      const first = v[0] ?? '';
+      const key: Key = [
+        recentRank.get(f.id) ?? Infinity,
+        f.mine ? 0 : 1,
+        // every typed word is a whole word of the name ("cola", not "colada")
+        v.every((t) => w.includes(t)) ? 0 : 1,
+        // "Rice, white, cooked" before "Rice cake": the name opens with the single typed word, then a comma or ends
+        single && (lower === first || lower.startsWith(`${first},`)) ? 0 : 1,
+        w[0] && wordMatches(w[0], first) ? 0 : 1,
+        // a mixed item ("Rum and cola", "Cheese sandwich, on wheat bread") after the plain food, unless it was asked for
+        w.some((x) => MIXED.has(x) && !v.includes(x)) ? 1 : 0,
+        commas(f.name),
+        f.name.length,
+      ];
+      if (!best || compareKeys(key, best) < 0) best = key;
+    }
+    if (best) scored.push({ food: f, key: best });
+  }
+  return scored
+    .sort((a, b) => compareKeys(a.key, b.key) || a.food.name.localeCompare(b.food.name))
+    .slice(0, limit)
+    .map((x) => x.food);
+}
+
+function compareKeys(a: readonly number[], b: readonly number[]): number {
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i] ?? 0;
+    const y = b[i] ?? 0;
+    if (x !== y) return x < y ? -1 : 1;
+  }
+  return 0;
 }
 
 /** Food IDs from logged entries, newest first, each once. */
@@ -113,49 +211,4 @@ export function recentFoodIds(entries: readonly NutritionEntry[], limit = 20): s
     if (out.length >= limit) break;
   }
   return out;
-}
-
-export interface SliderSpec {
-  min: number;
-  max: number;
-  step: number;
-}
-
-/** Slider range: 5 g steps; the top is at least 4 × the largest portion and 500 g. */
-export function sliderSpec(food: Food): SliderSpec {
-  const biggest = Math.max(0, ...food.portions.map((p) => p.grams));
-  const max = Math.ceil(Math.max(500, biggest * 4) / 10) * 10;
-  return { min: 5, max, step: 5 };
-}
-
-/** Snap to a household portion when within 3 g or 3% of it (whichever is larger); otherwise to the 5 g step. */
-export function snapGrams(food: Food, grams: number): number {
-  const { min, max, step } = sliderSpec(food);
-  const g = Math.min(max, Math.max(min, grams));
-  let best: FoodPortion | undefined;
-  for (const p of food.portions) {
-    const tol = Math.max(3, p.grams * 0.03);
-    if (Math.abs(p.grams - g) <= tol && (!best || Math.abs(p.grams - g) < Math.abs(best.grams - g))) best = p;
-  }
-  if (best) return best.grams;
-  return Math.min(max, Math.max(min, Math.round(g / step) * step));
-}
-
-/** The portion a gram amount equals (within rounding), for the "1 cup" label next to the grams. */
-export function portionAt(food: Food, grams: number): FoodPortion | undefined {
-  return food.portions.find((p) => Math.abs(p.grams - grams) < 0.05);
-}
-
-/** Starting amount: the household portion closest to 100 g (first wins a tie), else 100 g. */
-export function defaultGrams(food: Food): number {
-  let best: FoodPortion | undefined;
-  for (const p of food.portions) if (!best || Math.abs(p.grams - 100) < Math.abs(best.grams - 100)) best = p;
-  return best?.grams ?? 100;
-}
-
-/** Entry name as shown in the day list: "Bananas, raw · 118 g (1 medium)". */
-export function entryLabel(food: Food, grams: number): string {
-  const p = portionAt(food, grams);
-  const amount = `${round(grams, 1)} g`;
-  return `${food.name} · ${p ? `${amount} (${p.label})` : amount}`;
 }

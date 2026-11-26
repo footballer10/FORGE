@@ -7,6 +7,9 @@ import { undoRepo } from './undo';
 const entries = createRepo(db.nutritionEntries);
 const foods = createRepo(db.savedFoods);
 
+/** A saved food, custom food or recipe as the screens build it (values per serving). */
+export type SavedFoodInput = Omit<SavedFood, 'id' | 'createdAt' | 'updatedAt' | 'deletedAt'>;
+
 export type FoodInput = { name?: string; calories: number; proteinG?: number; carbsG?: number; fatG?: number; foodId?: string; grams?: number };
 
 export interface NutritionData {
@@ -38,8 +41,21 @@ export const nutritionRepo = {
   saveFood(food: FoodInput & { name: string }): Promise<SavedFood> {
     return foods.create({ ...food, name: food.name.trim() });
   },
+  /** A custom food or a recipe (see `domain/recipes.ts`); values are per serving. */
+  saveSavedFood(food: SavedFoodInput): Promise<SavedFood> {
+    return foods.create({ ...food, name: food.name.trim() });
+  },
+  updateSavedFood(id: string, food: SavedFoodInput): Promise<SavedFood> {
+    const { servingLabel, ingredients, servings, proteinG, carbsG, fatG, ...rest } = food;
+    // `update` merges, so clear what the edit left out instead of keeping the old value.
+    return foods.update(id, {
+      ...rest,
+      name: food.name.trim(),
+      proteinG, carbsG, fatG, servingLabel, ingredients, servings,
+    });
+  },
   removeFood(id: string): Promise<void> {
-    return foods.softDelete(id);
+    return undoRepo.run('Deleted saved food', { savedFoods: [id] }, () => foods.softDelete(id));
   },
   /** Typed targets; an empty object clears them. */
   async setTargets(targets: NutritionTargets): Promise<void> {
