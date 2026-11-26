@@ -3,6 +3,11 @@
 Status legend: `[x]` done · `[ ]` todo · `[~]` partial
 
 ## Current
+- **Done this session (2026-11-26, data safety + e1RM):**
+  - **Restore after removing the app**: removing a Home Screen web app on iPhone deletes its data. Settings → Claude → Cloud sync now has "Copy restore code" (URL + token in one `forge1:` code, `domain/connection.ts`), and the welcome screen of a fresh install offers "Restore from the cloud" (paste the code) or "Restore from a backup file". `syncRepo.restoreFromCloud` clears what the fresh install created (default profile, library seeded with new IDs), pulls the full cloud copy, then re-seeds only missing library exercises: no duplicates, cloud profile wins. Refused if the phone has workouts. The app also asks for persistent storage, and Settings says plainly that removing the app deletes local data. Photos are not in the cloud copy.
+  - **e1RM for 15-rep work**: `E1RM_MAX_REPS` is now 20 with `e1rmCandidates`: a session uses its 1–12-rep sets when it has any, else its 13–20-rep sets as a rough estimate (`rough` on the point). Same rule in the Worker's `get_exercise_history` (needs a Worker redeploy). Warm-ups were already excluded everywhere.
+  - Food additions handed off as milestone 19.
+  Tests (519) and build pass.
 - **Done this session (2026-11-26, milestone 18, food list with portion slider; complete):**
   - **Data:** `scripts/build-foods.mjs` reads the USDA FoodData Central Foundation Foods and SR Legacy JSON downloads (`node scripts/build-foods.mjs <foundation.json> <sr_legacy.json>`) and writes `src/data/foods.json`: 776 foods, per 100 g kcal/protein/carbs/fat and up to 6 household portions with gram weights, all copied from the USDA files (nothing typed by hand). The script only chooses WHICH foods, from a list of common-food words (up to 2 variants each, plain names and Foundation first; brands, game meats, offal and cut-detail names excluded). Built from Foundation 2026-10-29 and SR Legacy 2018-04. 70 kB (23 kB gzip), lazy chunk. No match in USDA for kefir, cantaloupe, sports drink.
   - **Pure code** `domain/foods.ts` (+ 16 tests incl. checks on the bundled file): `scaleFood` (value per 100 g × grams ÷ 100), `searchFoods` (every typed word starts a word of the name; recent foods first, then plainer names), `recentFoodIds` (from logged entries, no new table), `sliderSpec`, `snapGrams` (to a portion within 3 g or 3%, else 5 g), `defaultGrams` (portion nearest 100 g), `entryLabel`.
@@ -348,6 +353,12 @@ Goal: pick a food from a list, set the amount with a slider, see calories/protei
 - [x] (done) Pure search (recent first) and scaling-by-grams functions with tests.
 - [x] (done) `NutritionEntry` gains optional `foodId` and `grams` (backward compatible; sync and backup are generic).
 - [x] (done) UI: search → list → sheet with a slider snapping to portions or 5–10 g steps, live macros, Add. Keep typed entry and quick foods. Keep the main screen uncluttered.
+- Model: Sonnet, high effort.
+
+## Milestone 19 — More foods, restaurant items and sodas
+- [ ] Curated restaurant/branded file (e.g. `src/data/restaurantFoods.json`): brand, item, serving, kcal/protein/carbs/fat, official source URL and date checked. Chipotle ingredients + "burrito: white rice, black beans, steak, fresh tomato salsa"; In-N-Out Double-Double and fries; Chick-fil-A chicken sandwich; sodas (Coke, Diet Coke, Coke Zero, Sprite, Dr Pepper, Pepsi, Mountain Dew, Fanta Orange, root beer, ginger ale) as 12 oz can and 20 oz bottle. Numbers only from the brands' official nutrition pages fetched in-session; missing pages are listed, never guessed.
+- [ ] Widen USDA selection in `scripts/build-foods.mjs` to ~1500 foods (incl. "Fast foods, …" and carbonated beverages).
+- [ ] Search shows brand, defaults restaurant items to "1 item"; tests for sources, values and queries ("double double", "chipotle", "dr pepper", "chick-fil-a").
 - Model: Sonnet, high effort.
 
 ## Ideas backlog (not scheduled)
