@@ -113,6 +113,24 @@ export const syncRepo = {
     };
   },
 
+  /**
+   * Fresh install (the app was removed from the Home Screen, which deletes its data): wipe what this phone
+   * created on first launch (default profile, the library seeded with new IDs), connect, and pull the full
+   * cloud copy. Refused when the phone already has workouts, so it can never erase real data. The caller
+   * re-seeds the library afterwards (only exercises the cloud copy lacks are added) and reloads the app.
+   */
+  async restoreFromCloud(url: string, token: string, f: FetchLike = (u, i) => fetch(u, i)): Promise<SyncResult & { error?: string }> {
+    if ((await db.workouts.count()) > 0) {
+      return { pushed: 0, pulled: 0, error: 'This phone already has workouts, so nothing was wiped. Connect in Settings → Claude → Cloud sync instead.' };
+    }
+    await db.transaction('rw', SYNC_TABLES.map((t) => db.table(t)), async () => {
+      for (const t of SYNC_TABLES) await db.table(t).clear();
+    });
+    await db.meta.delete('librarySeedVersion');
+    await this.configure(url, token);
+    return this.sync(f);
+  },
+
   /** Push local changes, then pull remote ones. Never throws: failures are stored as lastError. */
   async sync(f: FetchLike = (u, i) => fetch(u, i)): Promise<SyncResult & { error?: string }> {
     const s = await this.settings();

@@ -3,7 +3,7 @@
  * already read from D1, so they can be tested without a server. Every result states its units
  * and, for e1RM, the formula and inputs.
  */
-import { estimate1rm, formulaInfo } from '../../src/domain/e1rm';
+import { e1rmCandidates, estimate1rm, formulaInfo } from '../../src/domain/e1rm';
 import { effectiveLoad, isAnalyticSet } from '../../src/domain/load';
 import { volumeSets, weeklyTotals } from '../../src/domain/volume';
 import { extractJson, proposalExerciseNames, validateProposal } from '../../src/domain/programProposal';
@@ -103,20 +103,24 @@ export function getExerciseHistory(d: Data, name: string, limit = 10) {
   const sessions = [...groups.entries()]
     .map(([wid, ss]) => ({ w: wk.get(wid)!, ss: ss.sort((a, b) => a.order - b.order) }))
     .sort((a, b) => (a.w.startedAt < b.w.startedAt ? 1 : -1));
-  const e1rmOf = (s: SetEntry, w: Workout) => {
-    const load = s.reps ? effectiveLoad(s, exercise, w.bodyweight, unit) : null;
-    return load && s.reps && s.reps <= 12 ? estimate1rm(formula, load, s.reps) : 0;
+  // Same rule as the app: a session's 1–12-rep sets, else its 13–20-rep sets (rough).
+  const sessionBest = (w: Workout, ss: SetEntry[]) => {
+    const loaded = ss.flatMap((s) => {
+      const load = s.reps ? effectiveLoad(s, exercise, w.bodyweight, unit) : null;
+      return load && s.reps ? [{ load, reps: s.reps }] : [];
+    });
+    return Math.max(0, ...e1rmCandidates(loaded).sets.map((s) => estimate1rm(formula, s.load, s.reps)));
   };
   const out = sessions.slice(0, Math.min(Math.max(limit, 1), 50)).map(({ w, ss }) => ({
     date: day(w.startedAt),
     workingSets: ss.map(fmtSet),
-    bestE1rm: round(Math.max(0, ...ss.map((s) => e1rmOf(s, w)))),
+    bestE1rm: round(sessionBest(w, ss)),
   }));
-  const allBest = Math.max(0, ...sessions.flatMap(({ w, ss }) => ss.map((s) => e1rmOf(s, w))));
+  const allBest = Math.max(0, ...sessions.map(({ w, ss }) => sessionBest(w, ss)));
   return {
     exercise: exercise.name,
     loadModel: exercise.loadModel,
-    e1rm: { unit, formula: `${formulaInfo(formula).name}: ${formulaInfo(formula).formula}`, note: 'Estimated from working sets of 1 to 12 reps; load is the effective load for the exercise load model.' },
+    e1rm: { unit, formula: `${formulaInfo(formula).name}: ${formulaInfo(formula).formula}`, note: 'Estimated from working sets of 1 to 12 reps (a session with only 13 to 20 rep sets gets a rough estimate from those); load is the effective load for the exercise load model.' },
     allTimeBestE1rm: round(allBest),
     totalSessions: sessions.length,
     recentSessions: out,

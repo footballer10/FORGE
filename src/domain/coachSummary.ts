@@ -160,7 +160,7 @@ export function buildCoachSummary(i: CoachSummaryInput): string {
   if (i.balance[0]) out.push(`Rule: ${i.balance[0].rule}`);
 
   out.push(``, `## Lifts`);
-  out.push(`e1RM uses ${i.formula} on sets of 1-12 reps, best set per workout. Plateau = no e1RM gain in 6 weeks, at least 3 sessions in that time.`);
+  out.push(`e1RM uses ${i.formula} on sets of 1-12 reps, best set per workout (a workout with only 13-20 rep sets gets a rough estimate). Plateau = no e1RM gain in 6 weeks, at least 3 sessions in that time.`);
   if (i.lifts.length) {
     for (const l of i.lifts) {
       const trend = l.e1rmNow !== undefined ? `e1RM ${num(l.e1rmNow)} ${u}${l.e1rmBefore !== undefined ? ` (best before window ${num(l.e1rmBefore)})` : ' (no earlier value)'}` : l.e1rmBefore !== undefined ? `no e1RM set in the window (best before ${num(l.e1rmBefore)} ${u})` : 'no e1RM (reps over 12 or load unknown)';

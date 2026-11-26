@@ -245,7 +245,7 @@ export function SettingsScreen() {
             <li>Choose Add to Home Screen, then Add.</li>
           </ol>
         )}
-        <p className="mt-2 text-xs text-muted">Installing also stops Safari from clearing your data after a few weeks of inactivity. Your workouts live only on this device, so keep exporting backups from Train.</p>
+        <p className="mt-2 text-xs text-muted">Installing also stops Safari from clearing your data after a few weeks of inactivity. Removing Forge from the Home Screen deletes its data on this phone. With Cloud sync on, everything except photos is also in your own Cloudflare account: save the restore code (Settings → Claude → Cloud sync) and paste it on the welcome screen after reinstalling. Backups are a second copy.</p>
       </section>
 
       <BarAndPlates profile={p} onSave={save} />
