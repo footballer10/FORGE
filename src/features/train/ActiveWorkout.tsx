@@ -391,7 +391,7 @@ function QuickStrip({ last, step, unit, onSame, onStep }: { last?: SetEntry; ste
   return (
     <div className="flex gap-2 pl-[52px] pr-[56px]">
       <button type="button" className={`${btn} num flex-1 truncate`} disabled={!last} onClick={() => last && onSame(last)} aria-label="Same as last set">
-        {shown ? `Same as last · ${shown.weight ?? '—'} × ${shown.reps ?? '—'}` : 'Same as last'}
+        {shown ? `Same · ${shown.weight ?? '—'}×${shown.reps ?? '—'}` : 'Same as last'}
       </button>
       <button type="button" className={`${btn} num`} onClick={() => onStep(-step)} aria-label={`Minus ${step} ${unit}`}>−{step}</button>
       <button type="button" className={`${btn} num`} onClick={() => onStep(step)} aria-label={`Plus ${step} ${unit}`}>+{step}</button>
