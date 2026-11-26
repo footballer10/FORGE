@@ -21,7 +21,7 @@ const food = (id: number, name: string, over: Partial<Food> = {}): Food => ({ id
 const milk = food(1, 'Milk, whole', { kcal: 61, proteinG: 3.2, carbsG: 4.8, fatG: 3.3, portions: [{ label: '1 fl oz', grams: 30.5 }, { label: '1 cup', grams: 244 }] });
 const banana = food(2, 'Bananas, raw', { kcal: 89, portions: [{ label: '1 medium (7" to 7-7/8" long)', grams: 118 }, { label: '1 cup, sliced', grams: 150 }, { label: '1 large (8" to 8-7/8" long)', grams: 136 }] });
 const oil = food(3, 'Oil, olive', { kcal: 884, proteinG: 0, carbsG: 0, fatG: 100, portions: [{ label: '1 tbsp', grams: 13.5 }, { label: '1 cup', grams: 216 }] });
-const cola = food(4, 'Soft drink, cola', { kcal: 42, portions: [{ label: '1 fl oz', grams: 30.7 }, { label: '1 can or bottle (12 fl oz)', grams: 370 }] });
+const cola = food(4, 'Soft drink, cola', { kcal: 42, portions: [{ label: '1 fl oz', grams: 30.7 }, { label: '1 child/senior drink', grams: 279 }, { label: '1 can (12 fl oz)', grams: 370 }, { label: '1 medium drink', grams: 640 }] });
 const oats = food(5, 'Oats, raw');
 const burrito = food(6, 'Burrito', { portions: [{ label: '1 miniature', grams: 110 }, { label: '1 cup', grams: 120 }, { label: '1 small/regular', grams: 220 }, { label: '1 large', grams: 330 }] });
 const veggie: Food = { id: 'my:x', name: 'Veggie burrito', kcal: 600, proteinG: 25, carbsG: 80, fatG: 20, portions: [], basis: 1, servingLabel: 'burrito', mine: true };
@@ -117,7 +117,9 @@ describe('unitsFor', () => {
 
 describe('defaultAmount', () => {
   it('starts a drink at its can, else a cup', () => {
-    expect(defaultAmount(cola)).toEqual({ unitId: 'p1', qty: 1 });
+    expect(defaultAmount(cola)).toEqual({ unitId: 'p2', qty: 1 });
+    const fastFood = food(10, 'Soft drink, fast food', { portions: [{ label: '1 fl oz', grams: 30 }, { label: '1 small drink', grams: 480 }, { label: '1 medium drink', grams: 640 }] });
+    expect(defaultAmount(fastFood)).toEqual({ unitId: 'p2', qty: 1 });
     expect(defaultAmount(milk)).toEqual({ unitId: 'cup', qty: 1 });
   });
   it('starts oil at a tablespoon (a cup would be over 700 kcal)', () => {

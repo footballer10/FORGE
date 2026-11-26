@@ -147,15 +147,15 @@ export function RecipeBuilder({
       </button>
 
       <section className="mt-4 rounded-card border border-line bg-surface p-4" aria-label="Servings">
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-col gap-2">
           <label className="flex items-center gap-2 text-sm text-muted">
             Makes
             <input className={`${fieldClass} num w-20 text-center`} inputMode="decimal" aria-label="Servings" aria-invalid={!valid} value={servingsText} onChange={(e) => setServingsText(e.target.value)} />
             servings
           </label>
-          <label className="flex min-w-0 flex-1 items-center gap-2 text-sm text-muted">
+          <label className="flex items-center gap-2 text-sm text-muted">
             One serving is 1
-            <input className={`${fieldClass} min-w-0 flex-1`} placeholder="burrito" aria-label="What one serving is" value={label} onChange={(e) => setLabel(e.target.value)} />
+            <input className={`${fieldClass} min-w-0 flex-1`} placeholder="burrito, bowl, slice" aria-label="What one serving is" value={label} onChange={(e) => setLabel(e.target.value)} />
           </label>
         </div>
         <div className="mt-3 flex border-t border-line pt-3 text-center" aria-live="polite">

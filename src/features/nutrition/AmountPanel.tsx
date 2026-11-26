@@ -96,23 +96,21 @@ export function AmountPanel({
       <section className="rounded-card border border-line bg-surface p-4" aria-label="Amount eaten" aria-live="polite">
         <div className="flex items-center gap-2">
           <button type="button" aria-label={`${plainQuantity(unit.step)} ${unit.label} less`} onClick={() => bump(-1)} className="min-h-tap min-w-tap rounded-card border border-line text-2xl">−</button>
-          <div className="flex min-w-0 flex-1 items-baseline justify-center gap-2">
-            <input
-              className={`${fieldClass} num w-28 text-center text-4xl`}
-              inputMode="decimal"
-              aria-label={`Amount in ${unit.label}`}
-              aria-invalid={qty === undefined}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-            />
-            <span className="min-w-0 break-words text-lg text-muted">{unit.label}</span>
-          </div>
+          <input
+            className={`${fieldClass} num min-w-0 flex-1 text-center text-4xl`}
+            inputMode="decimal"
+            aria-label={`Amount in ${unit.label}`}
+            aria-invalid={qty === undefined}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+          />
           <button type="button" aria-label={`${plainQuantity(unit.step)} ${unit.label} more`} onClick={() => bump(1)} className="min-h-tap min-w-tap rounded-card border border-line text-2xl">+</button>
         </div>
+        <p className="pt-2 text-center text-lg">{unit.label}</p>
         {qty === undefined && <p role="alert" className="pt-1 text-center text-sm text-accent-text">Type a number, like 2, 1.5 or 1/2.</p>}
         {qty !== undefined && !perServing && unit.id !== 'g' && (
-          <p className="num pt-1 text-center text-sm text-muted">
-            {formatQuantity(qty)} {unit.label} = {round1(base)} g · 1 {unit.label} = {round1(unit.size)} g
+          <p className="num text-center text-sm text-muted">
+            {qty === 1 ? `1 ${unit.label} = ${round1(unit.size)} g` : `${formatQuantity(qty)} ${unit.label} = ${round1(base)} g · 1 ${unit.label} = ${round1(unit.size)} g`}
           </p>
         )}
         <input

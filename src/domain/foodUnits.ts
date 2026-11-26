@@ -185,7 +185,8 @@ export function defaultAmount(food: Food): Amount {
   };
   const isDrink = volumes.floz !== undefined;
   if (isDrink) {
-    const container = portions.find((p) => CONTAINER.test(p.label));
+    // A can first, then the medium size (fast-food cups), then any other container.
+    const container = portions.find((p) => /\bcan\b/i.test(p.label)) ?? portions.find((p) => TYPICAL.test(p.label)) ?? portions.find((p) => CONTAINER.test(p.label));
     if (container) return { unitId: container.id, qty: container.qty };
     return volumeDefault() ?? { unitId: 'g', qty: 100 };
   }
