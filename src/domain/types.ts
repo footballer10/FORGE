@@ -433,6 +433,8 @@ export interface Profile extends BaseEntity {
   theme: 'dark' | 'light';
   /** Show dumbbell weights as pair total (display only; storage stays per implement). */
   showDumbbellPairTotal: boolean;
+  /** Lifts in the overall strength index (Strength tab). Absent = every lift with an estimated 1RM. */
+  overallLifts?: ID[];
   /** Fill warm-up set weights from the first working weight (default on when absent). */
   autoWarmups?: boolean;
   e1rmFormula: E1rmFormula;

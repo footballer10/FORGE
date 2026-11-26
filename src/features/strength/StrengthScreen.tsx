@@ -9,6 +9,7 @@ import { localDateKey } from '../../domain/calendar';
 import type { E1rmFormula } from '../../domain/types';
 import { ExerciseStrength } from './ExerciseStrength';
 import { InsightsScreen } from './InsightsScreen';
+import { StrengthChart } from './StrengthChart';
 
 /** Weeks without an e1RM gain before a lift is flagged. */
 export const PLATEAU_WEEKS = 6;
@@ -53,6 +54,7 @@ export function StrengthScreen() {
         <ScreenHeader title="Strength" />
         <button type="button" onClick={() => setInsights(true)} className="min-h-tap px-2 text-sm text-muted">Insights</button>
       </div>
+      <StrengthChart unit={data?.t.unit ?? 'lb'} />
       {lifts.length === 0 ? (
         <EmptyState title="No lifts yet" body="Finish a workout with weighted sets and your lifts appear here." />
       ) : (
@@ -85,7 +87,7 @@ export function StrengthScreen() {
             })}
           </ul>
           <p className="mt-3 text-xs text-muted">
-            Number = best estimated 1RM in the last 4 weeks ({data ? data.formula : 'Epley'} formula), change vs the 4 weeks before. Plateau = no gain in {PLATEAU_WEEKS} weeks.
+            Number = best estimated 1RM in the last 4 weeks, change vs the 4 weeks before. Plateau = no gain in {PLATEAU_WEEKS} weeks.
           </p>
         </>
       )}

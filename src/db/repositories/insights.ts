@@ -1,3 +1,4 @@
+import { E1RM_FORMULA } from '../../domain/e1rm';
 import { localDateKey } from '../../domain/calendar';
 import { buildInsights, type Insight, type InsightLift } from '../../domain/insights';
 import { e1rmSeries, liftSets } from '../../domain/prs';
@@ -6,7 +7,6 @@ import { volumeSets } from '../../domain/volume';
 import type { ID, SetEntry } from '../../domain/types';
 import { weeklyTarget } from './achievements';
 import { analyticsRepo } from './analytics';
-import { profileRepo } from './profile';
 
 const DISMISSED_KEY = 'forge.insights.dismissed';
 
@@ -25,7 +25,6 @@ export const insightsRepo = {
   async current(all = false): Promise<Insight[]> {
     const data = await analyticsRepo.trainingData();
     if (!data.workouts.size) return [];
-    const profile = await profileRepo.get();
     const today = localDateKey(new Date());
     const byExercise = new Map<ID, SetEntry[]>();
     for (const s of data.sets) {
@@ -37,7 +36,7 @@ export const insightsRepo = {
     for (const [exerciseId, sets] of byExercise) {
       const exercise = data.exercises.get(exerciseId);
       if (!exercise) continue;
-      const series = e1rmSeries(liftSets(sets, exercise, data.workouts, data.metrics, data.unit), profile.e1rmFormula);
+      const series = e1rmSeries(liftSets(sets, exercise, data.workouts, data.metrics, data.unit), E1RM_FORMULA);
       if (series.length) lifts.push({ exerciseId, name: exercise.name, series });
     }
     const target = await weeklyTarget();

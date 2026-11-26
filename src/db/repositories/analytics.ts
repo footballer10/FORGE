@@ -1,3 +1,5 @@
+import { E1RM_FORMULA } from '../../domain/e1rm';
+import { e1rmSeries, liftSets, type E1rmPoint } from '../../domain/prs';
 import type { Profile, BodyMetric, Exercise, ID, SetEntry, WeightUnit, Workout } from '../../domain/types';
 import { db } from '../schema';
 import { createRepo } from './base';
@@ -27,7 +29,27 @@ export interface ExerciseAnalyticsInput {
 }
 
 /** Read-only queries feeding the pure analytics in `src/domain`. Only finished, non-trashed workouts count. */
+export interface StrengthLift {
+  exercise: Exercise;
+  series: E1rmPoint[];
+}
+
 export const analyticsRepo = {
+  /** Every lift with at least one estimated 1RM, with its series (oldest first), most recently trained first. */
+  async strengthLifts(): Promise<StrengthLift[]> {
+    const t = await this.trainingData();
+    const byEx = new Map<ID, SetEntry[]>();
+    for (const s of t.sets) byEx.set(s.exerciseId, [...(byEx.get(s.exerciseId) ?? []), s]);
+    const out: StrengthLift[] = [];
+    for (const [id, sets] of byEx) {
+      const exercise = t.exercises.get(id);
+      if (!exercise) continue;
+      const series = e1rmSeries(liftSets(sets, exercise, t.workouts, t.metrics, t.unit), E1RM_FORMULA);
+      if (series.length) out.push({ exercise, series });
+    }
+    return out.sort((a, b) => b.series.at(-1)!.date.localeCompare(a.series.at(-1)!.date));
+  },
+
   /** Exercises with at least one completed non-warm-up set, most recently trained first. */
   async liftedExercises(): Promise<LiftedExercise[]> {
     const done = new Set((await db.workouts.filter((w) => !!w.endedAt && !w.deletedAt).primaryKeys()) as ID[]);
@@ -94,7 +116,7 @@ export const analyticsRepo = {
     return (await profileRepo.get()).weightUnit;
   },
   async e1rmFormula() {
-    return (await profileRepo.get()).e1rmFormula;
+    return E1RM_FORMULA;
   },
   async setE1rmFormula(f: import('../../domain/types').E1rmFormula) {
     await profileRepo.update({ e1rmFormula: f });

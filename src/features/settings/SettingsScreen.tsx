@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { useUi } from '../../app/uiStore';
 import { profileRepo } from '../../db/repositories';
 import { convertWeight } from '../../domain/units';
-import { E1RM_FORMULAS, formulaInfo } from '../../domain/e1rm';
+import { OverallLiftsSection } from './OverallLiftsSection';
 import { defaultEquipment, parseDays, platesText, withBarAndPlates } from '../../domain/profileForm';
-import type { E1rmFormula, LengthUnit, Profile, WeightUnit } from '../../domain/types';
+import type { LengthUnit, Profile, WeightUnit } from '../../domain/types';
 import { MenuRow } from '../../components/SubScreen';
 import { ClaudeScreen } from '../coach/ClaudeScreen';
 import { coachRepo } from '../../db/repositories';
@@ -57,7 +57,6 @@ export function SettingsScreen() {
     if (!useWorkout.getState().workout) await useWorkout.getState().load();
   }
 
-  const formula = formulaInfo(p.e1rmFormula);
   return (
     <div className="flex min-h-full flex-col gap-4 pb-6">
       <div className="flex items-center justify-between pb-1 pt-6">
@@ -112,21 +111,7 @@ export function SettingsScreen() {
         <p className="pb-3 text-xs text-muted">Logged sets keep the unit they were entered in. Charts and totals convert to the weight unit chosen here.</p>
       </section>
 
-      <section className="rounded-card border border-line bg-surface px-4 py-3" aria-label="Strength formula">
-        <label className="flex flex-col gap-1 text-sm text-muted">
-          e1RM formula
-          <select
-            className="min-h-tap w-full rounded-card border border-line bg-bg px-3 text-base text-fg"
-            value={p.e1rmFormula}
-            onChange={(e) => void save({ e1rmFormula: e.target.value as E1rmFormula })}
-          >
-            {E1RM_FORMULAS.map((f) => (
-              <option key={f.id} value={f.id}>{f.name}</option>
-            ))}
-          </select>
-        </label>
-        <p className="mt-2 text-xs text-muted">{formula.name}: {formula.formula}. Used for PRs, charts and the strength score.</p>
-      </section>
+      <OverallLiftsSection profile={p} onSave={(ids) => void save({ overallLifts: ids })} />
 
       <section className="rounded-card border border-line bg-surface px-4" aria-label="Training">
         <label className={row}>
