@@ -374,7 +374,7 @@ Auto warm-up ramp from the working weight; weekly volume landmarks per muscle; p
 - Library pattern/loadModel/rest values are name-based heuristics (`exerciseMapper.ts`); some library entries will be mis-classified. Fix per exercise in the editor; bump `LIBRARY_VERSION` only to add missing exercises (existing ones are never overwritten).
 - Exercise library JSON (~790 KB, 150 KB gzip) is a lazy chunk, precached by the service worker; The size warning limit is raised to 800 kB for it and the Recharts chunk.
 - Library exercises (not just custom) can be deleted from the editor; deleted ones are not re-seeded.
-- App icons are a simple red F on near-black (generated from `public/icon.svg`); swap for a designed mark whenever wanted.
+- App icon: a red-hot barbell on an anvil (2026-11-26). Source `public/icon-full.svg` (full bleed, used for the PNGs) and `public/icon.svg` (rounded, browser tab); regenerate PNGs with `node scripts/build-icons.cjs public`. iPhone only picks up a new Home Screen icon after the app is removed and added again.
 - Google Fonts load from the network on first visit and are runtime-cached; if first load is offline the system fallback fonts are used.
 - Strong import has only been exercised with synthetic CSVs (tests + a browser run); the real Strong export's column names, distance units and date format are unverified. Try the user's real file first and report anything that looks off.
 - Strong import: a whole import can be undone only while it is the latest undo entry; "Past imports" only changes dumbbell conventions, and re-applying overwrites any manual edits to those sets.
