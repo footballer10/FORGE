@@ -51,6 +51,19 @@ describe('undoRepo', () => {
 });
 
 describe('trashRepo', () => {
+  it('restoring a deleted workout relinks its planned session', async () => {
+    const e = await exerciseRepo.create(ex);
+    const now = new Date().toISOString();
+    await db.plannedSessions.put({ id: 'ps1', createdAt: now, updatedAt: now, programId: 'p', programWeekId: 'wk', dayNumber: 1, name: 'A Day', exercises: [] });
+    const { w } = await workoutWithSet(e.id);
+    await db.workouts.update(w.id, { plannedSessionId: 'ps1' });
+    await db.plannedSessions.update('ps1', { completedWorkoutId: w.id });
+    await workoutRepo.deleteUndoable(w.id);
+    expect((await db.plannedSessions.get('ps1'))?.completedWorkoutId).toBeUndefined();
+    await trashRepo.restoreWorkout(w.id);
+    expect((await db.plannedSessions.get('ps1'))?.completedWorkoutId).toBe(w.id);
+  });
+
   it('lists, restores and permanently removes a workout with its children', async () => {
     const e = await exerciseRepo.create(ex);
     const { w } = await workoutWithSet(e.id);

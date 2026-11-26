@@ -20,6 +20,14 @@ export const trashRepo = {
     if (!w) return;
     const { deletedAt: _d, ...rest } = w;
     await db.workouts.put({ ...rest, updatedAt: nowIso() });
+    // Deleting the workout unlinked its planned session; put the link back if the session is still open.
+    if (w.plannedSessionId && w.endedAt) {
+      const ps = await db.plannedSessions.get(w.plannedSessionId);
+      if (ps && !ps.deletedAt && !ps.completedWorkoutId) {
+        const { skipped: _s, ...psRest } = ps;
+        await db.plannedSessions.put({ ...psRest, completedWorkoutId: w.id, updatedAt: nowIso() });
+      }
+    }
   },
 
   async restoreExercise(id: string): Promise<void> {
