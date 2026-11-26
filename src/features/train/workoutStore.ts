@@ -3,6 +3,7 @@ import { achievementsRepo, exerciseRepo, metaRepo, nowIso, plannedSessionRepo, p
 import { convertWeight } from '../../domain/units';
 import { autoWarmupWeights, buildWarmups, warmupKitFor } from '../../domain/warmup';
 import type { ConditioningExerciseName, ConditioningPreset } from '../../domain/conditioningPresets';
+import { triageOpenWorkouts } from '../../domain/openWorkouts';
 import { canComplete, prefillDrafts, suggestionTarget } from '../../domain/logging';
 import { moveItem } from '../../domain/order';
 import { restAfterExercise, toggleSupersetLink } from '../../domain/superset';
@@ -29,6 +30,11 @@ interface State {
   restEndsAt?: string;
   /** Length the current rest started with, for the progress bar only. */
   restTotalSec?: number;
+  /** An unfinished workout idle for over 3 hours: not opened automatically; the user chooses. */
+  staleWorkout?: { id: ID; name: string; startedAt: string; lastActivity: string; completedSets: number };
+  resumeStale: () => Promise<void>;
+  finishStale: () => Promise<void>;
+  discardStale: () => Promise<void>;
   /** Fill warm-up weights from the first working weight (Settings). */
   autoWarmup: boolean;
   /** Warm-up sets whose weight the user typed this session: auto-fill leaves them alone. */
@@ -155,14 +161,22 @@ export const useWorkout = create<State>((set, get) => {
     showPairTotal: false,
 
     async load() {
-      const [profile, openRun] = await Promise.all([profileRepo.get(), workoutRepo.getActive()]);
-      let active = openRun;
-      if (!active) {
-        const editingId = await metaRepo.get<string>(EDITING_KEY);
-        const past = editingId ? await workoutRepo.get(editingId) : undefined;
-        if (past && !past.deletedAt) active = past;
-        else if (editingId) await metaRepo.set(EDITING_KEY, null);
+      const [profile, open] = await Promise.all([profileRepo.get(), workoutRepo.openWorkouts()]);
+      // Editing a past workout is never resumed on load: its edits are already saved, and reopening it
+      // made a finished workout look like one in progress.
+      if (await metaRepo.get<string>(EDITING_KEY)) await metaRepo.set(EDITING_KEY, null);
+      const plan = triageOpenWorkouts(open.map((o) => ({ id: o.workout.id, lastActivityMs: o.lastActivityMs, completedSets: o.completedSets })), Date.now());
+      for (const c of plan.close) {
+        if (c.action === 'finish') await workoutRepo.update(c.id, { endedAt: new Date(c.endedAtMs).toISOString(), restTimerEndsAt: undefined });
+        else await workoutRepo.softDelete(c.id);
       }
+      const active = open.find((o) => o.workout.id === plan.resume)?.workout;
+      const ask = open.find((o) => o.workout.id === plan.ask);
+      set({
+        staleWorkout: ask
+          ? { id: ask.workout.id, name: ask.workout.name, startedAt: ask.workout.startedAt, lastActivity: new Date(ask.lastActivityMs).toISOString(), completedSets: ask.completedSets }
+          : undefined,
+      });
       const equipment = profile.equipmentProfiles.find((e) => e.id === profile.defaultEquipmentProfileId);
       set({ unit: profile.weightUnit, showPairTotal: profile.showDumbbellPairTotal, autoWarmup: profile.autoWarmups !== false, manualWarmups: [], ...(equipment ? { equipment } : {}), rows: [], restEndsAt: undefined, restTotalSec: undefined });
       if (active) {
@@ -279,6 +293,28 @@ export const useWorkout = create<State>((set, get) => {
           await workoutRepo.updateSet(s.id, p);
         }
       }
+    },
+
+    async resumeStale() {
+      const s = get().staleWorkout;
+      if (!s || get().workout) return;
+      set({ staleWorkout: undefined, rows: [], manualWarmups: [] });
+      await refresh(s.id);
+    },
+
+    async finishStale() {
+      const s = get().staleWorkout;
+      if (!s || get().workout) return;
+      await get().resumeStale();
+      // Same as Finish (drops unticked sets, links a planned session), then dated when it was last used.
+      if (await get().finish()) await workoutRepo.update(s.id, { endedAt: s.lastActivity });
+    },
+
+    async discardStale() {
+      const s = get().staleWorkout;
+      if (!s) return;
+      await workoutRepo.deleteUndoable(s.id, 'Discarded workout');
+      set({ staleWorkout: undefined });
     },
 
     async startConditioningPreset(preset) {

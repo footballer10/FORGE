@@ -9,6 +9,7 @@ import { UndoBar } from './UndoBar';
 import { trashRepo } from '../db/repositories';
 import { RestTimer } from '../features/train/RestTimer';
 import { WorkoutBar } from './WorkoutBar';
+import { StaleWorkoutPrompt } from '../features/train/StaleWorkoutPrompt';
 import { useWakeLock } from '../features/train/useWakeLock';
 import { useWorkout } from '../features/train/workoutStore';
 import { syncRestAudio, unlockRestAudio } from '../features/train/restAudio';
@@ -90,6 +91,7 @@ export function AppShell() {
       <WorkoutSummarySheet />
       <Onboarding />
       <UndoBar />
+      <StaleWorkoutPrompt />
       <WorkoutBar />
       <RestTimer />
       <TabBar />
