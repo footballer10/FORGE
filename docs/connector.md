@@ -38,6 +38,10 @@ Read-only tools: `get_profile`, `list_exercises`, `list_workouts`, `get_exercise
 The one write tool is `propose_program`. It validates the program with the same rules as the app (and checks every exercise name exists in your library), then stores a proposal with status `proposed`. It cannot create or change programs, workouts or any other data, and at most 5 proposals can wait at once. In the app: Coach → Program from Claude → Proposals waiting (tap Check for proposals to sync first), then Review to see the diff, and Approve or Reject. Approving uses the normal flow (new version of the active program, or a separate draft). Your decision syncs back, so Claude can see it with `get_proposals`. Dates and weeks use UTC, so a late-evening workout can show on the next day. Data is only as fresh as your last Sync now in the app.
 
 ## Lock-screen rest alerts (milestone 17)
+**Before every redeploy, update your copy first.** In the FORGE folder run `git pull` (or download the latest `main`), otherwise `npx wrangler deploy` uploads the old Worker again. If `git pull` complains that `worker/wrangler.toml` has local changes (your `database_id`), run `git stash`, `git pull`, `git stash pop`, and keep your `database_id` line if asked to resolve a conflict.
+
+Check which version is live: open `https://<your-worker>/api/health` in a browser. An up-to-date Worker answers `{"ok":true,"features":["sync","mcp","nutrition","push"]}`. A plain `{"ok":true}` means the old code is still deployed. If the app says "The Worker answered 404" or "Your Worker is an older version", it is the same problem.
+
 Makes the rest timer notify you with Forge closed or the phone locked, using Web Push sent by your own Worker. One-time setup, from the repo root unless noted:
 1. `node scripts/vapid-keys.mjs` prints a key pair and the two commands to store it.
 2. In `worker/`: `npx wrangler secret put VAPID_PUBLIC` and `npx wrangler secret put VAPID_PRIVATE`, pasting the printed values. Keep the private value out of the repo and chat.

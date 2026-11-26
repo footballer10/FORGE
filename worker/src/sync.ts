@@ -52,6 +52,9 @@ export const SYNCED_TABLES = [
 ] as const;
 export type SyncedTable = (typeof SYNCED_TABLES)[number];
 
+/** Bump when the Worker gains something the app checks for. */
+export const WORKER_FEATURES = ['sync', 'mcp', 'nutrition', 'push'] as const;
+
 export const MAX_PUSH_ROWS = 200;
 export const MAX_PULL_ROWS = 500;
 
@@ -175,7 +178,8 @@ export async function handlePull(db: D1Like, url: URL): Promise<Response> {
 export async function handleRequest(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
-  if (url.pathname === '/api/health') return json({ ok: true });
+  // Lists what this deployed version supports, so the app can tell an out-of-date Worker from a broken one.
+  if (url.pathname === '/api/health') return json({ ok: true, features: WORKER_FEATURES });
   if (!url.pathname.startsWith('/api/sync/')) return fail(404, 'Not found');
   if (!isAuthorized(request, env)) return fail(401, 'Unauthorized');
 
