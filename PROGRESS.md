@@ -319,6 +319,22 @@ Honest scope: a Watch app has to be a native watchOS app (Swift/SwiftUI) built i
 - [ ] 16b: Native watchOS companion (Xcode, Apple Developer account at about $99 a year for lasting installs; a free account re-signs every 7 days). Reads the active workout from the Worker, logs sets, shows the rest timer. Needs the user's Mac; code can be written here but not compiled or tested.
 - Decision needed from the user: which option, and whether they have a Mac.
 
+## Milestone 17 — Lock-screen rest alerts (Web Push)
+Goal: the rest timer alerts even when Forge is closed or the iPhone is locked. A web page cannot do this with audio (iOS silences "ambient" audio on lock; "playback" pauses the user's music), so use Web Push (Home Screen web apps, iOS 16.4+).
+- [ ] Worker (`worker/`): Durable Object (SQLite-backed, free plan; `new_sqlite_classes` migration in `wrangler.toml`) that stores the push subscription and sets an alarm at `endsAt`. Token-protected endpoints: `GET /api/push/key`, `POST /api/push/subscribe`, `PUT /api/rest {endsAt}`, `DELETE /api/rest`. On alarm, send Web Push signed with a VAPID JWT (ES256, WebCrypto); payload-less push avoids RFC 8291 encryption. VAPID private key as a wrangler secret, plus a key-generation script. Drop dead subscriptions on 404/410.
+- [ ] Service worker: vite-plugin-pwa `workbox.importScripts: ['push-handler.js']` + `public/push-handler.js` (`push` → `showNotification('Rest over')` with a tag; `notificationclick` → focus/open the app).
+- [ ] App: Settings toggle "Lock-screen rest alerts" (permission requested from a tap in the installed app; subscribe with the VAPID key); PUT on rest start and ±15 s, DELETE on skip/finish/discard; silent fallback offline; keep the in-app bell when open.
+- [ ] Tests for the JWT, scheduling and client calls; `docs/connector.md` deploy steps; note that iOS uses the system notification sound (no custom bell).
+- Model: Opus, high effort. Needs a Worker redeploy and a real-iPhone test.
+
+## Milestone 18 — Food list with portion slider
+Goal: pick a food from a list, set the amount with a slider, see calories/protein/carbs/fat live, add it.
+- [ ] Data: ~500–1000 common foods from USDA FoodData Central (Foundation + SR Legacy, public domain): per-100 g kcal/protein/carbs/fat and household portions. Reproducible script in `scripts/` writing `src/data/foods.json` (lazy-loaded). Credit USDA. If the download is blocked, ask the user; never type values from memory.
+- [ ] Pure search (recent first) and scaling-by-grams functions with tests.
+- [ ] `NutritionEntry` gains optional `foodId` and `grams` (backward compatible; sync and backup are generic).
+- [ ] UI: search → list → sheet with a slider snapping to portions or 5–10 g steps, live macros, Add. Keep typed entry and quick foods. Keep the main screen uncluttered.
+- Model: Sonnet, high effort.
+
 ## Ideas backlog (not scheduled)
 Auto warm-up ramp from the working weight; weekly volume landmarks per muscle; program library (5/3/1, linear progression) as importable JSON; muscle recovery view; Claude "what should I train today" proposals (after M10); beep-test and interval timers; light nutrition (daily calories and protein plus bodyweight trend to estimate maintenance); detailed set-by-set export for Claude (superseded by M10).
 
