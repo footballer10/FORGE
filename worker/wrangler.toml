@@ -4,11 +4,11 @@ compatibility_date = "2025-01-01"
 compatibility_flags = ["nodejs_compat"]
 
 # Create the database once:  npx wrangler d1 create forge
-# then paste the database_id it prints below.
+# then paste the database_id it prints below (this is the owner's database; not a secret: it only works with their Cloudflare login).
 [[d1_databases]]
 binding = "DB"
 database_name = "forge"
-database_id = "REPLACE_WITH_ID_FROM_wrangler_d1_create"
+database_id = "ebf4d4e7-0bf7-4d4e-9e72-c1923458661a"
 
 # Set the secret once:  npx wrangler secret put SYNC_TOKEN   (use a long random string)
 
