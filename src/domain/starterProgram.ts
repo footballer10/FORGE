@@ -35,7 +35,7 @@ export const B_DAY: ProposalSession = {
   exercises: [
     ex('Barbell Deadlift', [warm(65, 8, 60), warm(95, 5, 60), warm(135, 3, 90), warm(155, 2, 90), warm(185, 1, 120), work(3, 5, 180)]),
     ex('Barbell Shoulder Press', [warm(45, 8, 60), warm(55, 5, 60), warm(65, 2, 90), work(3, 8, 120)]),
-    ex('Close-Grip Front Lat Pulldown', [warm(50, 10, 60), work(3, 10, 90)]),
+    ex('Close-Grip Front Lat Pulldown', [warm(50, 10, 60), work(3, 10, 90)], 'Grip just wider than shoulder width.'),
     ex('Suspended Split Squat', [warm(undefined, 8, 60), work(3, 10, 90)], 'Bulgarian Split Squat in Strong.'),
     ex('Seated Leg Curl', [work(2, 12, 60)]),
     ex('Dumbbell Bicep Curl', [work(2, 12, 60)], NOTE_DB),

@@ -63,7 +63,7 @@ export function HomeTiles() {
         />
       </div>
       <p className="num mt-2 text-xs text-muted">
-        Last week {d.week.lastWeekSets} sets{d.week.lastWeekSets > 0 ? ` (${diff >= 0 ? '+' : ''}${diff} so far)` : ''}. Sets = completed non-warm-up sets; weight change is the smoothed trend over 7 days.
+        Last week {d.week.lastWeekSets} sets{d.week.lastWeekSets > 0 ? ` (${diff >= 0 ? '+' : ''}${diff} so far)` : ''} · warm-ups not counted
       </p>
       {d.pr && (
         <p className="mt-2 text-sm">

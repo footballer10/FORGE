@@ -115,8 +115,8 @@ export function DataScreen({ onBack }: { onBack: () => void }) {
           Save full backup (JSON)
         </button>
         <p className="text-sm text-muted">Everything except progress photos. Save it to Files or iCloud Drive from the share sheet.</p>
-        <button type="button" disabled={busy} onClick={() => setStrongExport(true)} className={button}>Export workouts to Strong…</button>
-        <p className="text-sm text-muted">Pick the workouts to send; they arrive in Strong looking like you logged them there.</p>
+        <button type="button" disabled={busy} onClick={() => setStrongExport(true)} className={button}>Export workouts as CSV (Strong format)…</button>
+        <p className="text-sm text-muted">For Hevy, other trackers and spreadsheets. Strong itself cannot import files.</p>
       </section>
 
       <section className="flex flex-col gap-2">
